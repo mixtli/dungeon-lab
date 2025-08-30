@@ -922,6 +922,121 @@ export class GameStateService {
   }
 
   /**
+   * Update game state for a campaign with proper permission checking and broadcasting
+   * @param campaignId - The campaign ID to update
+   * @param stateUpdate - The state update to apply
+   * @param userId - The user making the update
+   */
+  async updateGameState(
+    campaignId: string, 
+    stateUpdate: StateUpdate, 
+    userId: string,
+    skipPermissionCheck = false
+  ): Promise<StateUpdateResponse> {
+    try {
+      logger.info('Game state update received:', { 
+        campaignId, 
+        version: stateUpdate.version, 
+        operationCount: stateUpdate.operations.length, 
+        source: stateUpdate.source, 
+        userId 
+      });
+
+      // Get the GameState document to find the gameStateId
+      const gameStateDoc = await GameStateModel.findOne({ campaignId }).exec();
+      if (!gameStateDoc) {
+        return {
+          success: false,
+          error: {
+            code: 'GAMESTATE_NOT_FOUND',
+            message: 'Game state not found for campaign'
+          }
+        };
+      }
+
+      // Check GM permissions unless skipped (for system updates)
+      if (!skipPermissionCheck && stateUpdate.source !== 'system') {
+        const campaign = await CampaignModel.findById(campaignId).exec();
+        if (!campaign) {
+          return {
+            success: false,
+            error: {
+              code: 'GAMESTATE_NOT_FOUND',
+              message: 'Campaign not found'
+            }
+          };
+        }
+
+        const isGM = campaign.gameMasterId === userId;
+        if (!isGM) {
+          return {
+            success: false,
+            error: {
+              code: 'PERMISSION_DENIED',
+              message: 'Only the game master can update game state'
+            }
+          };
+        }
+      }
+
+      // Update the stateUpdate with the correct gameStateId
+      const fullStateUpdate: StateUpdate = {
+        ...stateUpdate,
+        gameStateId: gameStateDoc.id
+      };
+
+      // Use existing service to apply state update
+      const response = await this.applyStateUpdate(fullStateUpdate, { 
+        enableMetrics: true
+      });
+
+      // Broadcast update to all session participants if successful
+      if (response.success && response.newVersion) {
+        const broadcast = {
+          gameStateId: gameStateDoc.id,
+          operations: stateUpdate.operations,
+          newVersion: response.newVersion,
+          expectedHash: response.newHash || '',
+          timestamp: Date.now(),
+          source: stateUpdate.source || 'system'
+        };
+
+        // Find active sessions that use this campaign's GameState
+        const { GameSessionModel } = await import('../models/game-session.model.mjs');
+        const activeSessions = await GameSessionModel.find({ 
+          campaignId, 
+          status: 'active' 
+        }).exec();
+
+        // Broadcast to ALL clients in all active session rooms for this campaign
+        const { SocketServer } = await import('../../../websocket/socket-server.mjs');
+        const io = SocketServer.getInstance().socketIo;
+        for (const session of activeSessions) {
+          io.to(`session:${session.id}`).emit('gameState:updated', broadcast);
+        }
+
+        logger.info('GameState update broadcast sent', {
+          campaignId,
+          sessionCount: activeSessions.length,
+          newVersion: response.newVersion
+        });
+      }
+
+      return response;
+
+    } catch (error) {
+      logger.error('Error updating game state:', error);
+      return {
+        success: false,
+        error: {
+          code: 'TRANSACTION_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to update game state'
+        }
+      };
+    }
+  }
+
+  /**
    * Reset the hash for a corrupted game state
    * Recalculates the hash from current state data and updates the database
    */

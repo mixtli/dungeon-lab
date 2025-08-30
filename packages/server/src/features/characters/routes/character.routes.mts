@@ -24,6 +24,25 @@ const generateImageRequestSchema = z.object({
   customPrompt: z.string().optional()
 });
 
+const joinCampaignRequestSchema = z.object({
+  campaignId: z.string()
+});
+
+const joinCampaignResponseSchema = baseAPIResponseSchema.extend({
+  data: z.object({
+    message: z.string(),
+    characterId: z.string(),
+    campaignId: z.string()
+  })
+});
+
+const removeCampaignResponseSchema = baseAPIResponseSchema.extend({
+  data: z.object({
+    message: z.string(),
+    characterId: z.string()
+  })
+});
+
 // Generate character image
 router.post(
   '/:id/generate-image',
@@ -197,6 +216,111 @@ router.post(
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to schedule token generation'
+      });
+    }
+  }
+);
+
+// Add character to campaign
+router.put(
+  '/:id/campaign',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Add character to campaign',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: joinCampaignRequestSchema.openapi({
+              description: 'Join campaign request'
+            })
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Character added to campaign successfully',
+          content: {
+            'application/json': {
+              schema: joinCampaignResponseSchema.openapi({
+                description: 'Join campaign response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { campaignId } = req.body;
+      const userId = req.session.user!.id;
+
+      await characterService.joinCampaign(id, campaignId, userId);
+
+      res.json({
+        success: true,
+        data: {
+          message: 'Character added to campaign',
+          characterId: id,
+          campaignId
+        }
+      });
+    } catch (error) {
+      console.error('Error adding character to campaign:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to add character to campaign'
+      });
+    }
+  }
+);
+
+// Remove character from campaign
+router.delete(
+  '/:id/campaign',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Remove character from campaign',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Character removed from campaign successfully',
+          content: {
+            'application/json': {
+              schema: removeCampaignResponseSchema.openapi({
+                description: 'Remove campaign response'
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.user!.id;
+
+      await characterService.leaveCampaign(id, userId);
+
+      res.json({
+        success: true,
+        data: {
+          message: 'Character removed from campaign',
+          characterId: id
+        }
+      });
+    } catch (error) {
+      console.error('Error removing character from campaign:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove character from campaign'
       });
     }
   }

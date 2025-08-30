@@ -299,7 +299,7 @@ function getDisplayTypeName(type: string): string {
         :key="compendium.id" 
         class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow"
       >
-        <router-link :to="`/compendiums/${compendium.slug}`">
+        <router-link :to="`/compendiums/${compendium.id}`">
           <!-- Header -->
           <div class="p-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-start justify-between">

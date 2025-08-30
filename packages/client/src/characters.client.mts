@@ -12,6 +12,21 @@ export interface GenerateImageRequest {
   customPrompt?: string;
 }
 
+export interface JoinCampaignResponse {
+  message: string;
+  characterId: string;
+  campaignId: string;
+}
+
+export interface JoinCampaignRequest {
+  campaignId: string;
+}
+
+export interface LeaveCampaignResponse {
+  message: string;
+  characterId: string;
+}
+
 export class CharactersClient extends ApiClient {
   /**
    * Generate an AI image for a character
@@ -60,6 +75,36 @@ export class CharactersClient extends ApiClient {
     );
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to generate token');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Add character to campaign
+   */
+  async joinCampaign(
+    characterId: string,
+    request: JoinCampaignRequest
+  ): Promise<JoinCampaignResponse> {
+    const response = await this.api.put<BaseAPIResponse<JoinCampaignResponse>>(
+      `/api/characters/${characterId}/campaign`,
+      request
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to add character to campaign');
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Remove character from campaign
+   */
+  async leaveCampaign(characterId: string): Promise<LeaveCampaignResponse> {
+    const response = await this.api.delete<BaseAPIResponse<LeaveCampaignResponse>>(
+      `/api/characters/${characterId}/campaign`
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to remove character from campaign');
     }
     return response.data.data;
   }

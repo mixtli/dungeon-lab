@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { type ICharacter, type IActor, type IAsset, type ICampaign } from '@dungeon-lab/shared/types/index.mjs';
-import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
+import { CampaignsClient, CharactersClient } from '@dungeon-lab/client/index.mjs';
+import CharacterSelectionDialog from '@/components/dialogs/CharacterSelectionDialog.vue';
 
 const campaignsClient = new CampaignsClient();
+const charactersClient = new CharactersClient();
 
 const props = defineProps({
   campaignId: {
@@ -20,10 +21,10 @@ const props = defineProps({
 });
 
 const localCharacters = ref<ICharacter[]>(props.characters || []);
-const router = useRouter();
 const isLoading = ref(!props.characters);
 const error = ref<string | null>(null);
 const campaign = ref<ICampaign | null>(null);
+const showCharacterDialog = ref(false);
 
 onMounted(async () => {
   if (props.campaignId) {
@@ -56,23 +57,61 @@ async function handleRemove(characterId: string) {
   if (!campaign.value?.id) return;
 
   try {
-    // Remove character from campaign by clearing their campaignId
-    // Note: This would typically be done through a character/document API client
-    // For now, we'll use the campaign client's character management if available
-    // TODO: Implement character.leaveCampaign() or document update API
-    console.warn('Character removal not yet implemented with new architecture');
-    error.value = 'Character removal feature needs to be updated for the new architecture';
+    // Remove character from campaign
+    await charactersClient.leaveCampaign(characterId);
 
-    // Update local list for now
-    localCharacters.value = localCharacters.value.filter(char => char.id !== undefined && char.id !== characterId);
+    // Refresh the campaign data to reflect the removal
+    const campaignData = await campaignsClient.getCampaign(props.campaignId);
+    campaign.value = campaignData;
+    
+    if (campaignData.characters && Array.isArray(campaignData.characters)) {
+      const allCharacters = campaignData.characters as (IActor | ICharacter)[];
+      localCharacters.value = allCharacters.filter(
+        (char): char is ICharacter => char !== null && char?.documentType === 'character'
+      );
+    }
+
+    error.value = null;
   } catch (err) {
     console.error('Error removing character:', err);
-    error.value = 'Failed to remove character. Please try again later.';
+    error.value = 'Failed to remove character. Please try again.';
   }
 }
 
 function handleCreate() {
-  router.push('/character/create');
+  showCharacterDialog.value = true;
+}
+
+function handleDialogClose() {
+  showCharacterDialog.value = false;
+}
+
+async function handleCharacterSelected(characterId: string) {
+  if (!campaign.value?.id) return;
+  
+  try {
+    // Add character to campaign
+    await charactersClient.joinCampaign(characterId, {
+      campaignId: campaign.value.id
+    });
+
+    // Refresh the campaign data to show the new character
+    const campaignData = await campaignsClient.getCampaign(props.campaignId);
+    campaign.value = campaignData;
+    
+    if (campaignData.characters && Array.isArray(campaignData.characters)) {
+      const allCharacters = campaignData.characters as (IActor | ICharacter)[];
+      localCharacters.value = allCharacters.filter(
+        (char): char is ICharacter => char !== null && char?.documentType === 'character'
+      );
+    }
+
+    showCharacterDialog.value = false;
+    error.value = null;
+  } catch (err) {
+    console.error('Error adding character to campaign:', err);
+    error.value = 'Failed to add character to campaign. Please try again.';
+  }
 }
 </script>
 
@@ -142,5 +181,14 @@ function handleCreate() {
         </button>
       </div>
     </div>
+
+    <!-- Character Selection Dialog -->
+    <CharacterSelectionDialog
+      v-if="showCharacterDialog"
+      :campaign-id="campaignId"
+      :existing-character-ids="localCharacters.map(c => c.id).filter(Boolean)"
+      @close="handleDialogClose"
+      @character-selected="handleCharacterSelected"
+    />
   </div>
 </template>

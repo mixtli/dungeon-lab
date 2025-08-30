@@ -133,14 +133,14 @@ export class CompendiumReferenceResolver {
       for (const [reason, errors] of Object.entries(errorsByReason)) {
         console.log(`    ${reason.toUpperCase()} (${errors.length}):`);
         
-        // Show first few examples
-        const examples = errors.slice(0, 3);
+        // Show first ten examples
+        const examples = errors.slice(0, 10);
         for (const error of examples) {
-          console.log(`      - ${error.reference.documentType}:"${error.reference.slug}" at ${error.fieldPath}`);
+          console.log(`      - ${error.reference.documentType}:"${error.reference.slug}" at ${error.fieldPath} (entry: ${error.documentId})`);
         }
         
-        if (errors.length > 3) {
-          console.log(`      ... and ${errors.length - 3} more`);
+        if (errors.length > 10) {
+          console.log(`      ... and ${errors.length - 10} more`);
         }
       }
     }

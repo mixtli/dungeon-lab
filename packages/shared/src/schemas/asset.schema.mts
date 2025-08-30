@@ -13,14 +13,14 @@ export const assetSchema = z.object({
 
   // Reference to the parent entity (optional)
   // Will be converted to ObjectId with zId('Entity') on the server
-  parentId: z.string().optional(),
+  parentId: z.string().nullable().optional(),
 
   // Type of the parent entity (optional)
   // Used for determining the type of entity referenced by parentId
-  parentType: z.string().optional(),
+  parentType: z.string().nullable().optional(),
 
   // Field name on the parent entity (optional)
-  fieldName: z.string().optional(),
+  fieldName: z.string().nullable().optional(),
 
   // Storage path in Minio
   path: z.string(),
@@ -35,7 +35,7 @@ export const assetSchema = z.object({
   type: z.string().optional(),
 
   // Additional metadata (optional)
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.any()).nullable().optional(),
 
   // Reference to the user who created this asset
   // Will be converted to ObjectId with zId('User') on the server

@@ -224,10 +224,9 @@ export class ImportService {
       compendiumDoc = updatedDoc;
       compendiumId = compendiumDoc.id;
       
-      // Clear existing entries (we'll replace them with the new content)
+      // Note: No longer clearing all entries - we'll upsert each one individually to preserve ObjectIds
       const existingEntryCount = await CompendiumEntryModel.countDocuments({ compendiumId });
-      await CompendiumEntryModel.deleteMany({ compendiumId }, { session });
-      logger.info(`Cleared ${existingEntryCount} existing entries for update`);
+      logger.info(`Found ${existingEntryCount} existing entries for update`);
     } else {
       // Create new compendium
       const compendium = await CompendiumModel.create([{
@@ -297,7 +296,7 @@ export class ImportService {
   }
 
   /**
-   * Process a single content item: validate, process images, and save to database
+   * Process a single content item: validate, process images, and upsert to database
    */
   private async processContentItem(
     contentItem: ProcessedContent,
@@ -316,24 +315,52 @@ export class ImportService {
       uploadedAssets
     );
 
-    // Create CompendiumEntry using the new entry+content structure (no transformation needed!)
-    const compendiumEntry = new CompendiumEntryModel({
+    // Prepare entry data
+    const entryData = {
       compendiumId,
       entry: {
         name: processedContent.entry.name,
-        documentType: processedContent.entry.documentType, // Direct from upload, no mapping bugs!
+        documentType: processedContent.entry.documentType,
         category: processedContent.entry.category,
         tags: processedContent.entry.tags || [],
         sortOrder: processedContent.entry.sortOrder || 0,
         imageId: processedContent.entry.imageId ? processedImageIds.get(processedContent.entry.imageId) : undefined
       },
-      content: processedContent.content, // Direct save, no transformation
+      content: processedContent.content,
       sourceData: {
         originalPath: contentItem.originalPath
       }
-    });
+    };
+
+    // Use upsert logic based on unique constraint: (compendiumId, entry.name, entry.documentType, content.source)
+    // This preserves ObjectIds when updating existing entries
+    const filter = {
+      compendiumId,
+      'entry.name': processedContent.entry.name,
+      'entry.documentType': processedContent.entry.documentType,
+      'content.source': (processedContent.content as any)?.source || undefined // eslint-disable-line @typescript-eslint/no-explicit-any
+    };
+
+    // Check if entry exists before upsert to determine create vs update
+    const existsBefore = await CompendiumEntryModel.exists(filter);
     
-    await compendiumEntry.save(); // This properly triggers pre-save middleware
+    await CompendiumEntryModel.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          ...entryData,
+          updatedAt: new Date()
+        }
+      },
+      { 
+        new: true, 
+        upsert: true, 
+        runValidators: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    logger.debug(`${existsBefore ? 'Updated' : 'Created'} compendium entry: ${processedContent.entry.name} (${processedContent.entry.documentType})`);
   }
 
   /**

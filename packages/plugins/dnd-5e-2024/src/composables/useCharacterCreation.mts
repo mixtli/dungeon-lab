@@ -1,7 +1,6 @@
 import { reactive, computed, readonly } from 'vue';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
-import { resolveReferenceOrObjectId, resolveMultipleReferences } from '@dungeon-lab/shared/utils/index.mjs';
 import type { ReferenceOrObjectId } from '@dungeon-lab/shared/types/reference.mjs';
 import type { EquipmentSelections } from '../utils/equipment-processor.mjs';
 import type {
@@ -62,6 +61,7 @@ export function useCharacterCreation() {
 
   // Create client instances
   const compendiumClient = new CompendiumsClient();
+  const documentsClient = new DocumentsClient();
 
   // Computed properties
   const currentStepData = computed(() => FORM_STEPS[state.currentStep]);
@@ -224,18 +224,18 @@ export function useCharacterCreation() {
     validateStep('details');
   };
 
-  // Compendium data fetching methods using global search
-  const fetchClasses = async (): Promise<Array<{entryId: string, document: DndCharacterClassDocument}>> => {
+  // Document data fetching methods using documents collection
+  const fetchClasses = async (): Promise<Array<{documentId: string, document: DndCharacterClassDocument}>> => {
     try {
-      const response = await compendiumClient.getAllCompendiumEntries({
-        pluginId: 'dnd-5e-2024',
+      const documents = await documentsClient.searchDocuments({
         documentType: 'vtt-document',
-        pluginDocumentType: 'character-class'
+        pluginDocumentType: 'character-class',
+        pluginId: 'dnd-5e-2024'
       });
-      // Return both compendium entry ObjectId and document content
-      return response.entries.map((entry: ICompendiumEntry) => ({
-        entryId: entry.id,
-        document: entry.content as DndCharacterClassDocument
+      // Return document ID and document content
+      return documents.map((document) => ({
+        documentId: document.id,
+        document: document as DndCharacterClassDocument
       }));
     } catch (error) {
       console.error('Failed to fetch classes:', error);
@@ -243,17 +243,17 @@ export function useCharacterCreation() {
     }
   };
 
-  const fetchSpecies = async (): Promise<Array<{entryId: string, document: DndSpeciesDocument}>> => {
+  const fetchSpecies = async (): Promise<Array<{documentId: string, document: DndSpeciesDocument}>> => {
     try {
-      const response = await compendiumClient.getAllCompendiumEntries({
-        pluginId: 'dnd-5e-2024',
+      const documents = await documentsClient.searchDocuments({
         documentType: 'vtt-document',
-        pluginDocumentType: 'species'
+        pluginDocumentType: 'species',
+        pluginId: 'dnd-5e-2024'
       });
-      // Return both compendium entry ObjectId and document content
-      return response.entries.map((entry: ICompendiumEntry) => ({
-        entryId: entry.id,
-        document: entry.content as DndSpeciesDocument
+      // Return document ID and document content
+      return documents.map((document) => ({
+        documentId: document.id,
+        document: document as DndSpeciesDocument
       }));
     } catch (error) {
       console.error('Failed to fetch species:', error);
@@ -261,17 +261,17 @@ export function useCharacterCreation() {
     }
   };
 
-  const fetchBackgrounds = async (): Promise<Array<{entryId: string, document: DndBackgroundDocument}>> => {
+  const fetchBackgrounds = async (): Promise<Array<{documentId: string, document: DndBackgroundDocument}>> => {
     try {
-      const response = await compendiumClient.getAllCompendiumEntries({
-        pluginId: 'dnd-5e-2024',
+      const documents = await documentsClient.searchDocuments({
         documentType: 'vtt-document',
-        pluginDocumentType: 'background'
+        pluginDocumentType: 'background',
+        pluginId: 'dnd-5e-2024'
       });
-      // Return both compendium entry ObjectId and document content
-      return response.entries.map((entry: ICompendiumEntry) => ({
-        entryId: entry.id,
-        document: entry.content as DndBackgroundDocument
+      // Return document ID and document content
+      return documents.map((document) => ({
+        documentId: document.id,
+        document: document as DndBackgroundDocument
       }));
     } catch (error) {
       console.error('Failed to fetch backgrounds:', error);
@@ -279,17 +279,17 @@ export function useCharacterCreation() {
     }
   };
 
-  const fetchLanguages = async (): Promise<Array<{entryId: string, document: DndLanguageDocument}>> => {
+  const fetchLanguages = async (): Promise<Array<{documentId: string, document: DndLanguageDocument}>> => {
     try {
-      const response = await compendiumClient.getAllCompendiumEntries({
-        pluginId: 'dnd-5e-2024',
+      const documents = await documentsClient.searchDocuments({
         documentType: 'vtt-document',
-        pluginDocumentType: 'language'
+        pluginDocumentType: 'language',
+        pluginId: 'dnd-5e-2024'
       });
-      // Return both compendium entry ObjectId and document content
-      return response.entries.map((entry: ICompendiumEntry) => ({
-        entryId: entry.id,
-        document: entry.content as DndLanguageDocument
+      // Return document ID and document content
+      return documents.map((document) => ({
+        documentId: document.id,
+        document: document as DndLanguageDocument
       }));
     } catch (error) {
       console.error('Failed to fetch languages:', error);
@@ -357,13 +357,31 @@ export function useCharacterCreation() {
     }
   };
 
-  // Reference resolution utilities using the composable's compendium client
+  // Reference resolution utilities for character creation - uses documents for items
   const resolveReference = async (reference: ReferenceOrObjectId, fallback = 'Unknown'): Promise<string> => {
-    return resolveReferenceOrObjectId(reference, compendiumClient, { fallback });
+    // For character creation, assume ObjectIds are document IDs (not compendium entry IDs)
+    if (typeof reference === 'string') {
+      // This is already a resolved ObjectId - assume it's a document ID
+      try {
+        const document = await documentsClient.getDocument(reference);
+        return document?.name || fallback;
+      } catch (error) {
+        console.warn(`Failed to resolve document reference ${reference}:`, error);
+        return fallback;
+      }
+    }
+    
+    // If it's a _ref object, it's unresolved - skip or use fallback
+    if (reference && typeof reference === 'object' && '_ref' in reference) {
+      console.warn(`Unresolved reference in character creation:`, reference);
+      return fallback;
+    }
+    
+    return fallback;
   };
 
   const resolveReferences = async (references: ReferenceOrObjectId[], fallback = 'Unknown'): Promise<string[]> => {
-    return resolveMultipleReferences(references, compendiumClient, { fallback });
+    return Promise.all(references.map(ref => resolveReference(ref, fallback)));
   };
 
   // Character creation completion
@@ -386,8 +404,8 @@ export function useCharacterCreation() {
 
     try {
       // Get class document to check equipment choices
-      const classDocument = await compendiumClient.getCompendiumEntry(characterData.class.id);
-      const classData = classDocument.content as DndCharacterClassDocument;
+      const classDocument = await documentsClient.getDocument(characterData.class.id);
+      const classData = classDocument as DndCharacterClassDocument;
       
       // Check if class equipment choice gives gold
       if (classData.pluginData.startingEquipment) {
@@ -417,7 +435,7 @@ export function useCharacterCreation() {
     equipmentSelections: EquipmentSelections,
     classDocument: DndCharacterClassDocument,
     backgroundDocument: DndBackgroundDocument
-  ): Promise<Array<{ entryId: string; quantity: number }>> => {
+  ): Promise<Array<any>> => {
     const itemsToCreate: { entryId: string; quantity: number }[] = [];
     
     try {
@@ -459,25 +477,27 @@ export function useCharacterCreation() {
         }
       }
 
-      // Prepare item document data from compendium entries
+      // Prepare item document data from existing documents (copy as templates)
       const itemsData = [];
       for (const { entryId, quantity } of itemsToCreate) {
         try {
-          // Get compendium entry
-          const compendiumEntry = await compendiumClient.getCompendiumEntry(entryId);
+          // Get item document (entryId is actually a document ID)
+          const itemDocument = await documentsClient.getDocument(entryId);
           
-          if (!compendiumEntry || !compendiumEntry.content) {
-            console.warn(`Could not find compendium entry: ${entryId}`);
+          if (!itemDocument) {
+            console.warn(`Could not find item document: ${entryId}`);
             continue;
           }
 
-          // Prepare item document data
-          const contentData = { ...compendiumEntry.content };
+          // Prepare item document data (copy the entire document as template)
+          const contentData = { ...itemDocument };
+          
+          // Asset IDs should already be resolved in documents, but handle any edge cases
           if (contentData.imageId && typeof contentData.imageId === 'object' && '_id' in contentData.imageId) {
-            contentData.imageId = contentData.imageId._id;
+            contentData.imageId = (contentData.imageId as any)._id;
           }
           if (contentData.tokenImageId && typeof contentData.tokenImageId === 'object' && '_id' in contentData.tokenImageId) {
-            contentData.tokenImageId = contentData.tokenImageId._id;
+            contentData.tokenImageId = (contentData.tokenImageId as any)._id;
           }
           
           const itemData = {
@@ -492,7 +512,7 @@ export function useCharacterCreation() {
 
           itemsData.push(itemData);
         } catch (error) {
-          console.error(`Failed to prepare item data from compendium entry ${entryId}:`, error);
+          console.error(`Failed to prepare item data from document ${entryId}:`, error);
         }
       }
 
@@ -503,7 +523,7 @@ export function useCharacterCreation() {
     }
   };
 
-  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: unknown; itemsData: Array<{ entryId: string; quantity: number }> }> => {
+  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: unknown; itemsData: Array<any> }> => {
     const characterData = getCharacterData();
     if (!characterData) {
       throw new Error('Character data is not complete or valid');
@@ -540,14 +560,14 @@ export function useCharacterCreation() {
 
       // Fetch class and background documents for equipment processing
       const [classDocument, backgroundDocument] = await Promise.all([
-        compendiumClient.getCompendiumEntry(characterData.class.id),
-        compendiumClient.getCompendiumEntry(characterData.origin.background.id)
+        documentsClient.getDocument(characterData.class.id),
+        documentsClient.getDocument(characterData.origin.background.id)
       ]);
 
       const itemsData = await prepareEquipmentItemsData(
         equipmentSelections,
-        classDocument.content as DndCharacterClassDocument,
-        backgroundDocument.content as DndBackgroundDocument,
+        classDocument as DndCharacterClassDocument,
+        backgroundDocument as DndBackgroundDocument,
       );
 
       // Return prepared data for web client to create
@@ -564,14 +584,14 @@ export function useCharacterCreation() {
   
   // Internal transformation function to convert creator data to D&D schema
   const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo, startingGold: number = 0) => {
-    // Fetch compendium documents for class, species, and background
+    // Fetch documents for class, species, and background
     const [classDocument, backgroundDocument] = await Promise.all([
-      compendiumClient.getCompendiumEntry(creatorData.class.id),
-      compendiumClient.getCompendiumEntry(creatorData.origin.background.id)
+      documentsClient.getDocument(creatorData.class.id),
+      documentsClient.getDocument(creatorData.origin.background.id)
     ]);
     
-    const classData = classDocument.content as DndCharacterClassDocument;
-    const backgroundData = backgroundDocument.content as DndBackgroundDocument;
+    const classData = classDocument as DndCharacterClassDocument;
+    const backgroundData = backgroundDocument as DndBackgroundDocument;
     
     // Helper function to calculate ability modifier
     const calculateAbilityModifier = (score: number): number => {
