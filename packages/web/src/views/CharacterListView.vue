@@ -113,6 +113,14 @@ onMounted(async () => {
 async function handleDelete(id: string | undefined) {
   if (!id) return;
   
+  // Find the character to get its name for the confirmation
+  const character = characters.value.find(char => char.id === id);
+  const characterName = character?.name || 'this character';
+  
+  // Show confirmation dialog
+  const confirmed = confirm(`Are you sure you want to delete '${characterName}'? This action cannot be undone.`);
+  if (!confirmed) return;
+  
   try {
     await documentsClient.deleteDocument(id);
     // Remove the character from the list

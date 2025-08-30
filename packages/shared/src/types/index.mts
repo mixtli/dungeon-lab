@@ -4,7 +4,8 @@ import {
   userCreateSchema,
   userUpdateSchema,
   UserTheme,
-  userPreferencesSchema
+  userPreferencesSchema,
+  dicePreferencesSchema
 } from '../schemas/user.schema.mjs';
 
 import {
@@ -131,7 +132,7 @@ export type IUserCreateData = z.infer<typeof userCreateSchema>;
 export type IUserUpdateData = z.infer<typeof userUpdateSchema>;
 export type IUserPreferences = z.infer<typeof userPreferencesSchema>;
 export type UserThemeType = z.infer<typeof UserTheme>;
-export { DicePreferences } from '../schemas/user.schema.mjs';
+export type DicePreferences = z.infer<typeof dicePreferencesSchema>;
 
 // Campaign Types
 export type ICampaign = z.infer<typeof campaignWithVirtualsSchema>;

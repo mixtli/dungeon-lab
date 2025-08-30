@@ -162,6 +162,45 @@
             ⭐ Inspiration
           </div>
         </div>
+        
+        <!-- Proficiencies Section -->
+        <div class="proficiencies-section">
+          <h3 class="section-title">Proficiencies</h3>
+          <div class="proficiencies-grid">
+            <div class="proficiency-card">
+              <div class="prof-label">Armor</div>
+              <div class="prof-list">
+                <span v-if="armorProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="armor in armorProficiencies" :key="armor" class="prof-item">{{ armor }}</span>
+              </div>
+            </div>
+            <div class="proficiency-card">
+              <div class="prof-label">Weapons</div>
+              <div class="prof-list">
+                <span v-if="weaponProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="weapon in weaponProficiencies" :key="weapon" class="prof-item">{{ weapon }}</span>
+              </div>
+            </div>
+            <div class="proficiency-card">
+              <div class="prof-label">Tools</div>
+              <div class="prof-list">
+                <span v-if="toolProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="tool in toolProficiencies" :key="tool.name" class="prof-item">
+                  {{ tool.name }}
+                  <span v-if="tool.expert" class="prof-indicator expert" title="Expert">◆</span>
+                  <span v-else-if="tool.proficient" class="prof-indicator proficient" title="Proficient">●</span>
+                </span>
+              </div>
+            </div>
+            <div class="proficiency-card">
+              <div class="prof-label">Languages</div>
+              <div class="prof-list">
+                <span v-if="languageProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="language in languageProficiencies" :key="language" class="prof-item">{{ language }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- Conditions Tab -->
@@ -790,6 +829,9 @@ const availableBackgrounds = ref<DndBackgroundDocument[]>([]);
 // Spell resolution storage
 const resolvedSpells = ref<Map<string, any>>(new Map());
 
+// Language resolution storage
+const resolvedLanguages = ref<Map<string, any>>(new Map());
+
 // All store functionality is now handled through PluginContext methods
 
 // Emits - unified event interface
@@ -1144,6 +1186,86 @@ const skillBonuses = computed(() => {
 const passivePerception = computed(() => {
   const perceptionBonus = skillBonuses.value.perception || 0;
   return 10 + perceptionBonus;
+});
+
+// Character proficiencies computed properties
+const armorProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.armor || [];
+  return proficiencies.map((armor: string) => {
+    // Capitalize first letter for display
+    return armor.charAt(0).toUpperCase() + armor.slice(1);
+  });
+});
+
+const weaponProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.weapons || [];
+  return proficiencies.map((weapon: any) => {
+    // Handle different proficiency entry types
+    if (typeof weapon === 'string') {
+      // Direct ObjectId reference - just show the ID (would need resolution in practice)
+      return weapon;
+    } else if (weapon._ref) {
+      // Document reference object
+      return weapon._ref.slug?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown Weapon';
+    } else if (weapon.type === 'filter' && weapon.constraint) {
+      // Filter-based proficiency
+      return weapon.constraint.displayText || 'Special Weapons';
+    } else if (weapon.type === 'group-choice') {
+      // Group choice (shouldn't appear in character documents, but handle gracefully)
+      return weapon.displayText || 'Weapon Group';
+    }
+    return 'Unknown';
+  });
+});
+
+const toolProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.tools || [];
+  return proficiencies.map((toolProf: any) => {
+    const tool = toolProf.tool;
+    let toolName = 'Unknown Tool';
+    
+    // Handle different tool reference types
+    if (typeof tool === 'string') {
+      toolName = tool;
+    } else if (tool._ref) {
+      toolName = tool._ref.slug?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown Tool';
+    } else if (tool.type === 'filter' && tool.constraint) {
+      toolName = tool.constraint.displayText || 'Special Tools';
+    }
+    
+    return {
+      name: toolName,
+      proficient: toolProf.proficient !== false,
+      expert: toolProf.expert === true
+    };
+  });
+});
+
+const languageProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.languages || [];
+  return proficiencies.map((language: any) => {
+    let languageId: string | null = null;
+    
+    // Extract the language ID
+    if (typeof language === 'string') {
+      languageId = language;
+    } else if (language._ref && language._ref.slug) {
+      languageId = language._ref.slug;
+    }
+    
+    // Try to get the resolved language name
+    if (languageId && resolvedLanguages.value.has(languageId)) {
+      const resolvedLanguage = resolvedLanguages.value.get(languageId);
+      return resolvedLanguage?.name || 'Unknown Language';
+    }
+    
+    // Fallback to formatting the ID/slug
+    if (languageId) {
+      return languageId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    }
+    
+    return 'Unknown Language';
+  });
 });
 
 const armorClassDisplay = computed(() => {
@@ -1744,10 +1866,40 @@ const loadCompendiumDocuments = async () => {
       });
     }
     
+    // Fetch language documents for all character languages
+    const languages = (character.value?.pluginData as any)?.proficiencies?.languages || [];
+    if (languages && languages.length > 0) {
+      languages.forEach((language: any) => {
+        let languageId: string | null = null;
+        
+        // Handle different language reference types
+        if (typeof language === 'string') {
+          languageId = language;
+        } else if (language._ref && language._ref.slug) {
+          // For reference objects, we might need to resolve by slug, but for now try using as ID
+          languageId = language._ref.slug;
+        }
+        
+        if (languageId) {
+          promises.push(
+            pluginContext.getDocument(languageId)
+              .then(doc => { 
+                resolvedLanguages.value.set(languageId!, markRaw(doc)); 
+                console.log('[CharacterSheet] Resolved language:', doc.name);
+              })
+              .catch(err => { 
+                console.warn('Failed to load language:', languageId, err); 
+              })
+          );
+        }
+      });
+    }
+    
     // Wait for all requests to complete
     await Promise.all(promises);
     
-    console.log('[CharacterSheet] Spell resolution complete. Resolved spells:', Array.from(resolvedSpells.value.keys()));
+    console.log('[CharacterSheet] Document resolution complete. Resolved spells:', Array.from(resolvedSpells.value.keys()));
+    console.log('[CharacterSheet] Document resolution complete. Resolved languages:', Array.from(resolvedLanguages.value.keys()));
     
   } catch (error) {
     console.error('Failed to load compendium documents:', error);
@@ -2746,6 +2898,79 @@ watch(() => props.items?.value, () => {
   box-shadow: 0 2px 4px var(--dnd-shadow-light);
 }
 
+/* Proficiencies Section */
+.proficiencies-section {
+  margin-top: 24px;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--dnd-brown-dark);
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.proficiencies-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.proficiency-card {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 80px;
+}
+
+.prof-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--dnd-brown-dark);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prof-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.prof-item {
+  color: var(--dnd-brown-darker);
+  position: relative;
+}
+
+.prof-item:not(:last-child)::after {
+  content: ',';
+  margin-right: 4px;
+}
+
+.prof-none {
+  color: var(--dnd-brown-light);
+  font-style: italic;
+}
+
+.prof-indicator {
+  font-size: 0.75rem;
+  margin-left: 2px;
+}
+
+.prof-indicator.expert {
+  color: #8B4513; /* Dark brown for expert */
+}
+
+.prof-indicator.proficient {
+  color: #D2691E; /* Medium brown for proficient */
+}
+
 /* Abilities Tab - Character Sheet Specific Layout */
 .abilities-grid {
   display: grid;
@@ -2974,6 +3199,20 @@ watch(() => props.items?.value, () => {
   
   .abilities-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .proficiencies-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .proficiency-card {
+    padding: 8px;
+    min-height: 60px;
+  }
+  
+  .section-title {
+    font-size: 1rem;
   }
 }
 

@@ -7,6 +7,7 @@
 
 import type { additionalDamageSchema, areaOfEffectSchema, rangeSchema } from '../../types/dnd/stat-block.mjs';
 import type { z } from 'zod';
+import { expandAbilityName } from '../../types/dnd/common.mjs';
 
 export interface ParsedAttackData {
   attackType?: 'melee' | 'ranged' | 'both';
@@ -163,10 +164,19 @@ export function parseSavingThrow(text: string): { ability: string; dc: number } 
   const dcMatch = text.match(/\{@dc\s+(\d+)\}/);
   
   if (saveMatch && dcMatch) {
-    return {
-      ability: saveMatch[1].toLowerCase(),
-      dc: parseInt(dcMatch[1], 10)
-    };
+    try {
+      const abilityAbbr = saveMatch[1].toLowerCase();
+      const fullAbilityName = expandAbilityName(abilityAbbr);
+      
+      return {
+        ability: fullAbilityName,
+        dc: parseInt(dcMatch[1], 10)
+      };
+    } catch (error) {
+      // If ability abbreviation is invalid, log error and return undefined
+      console.warn(`Invalid ability abbreviation in saving throw: ${saveMatch[1]}`);
+      return undefined;
+    }
   }
   
   return undefined;
