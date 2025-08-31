@@ -156,13 +156,30 @@ const initializeDocumentCopy = () => {
   console.log('[DocumentSheetContainer] Document copy initialized for editing:', doc.name);
 };
 
+// Reactive flag for triggering change detection when documentCopy changes
+const changeDetectionTrigger = ref(0);
+
 // Check if form has unsaved changes by comparing copy to original
 const hasUnsavedChanges = computed(() => {
-  if (!reactiveDocument.value || !documentCopy.value) return false;
+  // Access changeDetectionTrigger to make this computed reactive to our manual triggers
+  changeDetectionTrigger.value;
+  
+  if (!reactiveDocument.value || !documentCopy.value) {
+    return false;
+  }
   
   // Simple JSON comparison using toRaw() to extract raw data from Vue proxies
-  return JSON.stringify(toRaw(reactiveDocument.value)) !== JSON.stringify(toRaw(documentCopy.value));
+  const originalJson = JSON.stringify(toRaw(reactiveDocument.value));
+  const copyJson = JSON.stringify(toRaw(documentCopy.value));
+  const hasChanges = originalJson !== copyJson;
+  
+  return hasChanges;
 });
+
+// Watch documentCopy for deep changes and trigger change detection
+watch(() => documentCopy.value, () => {
+  changeDetectionTrigger.value++;
+}, { deep: true });
 
 // Reset document copy to original state
 const resetDocumentCopy = () => {

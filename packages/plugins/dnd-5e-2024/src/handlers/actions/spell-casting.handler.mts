@@ -84,12 +84,13 @@ function applyDamageToTarget(
         console.log(`[SpellCasting] Applied ${damage} ${damageType} damage to character ${target.name} (${characterData.attributes.hitPoints.current}/${characterData.attributes.hitPoints.maximum} HP)`);
       }
     } else if (target.documentType === 'actor') {
-      // Actor damage application  
-      const actorData = target.pluginData as { hitPoints?: { current?: number; average: number } };
+      // Actor damage application - use pluginData.hitPoints.current
+      const actorData = target.pluginData as { hitPoints?: { current: number; average: number } };
       if (actorData.hitPoints) {
-        const currentHp = actorData.hitPoints.current ?? actorData.hitPoints.average;
+        const maxHp = actorData.hitPoints.average;
+        const currentHp = actorData.hitPoints.current ?? maxHp;
         actorData.hitPoints.current = Math.max(0, currentHp - damage);
-        console.log(`[SpellCasting] Applied ${damage} ${damageType} damage to actor ${target.name} (${actorData.hitPoints.current}/${actorData.hitPoints.average} HP)`);
+        console.log(`[SpellCasting] Applied ${damage} ${damageType} damage to actor ${target.name} (${actorData.hitPoints.current}/${maxHp} HP)`);
       }
     }
   } catch (error) {
@@ -377,8 +378,9 @@ const executeSpellCast: ActionExecutionHandler = async (
           result: finalTotal,
           target: targetAC,
           success: isHit,
-          rollType: 'spell-attack'
-        });
+          rollType: 'spell-attack',
+          chatComponentType: 'dnd-roll-card'
+        }, attackResults[i]);
         
         return isHit;
       });
@@ -448,8 +450,9 @@ const executeSpellCast: ActionExecutionHandler = async (
             result: finalTotal,
             target: saveInfo.dc!,
             success: isSuccess,
-            rollType: 'saving-throw'
-          });
+            rollType: 'saving-throw',
+            chatComponentType: 'dnd-roll-card'
+          }, saveResults[i]);
           
           return isSuccess;
         });
@@ -498,7 +501,7 @@ const executeSpellCast: ActionExecutionHandler = async (
             amount: totalDamage,
             type: damageInfo.type
           }
-        });
+        }, damageResult);
         
         // Apply damage based on spell mechanics (data-driven conditional logic)
         targets.forEach((target, i) => {

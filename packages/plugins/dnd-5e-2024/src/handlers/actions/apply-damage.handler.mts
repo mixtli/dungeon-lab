@@ -90,43 +90,18 @@ const validateDamageApplication: ActionValidationHandler = async (
   let currentHp: number | undefined;
   let maxHp: number | undefined;
 
-  // Check state first (runtime current HP)
-  currentHp = targetDocument.state?.currentHitPoints as number;
-  
-  // If no state HP, check plugin data structures based on document type
-  if (typeof currentHp !== 'number') {
-    if (targetDocument.documentType === 'character') {
-      // Character structure: pluginData.attributes.hitPoints.{current,maximum}
-      const characterData = targetDocument.pluginData as DndCharacterData;
-      const characterHp = characterData?.attributes?.hitPoints;
-      if (characterHp && typeof characterHp.current === 'number') {
-        currentHp = characterHp.current;
-        maxHp = characterHp.maximum;
-      }
-    } else if (targetDocument.documentType === 'actor') {
-      // Actor structure: pluginData.hitPoints.{current,average}
-      const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
-      const actorHp = actorData?.hitPoints;
-      if (actorHp) {
-        currentHp = actorHp.current ?? actorHp.average; // Use current if available, else average
-        maxHp = actorHp.average; // Average is the max HP for actors
-      }
-    }
-  } else {
-    // State HP exists, get max HP from plugin data based on document type
-    if (targetDocument.documentType === 'character') {
-      const characterData = targetDocument.pluginData as DndCharacterData;
-      const characterHp = characterData?.attributes?.hitPoints;
-      if (characterHp?.maximum) {
-        maxHp = characterHp.maximum;
-      }
-    } else if (targetDocument.documentType === 'actor') {
-      const actorData = targetDocument.pluginData as { hitPoints?: { average?: number } };
-      const actorHp = actorData?.hitPoints;
-      if (actorHp?.average) {
-        maxHp = actorHp.average;
-      }
-    }
+  if (targetDocument.documentType === 'character') {
+    // Character structure: pluginData.attributes.hitPoints
+    const characterData = targetDocument.pluginData as DndCharacterData;
+    const characterHp = characterData?.attributes?.hitPoints;
+    maxHp = characterHp?.maximum ?? 1;
+    currentHp = characterHp?.current ?? maxHp;
+  } else if (targetDocument.documentType === 'actor') {
+    // Actor structure: pluginData.hitPoints
+    const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
+    const actorHp = actorData?.hitPoints;
+    maxHp = actorHp?.average ?? 1;
+    currentHp = actorHp?.current ?? maxHp;
   }
 
   console.log('[DnD5e] HP validation data:', {
@@ -134,7 +109,6 @@ const validateDamageApplication: ActionValidationHandler = async (
     documentName: targetDocument.name,
     currentHp,
     maxHp,
-    stateHP: targetDocument.state?.currentHitPoints,
     pluginData: targetDocument.pluginData
   });
 
@@ -248,61 +222,29 @@ const executeDamageApplication: ActionExecutionHandler = async (
     return;
   }
 
-  // Initialize state if needed
-  if (!targetDocument.state) targetDocument.state = {};
+  // Get current hit points from plugin data - support both character and actor structures
+  let currentHp: number = 0;
+  let maxHp: number = 0;
 
-  // Get current hit points - support both character and actor structures
-  let currentHp: number = 0; // Initialize with default
-  let maxHp: number = 0; // Initialize with default
-
-  // Check state first (runtime current HP)
-  if (typeof targetDocument.state.currentHitPoints === 'number') {
-    currentHp = targetDocument.state.currentHitPoints;
-    
-    // Get max HP from plugin data based on document type
-    if (targetDocument.documentType === 'character') {
-      const characterData = targetDocument.pluginData as DndCharacterData;
-      const characterHp = characterData?.attributes?.hitPoints;
-      if (characterHp?.maximum) {
-        maxHp = characterHp.maximum;
-      } else {
-        maxHp = 8; // Default for characters
-      }
-    } else if (targetDocument.documentType === 'actor') {
-      const actorData = targetDocument.pluginData as { hitPoints?: { average?: number } };
-      const actorHp = actorData?.hitPoints;
-      if (actorHp?.average) {
-        maxHp = actorHp.average;
-      } else {
-        maxHp = 0; // Default for actors without HP data
-      }
-    }
-  } else {
-    // No state HP, get from plugin data based on document type
-    if (targetDocument.documentType === 'character') {
-      const characterData = targetDocument.pluginData as DndCharacterData;
-      const characterHp = characterData?.attributes?.hitPoints;
-      if (characterHp && typeof characterHp.current === 'number' && typeof characterHp.maximum === 'number') {
-        currentHp = characterHp.current;
-        maxHp = characterHp.maximum;
-      } else {
-        currentHp = 8; // Default character HP
-        maxHp = 8;
-      }
-    } else if (targetDocument.documentType === 'actor') {
-      const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
-      const actorHp = actorData?.hitPoints;
-      if (actorHp && typeof actorHp.average === 'number') {
-        currentHp = actorHp.current ?? actorHp.average;
-        maxHp = actorHp.average;
-      } else {
-        currentHp = 0;
-        maxHp = 0;
-      }
+  if (targetDocument.documentType === 'character') {
+    const characterData = targetDocument.pluginData as DndCharacterData;
+    const characterHp = characterData?.attributes?.hitPoints;
+    if (characterHp && typeof characterHp.current === 'number' && typeof characterHp.maximum === 'number') {
+      currentHp = characterHp.current;
+      maxHp = characterHp.maximum;
     } else {
-      // Unknown document type
-      currentHp = 0;
-      maxHp = 0;
+      currentHp = 8; // Default character HP
+      maxHp = 8;
+    }
+  } else if (targetDocument.documentType === 'actor') {
+    const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
+    const actorHp = actorData?.hitPoints;
+    if (actorHp && typeof actorHp.average === 'number') {
+      currentHp = actorHp.current ?? actorHp.average;
+      maxHp = actorHp.average;
+    } else {
+      currentHp = 1; // Default actor HP
+      maxHp = 1;
     }
   }
 
@@ -312,7 +254,22 @@ const executeDamageApplication: ActionExecutionHandler = async (
 
   // Apply damage to current hit points
   const newHp = Math.max(currentHp - actualDamage, -maxHp); // Can't go below negative max HP
-  targetDocument.state.currentHitPoints = newHp;
+  
+  // Update hit points in plugin data
+  if (targetDocument.documentType === 'character') {
+    const characterData = targetDocument.pluginData as DndCharacterData;
+    if (characterData?.attributes?.hitPoints) {
+      characterData.attributes.hitPoints.current = newHp;
+    }
+  } else if (targetDocument.documentType === 'actor') {
+    const actorData = targetDocument.pluginData as { hitPoints?: { current?: number; average?: number } };
+    if (actorData?.hitPoints) {
+      actorData.hitPoints.current = newHp;
+    }
+  }
+
+  // Initialize state if needed for conditions
+  if (!targetDocument.state) targetDocument.state = {};
 
   // Check for instant death FIRST (damage >= max HP while at 0 HP)
   if (currentHp === 0 && actualDamage >= maxHp) {

@@ -42,7 +42,7 @@ function applyDamageToTarget(
 ): void {
   try {
     if (target.documentType === 'character') {
-      // Character damage application
+      // Character damage application - LEAVE AS IS, characters work fine
       const characterData = target.pluginData as { attributes?: { hitPoints?: { current: number; maximum: number } } };
       if (characterData.attributes?.hitPoints) {
         characterData.attributes.hitPoints.current = Math.max(
@@ -54,12 +54,13 @@ function applyDamageToTarget(
         console.warn(`[WeaponAttack] Character ${target.name} has no hitPoints structure`);
       }
     } else if (target.documentType === 'actor') {
-      // Actor damage application  
-      const actorData = target.pluginData as { hitPoints?: { current?: number; average: number } };
+      // Actor damage application - use pluginData.hitPoints.current
+      const actorData = target.pluginData as { hitPoints?: { current: number; average: number } };
       if (actorData.hitPoints) {
-        const currentHp = actorData.hitPoints.current ?? actorData.hitPoints.average;
+        const maxHp = actorData.hitPoints.average;
+        const currentHp = actorData.hitPoints.current ?? maxHp;
         actorData.hitPoints.current = Math.max(0, currentHp - damage);
-        console.log(`[WeaponAttack] Applied ${damage} ${damageType} damage to actor ${target.name} (${actorData.hitPoints.current}/${actorData.hitPoints.average} HP)`);
+        console.log(`[WeaponAttack] Applied ${damage} ${damageType} damage to actor ${target.name} (${actorData.hitPoints.current}/${maxHp} HP)`);
       } else {
         console.warn(`[WeaponAttack] Actor ${target.name} has no hitPoints structure`);
       }
@@ -618,8 +619,9 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       target: targetAC,
       success: hits,
       rollType: 'weapon-attack',
-      recipients: attackResult.recipients
-    });
+      recipients: attackResult.recipients,
+      chatComponentType: 'dnd-roll-card'
+    }, attackResult);
 
     // Step 2: If attack hits, roll damage
     const damageDice = weaponData.damage?.dice;
@@ -738,7 +740,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
             rollType: 'weapon-damage',
             recipients: attackResult.recipients,
             chatComponentType: 'damage-card'
-          });
+          }, damageResult);
           
           // Apply damage to all targets
           for (const target of targetDocuments) {
@@ -782,7 +784,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
           success: true,
           rollType: 'weapon-damage',
           recipients: attackResult.recipients,
-          chatComponentType: 'damage-card'
+          chatComponentType: 'DamageCard'
         });
         
         console.log(`[WeaponAttack] Applied fixed damage: ${totalDamage} ${damageType}`);

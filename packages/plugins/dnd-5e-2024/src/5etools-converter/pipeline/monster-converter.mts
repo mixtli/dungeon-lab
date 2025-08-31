@@ -366,17 +366,20 @@ export class TypedMonsterConverter extends TypedConverter<
     return { value: 10 };
   }
 
-  private parseHitPoints(hp?: { average?: number; formula?: string; special?: string } | number): { average: number; formula?: string } {
+  private parseHitPoints(hp?: { average?: number; formula?: string; special?: string } | number): { average: number; current: number; formula?: string } {
     if (typeof hp === 'number') {
-      return { average: hp };
+      return { average: hp, current: hp };
     }
     if (typeof hp === 'object') {
+      const average = hp.average || 1;
       return {
-        average: hp.average || 1,
+        average,
+        current: average,
         formula: hp.formula
       };
     }
-    return { average: 1 };
+    const defaultValue = 1;
+    return { average: defaultValue, current: defaultValue };
   }
 
   private parseSpeed(speed?: number | Record<string, number | boolean | { number: number; condition?: string }>): Record<string, number> {

@@ -12,7 +12,8 @@
     :message="message" />
   <!-- Roll result card for roll result messages -->
   <RollResultMessage v-else-if="message.type === 'roll-result' && message.rollResultData"
-    v-bind="message.rollResultData" />
+    v-bind="message.rollResultData"
+    :rollData="message.rollData" />
   <!-- Regular text content for text messages -->
   <slot v-else name="text-message" :message="message" :formatContent="formatMessageContent">
     <div :class="textContentClass" v-html="formatMessageContent(message.content)"></div>

@@ -90,12 +90,13 @@ function applyDamageToTarget(
         console.warn(`[MonsterAction] Character ${target.document.name} has no hitPoints structure`);
       }
     } else if (target.documentType === 'actor') {
-      // Actor damage application  
-      const actorData = target.pluginData as { hitPoints?: { current?: number; average: number } };
+      // Actor damage application - use pluginData.hitPoints.current
+      const actorData = target.pluginData as { hitPoints?: { current: number; average: number } };
       if (actorData.hitPoints) {
-        const currentHp = actorData.hitPoints.current ?? actorData.hitPoints.average;
+        const maxHp = actorData.hitPoints.average;
+        const currentHp = actorData.hitPoints.current ?? maxHp;
         actorData.hitPoints.current = Math.max(0, currentHp - damage);
-        console.log(`[MonsterAction] Applied ${damage} ${damageType} damage to actor ${target.document.name} (${actorData.hitPoints.current}/${actorData.hitPoints.average} HP)`);
+        console.log(`[MonsterAction] Applied ${damage} ${damageType} damage to actor ${target.document.name} (${actorData.hitPoints.current}/${maxHp} HP)`);
       } else {
         console.warn(`[MonsterAction] Actor ${target.document.name} has no hitPoints structure`);
       }
@@ -480,7 +481,7 @@ async function executeAttackRollWorkflow(
         rollType: 'monster-attack',
         recipients: rollResult.recipients,
         chatComponentType: 'dnd-roll-card'
-      });
+      }, rollResult);
       
       if (isHit) {
         // Roll and apply damage (using isNaturalTwenty from above)
@@ -719,7 +720,7 @@ async function rollAndApplyDamage(
         amount: damage,
         type: damageData.damageType || 'unspecified'
       }
-    });
+    }, rollResult);
     
   } catch (error) {
     console.error(`[MonsterAction] Damage roll failed:`, error);

@@ -96,8 +96,9 @@ export interface AsyncActionContext {
    * Send a structured roll result to the chat
    * 
    * @param rollResultData - Structured roll result data
+   * @param rollData - Optional detailed roll data for plugin components
    */
-  sendRollResult(rollResultData: RollResultData): void;
+  sendRollResult(rollResultData: RollResultData, rollData?: RollServerResult): void;
 
   /**
    * Request confirmation from the GM for an action

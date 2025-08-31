@@ -42,8 +42,8 @@ export const armorClassSchema = z.object({
 // Hit Points structure for 2024
 export const hitPointsSchema = z.object({
   average: z.number(),
-  formula: z.string().optional(),
-  current: z.number().optional()
+  current: z.number(),
+  formula: z.string().optional()
 });
 
 // Ability scores structure

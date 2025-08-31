@@ -97,17 +97,17 @@
             <div class="stat-line">
               <span class="stat-label">Hit Points</span>
               <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
-              <div v-else class="hit-points-edit inline">
+              <div v-else-if="actorCopy" class="hit-points-edit inline">
                 <input 
-                  v-model.number="hitPointsCurrentCopy"
+                  v-model.number="(actorCopy!.pluginData as DndCreatureData).hitPoints.current"
                   class="stat-input hp-current"
                   type="number"
                   min="0"
-                  :max="hitPointsMaxCopy"
+                  :max="(actorCopy!.pluginData as DndCreatureData).hitPoints.average"
                 />
                 <span class="hp-separator">/</span>
                 <input 
-                  v-model.number="hitPointsMaxCopy"
+                  v-model.number="(actorCopy!.pluginData as DndCreatureData).hitPoints.average"
                   class="stat-input hp-max"
                   type="number"
                   min="1"
@@ -281,6 +281,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, type Ref } from 'vue';
 import type { IActor, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
+import type { DndCreatureData } from '../../types/dnd/creature.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 
@@ -358,6 +359,7 @@ const emit = defineEmits<{
   (e: 'toggle-edit-mode'): void;
 }>();
 
+
 // Edit mode comes from DocumentSheetContainer
 const editMode = computed(() => props.editMode || false);
 
@@ -429,83 +431,6 @@ const armorClassCopy = computed({
   }
 });
 
-const hitPointsMaxCopy = computed({
-  get: () => {
-    if (!actorCopy.value?.pluginData) return 1;
-    const hpData = actorCopy.value.pluginData.hitPoints;
-    if (typeof hpData === 'object' && hpData && 'average' in hpData) {
-      return (hpData as any).average;
-    }
-    return actorCopy.value.pluginData.hitPointsMax || 1;
-  },
-  set: (value) => {
-    if (!actorCopy.value?.pluginData) {
-      if (actorCopy.value) {
-        actorCopy.value.pluginData = {};
-      }
-      return;
-    }
-    // Update the hitPoints.average if structured data exists
-    const existing = actorCopy.value.pluginData.hitPoints;
-    if (typeof existing === 'object') {
-      actorCopy.value.pluginData.hitPoints = { ...existing, average: value };
-    } else {
-      actorCopy.value.pluginData.hitPointsMax = value;
-    }
-  }
-});
-
-const hitPointsCurrentCopy = computed({
-  get: () => {
-    console.log('[ActorSheet] Getting current hit points from copy:', actorCopy.value);
-    if (!actorCopy.value) return 1;
-    
-    // First check state for runtime current HP
-    if (typeof actorCopy.value.state?.currentHitPoints === 'number') {
-      return actorCopy.value.state.currentHitPoints;
-    }
-    
-    // Fallback to pluginData
-    if (!actorCopy.value.pluginData) return 1;
-    const hpData = actorCopy.value.pluginData.hitPoints;
-    let baselineHp: number;
-    
-    if (typeof hpData === 'object' && hpData) {
-      const current = 'current' in hpData ? (hpData as any).current : undefined;
-      const average = 'average' in hpData ? (hpData as any).average : undefined;
-      baselineHp = current ?? average ?? 1;
-    } else {
-      baselineHp = actorCopy.value.pluginData.hitPointsCurrent ?? hitPointsMaxCopy.value;
-    }
-    
-    // Initialize state if missing
-    if (!actorCopy.value.state) actorCopy.value.state = {};
-    actorCopy.value.state.currentHitPoints = baselineHp;
-    
-    return baselineHp;
-  },
-  set: (value) => {
-    console.log('[ActorSheet] Setting current hit points to:', value);
-    if (!actorCopy.value) return;
-    
-    // Always update state for runtime HP
-    if (!actorCopy.value.state) actorCopy.value.state = {};
-    actorCopy.value.state.currentHitPoints = value;
-    
-    // Also update pluginData for persistence
-    if (!actorCopy.value.pluginData) {
-      actorCopy.value.pluginData = {};
-    }
-    
-    // Update the hitPoints.current if structured data exists
-    const existing = actorCopy.value.pluginData.hitPoints;
-    if (typeof existing === 'object') {
-      actorCopy.value.pluginData.hitPoints = { ...existing, current: value };
-    } else {
-      actorCopy.value.pluginData.hitPointsCurrent = value;
-    }
-  }
-});
 
 // Read-only computed properties for display (use original actor)
 const hitPointsMax = computed(() => {
@@ -517,31 +442,12 @@ const hitPointsMax = computed(() => {
 });
 
 const hitPointsCurrent = computed(() => {
-  // First check state for runtime current HP
-  console.log('[ActorSheet] Checking state for current hit points:', actor.value?.state?.currentHitPoints);
-  if (actor.value && typeof actor.value.state?.currentHitPoints === 'number') {
-    return actor.value.state.currentHitPoints;
-  }
-  
-  // Fallback to pluginData (baseline HP)
   const hpData = actor.value?.pluginData?.hitPoints;
-  let baselineHp: number;
-  
-  if (typeof hpData === 'object' && hpData) {
-    const current = 'current' in hpData ? (hpData as any).current : undefined;
-    const average = 'average' in hpData ? (hpData as any).average : undefined;
-    baselineHp = current ?? average ?? 1;
-  } else {
-    baselineHp = actor.value?.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
+  if (typeof hpData === 'object' && hpData && 'current' in hpData) {
+    return (hpData as any).current;
   }
-  
-  // Initialize state if missing
-  // if (actor.value) {
-  //   if (!actor.value.state) actor.value.state = {};
-  //   actor.value.state.currentHitPoints = baselineHp;
-  // }
-  
-  return baselineHp;
+  // Fallback to average if current not set
+  return hitPointsMax.value;
 });
 
 const hitPointsDisplay = computed(() => {
@@ -570,11 +476,8 @@ const speedDisplay = computed(() => {
 });
 
 const prominentAvatarUrl = computed(() => {
-  // Fallback hierarchy: avatar -> image -> tokenImage
-  return actor.value?.avatar?.url || 
-         actor.value?.image?.url || 
-         actor.value?.tokenImage?.url || 
-         null;
+  // Use only tokenImage since that's the available property
+  return actor.value?.tokenImage?.url || null;
 });
 
 // Saving throws

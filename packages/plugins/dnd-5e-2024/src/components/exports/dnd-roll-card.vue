@@ -14,6 +14,13 @@
       </div>
     </div>
 
+    <!-- Roll Formula Display -->
+    <div class="mb-3 text-center">
+      <span class="text-sm font-mono text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-700">
+        {{ formatRollFormula() }}
+      </span>
+    </div>
+
     <!-- Advantage/Disadvantage Display -->
     <div v-if="isAdvantageRoll" class="mb-3 p-2 bg-green-100 dark:bg-green-900/30 rounded border border-green-300 dark:border-green-700">
       <div class="flex items-center space-x-2">
@@ -112,6 +119,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 
 interface Props {
   rollData: RollServerResult;
@@ -211,6 +219,19 @@ function getDndDieResultClass(result: number, sides: number): string {
       return 'bg-gradient-to-br from-amber-200 to-amber-300 dark:from-amber-700 dark:to-amber-800 text-gray-900 dark:text-white border-amber-300 dark:border-amber-600';
     }
   }
+}
+
+/**
+ * Format roll formula display (e.g., "1d20+5")
+ */
+function formatRollFormula(): string {
+  // Calculate total modifier
+  let modifier = props.rollData.arguments.customModifier;
+  for (const mod of props.rollData.modifiers) {
+    modifier += mod.value;
+  }
+  
+  return diceArrayToExpression(props.rollData.results, modifier);
 }
 
 /**

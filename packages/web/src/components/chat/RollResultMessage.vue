@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watchEffect } from 'vue';
 import type { Component } from 'vue';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { pluginRegistry } from '../../services/plugin-registry.mts';
 
 interface Props {
@@ -35,6 +36,8 @@ interface Props {
   success: boolean;
   rollType: string;
   chatComponentType?: string;
+  // Full roll data for plugin components (if available)
+  rollData?: RollServerResult;
 }
 
 const props = defineProps<Props>();
@@ -72,23 +75,39 @@ watchEffect(async () => {
 });
 
 // Props to pass to plugin component 
-// Plugin components expect a rollData object, but we currently only have simple props
-// For now, create a minimal rollData structure from available props
-const pluginComponentProps = computed(() => ({
-  rollData: {
-    metadata: {
-      title: props.message,
-      result: props.result,
-      success: props.success
-    },
-    rollType: props.rollType,
-    // Plugin components may need these fields - will be enhanced when we have full roll data
-    results: [],
-    arguments: { customModifier: 0 },
-    modifiers: [],
-    timestamp: new Date()
+const pluginComponentProps = computed(() => {
+  // If we have full roll data, use it directly
+  if (props.rollData) {
+    return {
+      rollData: {
+        ...props.rollData,
+        metadata: {
+          ...props.rollData.metadata,
+          title: props.message, // Use the message as title
+          result: props.result,
+          success: props.success
+        }
+      }
+    };
   }
-}));
+  
+  // Fallback: create minimal rollData structure for plugins that need it
+  return {
+    rollData: {
+      metadata: {
+        title: props.message,
+        result: props.result,
+        success: props.success
+      },
+      rollType: props.rollType,
+      // Plugin components may need these fields - will be enhanced when we have full roll data
+      results: [],
+      arguments: { customModifier: 0 },
+      modifiers: [],
+      timestamp: new Date()
+    }
+  };
+});
 
 // Dynamic styling based on success/failure (for generic fallback only)
 const resultClass = computed(() => ({

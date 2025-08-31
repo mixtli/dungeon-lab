@@ -55,7 +55,7 @@ interface ChatStore {
   sendApprovalRequest: (approvalData: ApprovalData) => void;
   updateApprovalMessage: (requestId: string, status: 'approved' | 'denied') => void;
   addRollRequest: (rollRequest: RollRequest) => void;
-  addRollResult: (rollResultData: RollResultData) => void;
+  addRollResult: (rollResultData: RollResultData, rollData?: RollServerResult) => void;
   removeMessage: (messageId: string) => void;
   clearMessages: () => void;
 }
@@ -364,7 +364,7 @@ export const useChatStore = defineStore(
     }
 
     // Add a roll result to chat
-    function addRollResult(rollResultData: RollResultData) {
+    function addRollResult(rollResultData: RollResultData, rollData?: RollServerResult) {
       const rollResultMessage: ChatMessage = {
         id: generateId(),
         content: rollResultData.message, // Simple message - component handles formatting
@@ -374,6 +374,7 @@ export const useChatStore = defineStore(
         isSystem: true,
         type: 'roll-result',
         rollResultData: rollResultData,
+        ...(rollData && { rollData }),
         recipientType: 'session'
       };
 

@@ -145,7 +145,7 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
               warning: '#f59e0b' // Yellow for low HP
             },
             dataPath: {
-              current: 'hitPoints.current',
+              current: 'hitPoints.current', // Current HP in pluginData
               maximum: 'hitPoints.average' // Actors use average as max HP
             },
             warningThreshold: 0.25, // Show warning color below 25% HP

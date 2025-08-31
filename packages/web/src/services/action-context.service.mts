@@ -119,7 +119,7 @@ export class ActionContextImpl implements AsyncActionContext {
    * Send a structured roll result to the chat
    * Broadcasts via WebSocket based on recipients setting for proper distribution
    */
-  sendRollResult(rollResultData: RollResultData): void {
+  sendRollResult(rollResultData: RollResultData, rollData?: RollServerResult): void {
     console.log('[ActionContext] Sending roll result:', {
       message: rollResultData.message,
       result: rollResultData.result,
@@ -169,7 +169,8 @@ export class ActionContextImpl implements AsyncActionContext {
         },
         timestamp: new Date().toISOString(),
         type: 'roll-result' as const,
-        rollResultData: rollResultData
+        rollResultData: rollResultData,
+        ...(rollData && { rollData })
       };
 
       // Send via WebSocket
@@ -182,7 +183,7 @@ export class ActionContextImpl implements AsyncActionContext {
       // Fallback to local-only display
       try {
         const chatStore = useChatStore();
-        chatStore.addRollResult(rollResultData);
+        chatStore.addRollResult(rollResultData, rollData);
         console.log('[ActionContext] Roll result sent locally as fallback');
       } catch (fallbackError) {
         console.error('[ActionContext] Fallback local roll result also failed:', fallbackError);
