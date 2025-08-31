@@ -16,6 +16,9 @@
         </div>
       </div>
       <div class="header-actions">
+        <button @click="copyItemId" class="copy-btn" title="Copy Item ID">
+          📋
+        </button>
         <button @click="$emit('close')" class="close-btn" title="Close">
           ✕
         </button>
@@ -33,6 +36,39 @@
 
     <!-- Content -->
     <div class="sheet-content">
+      <!-- Ownership Information -->
+      <section class="gear-section ownership-section">
+        <h3 class="section-title">Ownership</h3>
+        <div class="ownership-info">
+          <!-- Carrier Information -->
+          <div class="ownership-row">
+            <span class="ownership-label">Carried by:</span>
+            <div class="ownership-status" :style="{ color: ownershipStatus.color }">
+              <span class="ownership-icon">{{ ownershipStatus.icon }}</span>
+              <span class="ownership-text">{{ ownershipStatus.text }}</span>
+            </div>
+          </div>
+          <div v-if="ownerCharacter" class="owner-details">
+            <small class="owner-subtitle">Currently carried by this character</small>
+          </div>
+          <div v-else class="owner-details">
+            <small class="owner-subtitle">Available for assignment to a character</small>
+          </div>
+          
+          <!-- Owner Information -->
+          <div class="ownership-row" v-if="ownerUser">
+            <span class="ownership-label">Owned by:</span>
+            <div class="ownership-status" style="color: #28a745">
+              <span class="ownership-icon">👤</span>
+              <span class="ownership-text">{{ ownerUser.displayName || ownerUser.username }}</span>
+            </div>
+          </div>
+          <div v-else class="owner-details">
+            <small class="owner-subtitle">No user owner assigned</small>
+          </div>
+        </div>
+      </section>
+
       <!-- Basic Information -->
       <section class="gear-section">
         <h3 class="section-title">{{ gearData.itemType === 'tool' ? 'Tool' : 'Gear' }} Details</h3>
@@ -112,6 +148,8 @@ interface Props {
   document: Ref<BaseDocument>;
   documentCopy?: Ref<BaseDocument | null>;
   items?: Ref<any[]>;
+  ownerCharacter?: Ref<any | null>; // Owner character for ownership display (carrier)
+  ownerUser?: Ref<any | null>; // Owner user for ownership display (actual owner)
   editMode?: boolean;
   readonly?: boolean;
   hasUnsavedChanges?: boolean;
@@ -165,6 +203,28 @@ const gearTypeText = computed(() => {
   return 'Gear';
 });
 
+// Ownership information - direct owner references from props
+const ownerCharacter = computed(() => props.ownerCharacter?.value || null);
+const ownerUser = computed(() => props.ownerUser?.value || null);
+
+const ownershipStatus = computed(() => {
+  if (!ownerCharacter.value) {
+    return {
+      status: 'unassigned',
+      text: 'Unassigned',
+      icon: '📦',
+      color: '#6c757d'
+    };
+  }
+  
+  return {
+    status: 'assigned',
+    text: ownerCharacter.value.name || 'Unknown Character',
+    icon: '👤',
+    color: '#28a745'
+  };
+});
+
 // Helper functions
 const getGearIcon = (data: DndItemData): string => {
   if (data.itemType === 'tool') {
@@ -202,6 +262,17 @@ const formatRarity = (rarity: string): string => {
 // Drag handling
 const startDrag = (event: MouseEvent) => {
   emit('drag-start', event);
+};
+
+// Copy ID to clipboard
+const copyItemId = async () => {
+  try {
+    await navigator.clipboard.writeText(gear.value.id);
+    console.log(`[GearSheet] Copied item ID to clipboard: ${gear.value.id}`);
+    // You could add a toast notification here if desired
+  } catch (err) {
+    console.error('[GearSheet] Failed to copy item ID:', err);
+  }
 };
 
 // Debug logging
@@ -321,6 +392,7 @@ onMounted(() => {
   gap: 8px;
 }
 
+.copy-btn,
 .close-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
@@ -332,8 +404,13 @@ onMounted(() => {
   transition: background-color 0.2s;
 }
 
+.copy-btn:hover,
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.copy-btn {
+  font-size: 14px;
 }
 
 /* Gear Image */
@@ -447,6 +524,58 @@ onMounted(() => {
   border-top: 1px solid #e9ecef;
   text-align: center;
   color: #6c757d;
+}
+
+/* Ownership Section */
+.ownership-section {
+  border-left: 4px solid #28a745;
+}
+
+.ownership-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ownership-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ownership-label {
+  font-weight: 500;
+  color: #495057;
+  min-width: 80px;
+  font-size: 14px;
+}
+
+.ownership-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.ownership-icon {
+  font-size: 20px;
+}
+
+.ownership-text {
+  flex: 1;
+}
+
+.owner-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.owner-subtitle {
+  color: #6c757d;
+  font-size: 12px;
+  font-style: italic;
 }
 
 /* Scrollbar styling */

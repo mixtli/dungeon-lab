@@ -15,6 +15,7 @@ import {
 } from '../../utils/action-economy.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateGridDistance } from '@dungeon-lab/shared-ui/utils/grid-distance.mjs';
+import { calculateD20Total } from '../../utils/dnd-roll-utilities.mjs';
 import type { DndItemDocument, DndWeaponData } from '../../types/dnd/item.mjs';
 import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
@@ -474,7 +475,8 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     const abilityMod = getAbilityModifier(actor as ICharacter | IActor, ability);
     if (abilityMod !== 0) {
       modifiers.push({
-        name: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`,
+        type: 'ability',
+        source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`,
         value: abilityMod
       });
     }
@@ -483,7 +485,8 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     if (isProficientWithWeapon(weapon, actor as ICharacter | IActor)) {
       const profBonus = getProficiencyBonus(actor as ICharacter | IActor);
       modifiers.push({
-        name: 'Proficiency bonus',
+        type: 'proficiency',
+        source: 'Proficiency bonus',
         value: profBonus
       });
     }
@@ -492,7 +495,8 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     const enchantmentBonus = weaponData.enchantmentBonus || 0;
     if (enchantmentBonus !== 0) {
       modifiers.push({
-        name: 'Magic weapon',
+        type: 'enchantment',
+        source: 'Magic weapon',
         value: enchantmentBonus
       });
     }
@@ -559,15 +563,11 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       throw new Error('Attack roll failed');
     }
 
-    // Calculate attack total (need to manually sum since calculatedTotal may not exist)
-    let attackTotal = 0;
-    for (const diceGroup of attackResult.results) {
-      attackTotal += diceGroup.results.reduce((sum, result) => sum + result, 0);
-    }
-    for (const modifier of attackResult.modifiers) {
-      attackTotal += modifier.value;
-    }
-    attackTotal += attackResult.arguments.customModifier;
+    // Use calculated total from roll handler if available (handles advantage/disadvantage correctly)
+    // Otherwise fall back to manual calculation for non-plugin rolls
+    const attackTotal = 'calculatedTotal' in attackResult ? 
+      (attackResult as { calculatedTotal: number }).calculatedTotal : 
+      calculateD20Total(attackResult);
 
     // Determine if natural 20 or natural 1
     const isNaturalTwenty = attackResult.results.some(group => 
@@ -625,114 +625,172 @@ const executeWeaponAttack: ActionExecutionHandler = async (
     const damageDice = weaponData.damage?.dice;
     
     if (hits && damageDice) {
-      // Calculate damage formula
-      let damageFormula = damageDice;
-      
-      // Add ability modifier for damage
       const damageAbilityMod = getAbilityModifier(actor as ICharacter | IActor, ability);
-      if (damageAbilityMod !== 0) {
-        damageFormula += (damageAbilityMod >= 0 ? ' + ' : ' - ') + Math.abs(damageAbilityMod);
-      }
+      
+      // Check if this is fixed damage (no dice notation) or dice-based damage
+      const isDiceFormula = /\d+d\d+/.test(damageDice);
+      
+      if (isDiceFormula) {
+        // Handle dice-based damage (existing logic)
+        let damageFormula = damageDice;
+        
+        // Add ability modifier for damage
+        if (damageAbilityMod !== 0) {
+          damageFormula += (damageAbilityMod >= 0 ? ' + ' : ' - ') + Math.abs(damageAbilityMod);
+        }
 
-      // Add enchantment bonus to damage too
-      if (enchantmentBonus !== 0) {
-        damageFormula += (enchantmentBonus >= 0 ? ' + ' : ' - ') + Math.abs(enchantmentBonus);
-      }
+        // Add enchantment bonus to damage too
+        if (enchantmentBonus !== 0) {
+          damageFormula += (enchantmentBonus >= 0 ? ' + ' : ' - ') + Math.abs(enchantmentBonus);
+        }
 
-      // Critical hit: double dice only
-      if (isNaturalTwenty) {
-        const diceMatch = damageDice.match(/(\d+)d(\d+)/);
-        if (diceMatch) {
-          const quantity = parseInt(diceMatch[1]);
-          const sides = parseInt(diceMatch[2]);
-          const doubleDice = `${quantity * 2}d${sides}`;
+        // Critical hit: double dice only
+        if (isNaturalTwenty) {
+          const diceMatch = damageDice.match(/(\d+)d(\d+)/);
+          if (diceMatch) {
+            const quantity = parseInt(diceMatch[1]);
+            const sides = parseInt(diceMatch[2]);
+            const doubleDice = `${quantity * 2}d${sides}`;
+            
+            // Rebuild formula with doubled dice but same modifiers
+            damageFormula = doubleDice;
+            if (damageAbilityMod !== 0) {
+              damageFormula += (damageAbilityMod >= 0 ? ' + ' : ' - ') + Math.abs(damageAbilityMod);
+            }
+            if (enchantmentBonus !== 0) {
+              damageFormula += (enchantmentBonus >= 0 ? ' + ' : ' - ') + Math.abs(enchantmentBonus);
+            }
+          }
           
-          // Rebuild formula with doubled dice but same modifiers
-          damageFormula = doubleDice;
-          if (damageAbilityMod !== 0) {
-            damageFormula += (damageAbilityMod >= 0 ? ' + ' : ' - ') + Math.abs(damageAbilityMod);
-          }
-          if (enchantmentBonus !== 0) {
-            damageFormula += (enchantmentBonus >= 0 ? ' + ' : ' - ') + Math.abs(enchantmentBonus);
-          }
+          console.log('[WeaponAttack] Critical hit! Double damage dice:', damageFormula);
         }
-        
-        console.log('[WeaponAttack] Critical hit! Double damage dice:', damageFormula);
-      }
 
-      // Parse damage formula to dice array
-      const parsedDamage = parseDiceExpression(damageFormula);
-      if (!parsedDamage) {
-        throw new Error(`Invalid damage formula: ${damageFormula}`);
-      }
-      
-      // Create descriptive damage message
-      const damageType = weaponData?.damage?.type || 'slashing';
-      let damageMessage = `${weapon.name} ${damageType} damage`;
-      if (isNaturalTwenty) {
-        damageMessage = `Critical hit! ${damageMessage}`;
-      }
-      if (targetNames.length === 1) {
-        damageMessage += ` to ${targetNames[0]}`;
-      } else if (targetNames.length > 1) {
-        damageMessage += ` to ${targetNames.length} targets`;
-      }
-      
-      const damageResult = await context.sendRollRequest(request.playerId, 'weapon-damage', {
-        dice: parsedDamage.dice,
-        message: damageMessage,
-        metadata: {
-          characterName: actor.name,
-          weaponName: weapon.name,
-          weaponId: parameters.weaponId,
-          actorId: request.actorId,
-          actorTokenId: request.actorTokenId,
-          targetTokenIds: request.targetTokenIds,
-          targetNames: targetNames,
-          targetCount: targetNames.length,
-          damageType: damageType,
-          isCritical: isNaturalTwenty,
-          attackHit: true,
-          modifier: parsedDamage.modifier,
-          attackType: 'weapon-damage',
-          weaponType: weaponData.type
+        // Parse damage formula to dice array
+        const parsedDamage = parseDiceExpression(damageFormula);
+        if (!parsedDamage) {
+          throw new Error(`Invalid damage formula: ${damageFormula}`);
         }
-      });
+      
+        // Create descriptive damage message
+        const damageType = weaponData?.damage?.type || 'slashing';
+        let damageMessage = `${weapon.name} ${damageType} damage`;
+        if (isNaturalTwenty) {
+          damageMessage = `Critical hit! ${damageMessage}`;
+        }
+        if (targetNames.length === 1) {
+          damageMessage += ` to ${targetNames[0]}`;
+        } else if (targetNames.length > 1) {
+          damageMessage += ` to ${targetNames.length} targets`;
+        }
+        
+        const damageResult = await context.sendRollRequest(request.playerId, 'weapon-damage', {
+          dice: parsedDamage.dice,
+          message: damageMessage,
+          metadata: {
+            characterName: actor.name,
+            weaponName: weapon.name,
+            weaponId: parameters.weaponId,
+            actorId: request.actorId,
+            actorTokenId: request.actorTokenId,
+            targetTokenIds: request.targetTokenIds,
+            targetNames: targetNames,
+            targetCount: targetNames.length,
+            damageType: damageType,
+            isCritical: isNaturalTwenty,
+            attackHit: true,
+            modifier: parsedDamage.modifier,
+            attackType: 'weapon-damage',
+            weaponType: weaponData.type
+          }
+        });
 
-      if (damageResult) {
-        console.log('[WeaponAttack] Damage roll successful');
-        
-        // Calculate total damage from roll result
-        let totalDamage = 0;
-        for (const diceGroup of damageResult.results) {
-          totalDamage += diceGroup.results.reduce((sum, result) => sum + result, 0);
+        if (damageResult) {
+          console.log('[WeaponAttack] Damage roll successful');
+          
+          // Calculate total damage from roll result
+          let totalDamage = 0;
+          for (const diceGroup of damageResult.results) {
+            totalDamage += diceGroup.results.reduce((sum, result) => sum + result, 0);
+          }
+          for (const modifier of damageResult.modifiers) {
+            totalDamage += modifier.value;
+          }
+          totalDamage += damageResult.arguments.customModifier;
+          
+          console.log(`[WeaponAttack] Dealt ${totalDamage} ${damageType} damage`);
+          
+          // Create descriptive damage message
+          let damageMessage = `${weapon.name} deals ${totalDamage} ${damageType} damage`;
+          if (isNaturalTwenty) {
+            damageMessage = `Critical hit! ${damageMessage}`;
+          }
+          if (targetNames.length === 1) {
+            damageMessage += ` to ${targetNames[0]}`;
+          } else if (targetNames.length > 1) {
+            damageMessage += ` to ${targetNames.length} targets`;
+          }
+          
+          // Send damage result with component type for rich damage card display
+          context.sendRollResult({
+            message: damageMessage,
+            result: totalDamage,
+            success: true,
+            rollType: 'weapon-damage',
+            recipients: attackResult.recipients,
+            chatComponentType: 'damage-card'
+          });
+          
+          // Apply damage to all targets
+          for (const target of targetDocuments) {
+            applyDamageToTarget(target, totalDamage, damageType);
+          }
+        } else {
+          console.error('[WeaponAttack] Damage roll failed');
         }
-        for (const modifier of damageResult.modifiers) {
-          totalDamage += modifier.value;
-        }
-        totalDamage += damageResult.arguments.customModifier;
+      } else {
+        // Handle fixed damage (no dice rolling needed)
+        let totalDamage = parseInt(damageDice);
         
-        console.log(`[WeaponAttack] Dealt ${totalDamage} ${damageType} damage`);
+        // Add ability modifier
+        totalDamage += damageAbilityMod;
+        
+        // Add enchantment bonus
+        totalDamage += enchantmentBonus;
+        
+        // Critical hit: double the base damage only
+        if (isNaturalTwenty) {
+          const baseDamage = parseInt(damageDice);
+          totalDamage += baseDamage; // Add base damage again for critical
+        }
+        
+        // Create descriptive damage message
+        const damageType = weaponData?.damage?.type || 'slashing';
+        let damageMessage = `${weapon.name} deals ${totalDamage} ${damageType} damage`;
+        if (isNaturalTwenty) {
+          damageMessage = `Critical hit! ${damageMessage}`;
+        }
+        if (targetNames.length === 1) {
+          damageMessage += ` to ${targetNames[0]}`;
+        } else if (targetNames.length > 1) {
+          damageMessage += ` to ${targetNames.length} targets`;
+        }
+        
+        // Send damage result directly (no dice rolling needed)
+        context.sendRollResult({
+          message: damageMessage,
+          result: totalDamage,
+          success: true,
+          rollType: 'weapon-damage',
+          recipients: attackResult.recipients,
+          chatComponentType: 'damage-card'
+        });
+        
+        console.log(`[WeaponAttack] Applied fixed damage: ${totalDamage} ${damageType}`);
         
         // Apply damage to all targets
         for (const target of targetDocuments) {
           applyDamageToTarget(target, totalDamage, damageType);
         }
-        
-        // Send structured roll result for damage
-        context.sendRollResult({
-          message: `${weapon.name} ${damageType} damage${isNaturalTwenty ? ' (Critical Hit!)' : ''}`,
-          result: totalDamage,
-          success: true, // Damage rolls are always successful
-          rollType: 'weapon-damage',
-          recipients: damageResult.recipients,
-          damageInfo: {
-            amount: totalDamage,
-            type: damageType
-          }
-        });
-      } else {
-        console.warn('[WeaponAttack] Damage roll failed, but attack succeeded');
       }
     }
 

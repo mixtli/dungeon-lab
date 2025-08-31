@@ -27,6 +27,7 @@ const assetSchemaMongoose = assetSchema.merge(baseMongooseZodSchema).extend({
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema(assetSchemaMongoose);
+mongooseSchema.set('minimize', false);
 
 // Add getters for ObjectId fields to ensure string serialization
 mongooseSchema.path('ownerId').get(function (value: mongoose.Types.ObjectId | undefined) {

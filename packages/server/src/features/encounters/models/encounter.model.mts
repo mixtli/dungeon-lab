@@ -15,6 +15,7 @@ const encounterSchemaMongoose = encounterSchema.merge(baseMongooseZodSchema).ext
 });
 
 const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
+mongooseSchema.set('minimize', false);
 
 // Set Mixed type for the encounter data field
 mongooseSchema.path('data', mongoose.Schema.Types.Mixed);

@@ -27,5 +27,9 @@ export { dndReadyHandler } from './ready.handler.mjs';
 // Weapon attack action
 export { weaponAttackHandler, validateWeaponAttack } from './weapon-attack.handler.mjs';
 
+// Equipment actions
+export { equipItemActionHandler } from './equip-item.handler.mjs';
+export { unequipItemActionHandler } from './unequip-item.handler.mjs';
+
 // Re-export types for convenience
 export type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';

@@ -186,6 +186,34 @@ export class DndSpellAttackHandler implements RollTypeHandler {
 }
 
 export class DndSavingThrowHandler implements RollTypeHandler {
+  /**
+   * Process saving throw roll and return enhanced data
+   */
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+    const advantageMode = result.arguments.pluginArgs?.advantageMode;
+    const characterName = result.metadata.characterName;
+    
+    // Create descriptive roll message - reuse logic from handleRoll
+    const baseDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Saving Throw`;
+    const rollDescription = createRollDescription(baseDescription, advantageMode as string);
+    const total = calculateD20Total(result);
+    const rollMessage = createRollMessage(characterName, rollDescription, total);
+    
+    // Use common D20 processing
+    return processD20Roll(result, 'DndSavingThrowHandler', {
+      supportsCriticalHits: false, // Saving throws don't have critical hits
+      customProcessedData: {
+        ability,
+        rollDescription,
+        formattedMessage: rollMessage
+      }
+    });
+  }
+
+  /**
+   * Handle saving throw roll - send chat message if GM
+   */
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
     const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
     
@@ -312,7 +340,7 @@ export class DndMonsterAttackHandler implements RollTypeHandler {
   }
 
   /**
-   * Handle monster attack roll - send chat message if GM
+   * Handle monster attack roll - no chat messages needed since monster action handler handles that
    */
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
     // Use common logging
@@ -323,35 +351,7 @@ export class DndMonsterAttackHandler implements RollTypeHandler {
       isGM: context.isGM
     });
 
-    if (context.isGM) {
-      // GM client: Send chat message
-      const advantageMode = result.arguments.pluginArgs?.advantageMode as string;
-      const creatureName = result.metadata.creatureName as string | undefined;
-      const actionName = result.metadata.actionName as string | undefined;
-      const targetAC = result.metadata.targetAC as number | undefined;
-      
-      // Create descriptive roll message
-      const rollDescription = createRollDescription(`${actionName || 'Attack'} Attack`, advantageMode);
-      const total = calculateD20Total(result);
-      const targetACValue = typeof targetAC === 'number' ? targetAC : 10;
-      const isHit = total >= targetACValue;
-      
-      const rollMessage = `${creatureName || 'Creature'}'s ${rollDescription}: **${total}** vs AC ${targetACValue} → **${isHit ? 'HIT' : 'MISS'}**`;
-      
-      // Send chat message via context (only available for GM)
-      if (context.sendChatMessage) {
-        context.sendChatMessage(rollMessage, {
-          type: 'roll',
-          rollData: result,
-          recipient: result.recipients
-        });
-        console.log('[DndMonsterAttackHandler] GM sent chat message:', rollMessage);
-      } else {
-        console.warn('[DndMonsterAttackHandler] GM client but no sendChatMessage function available');
-      }
-    } else {
-      // Player client: Provide UI feedback only
-      console.log('[DndMonsterAttackHandler] Player client - providing UI feedback');
-    }
+    // No chat messages - the monster action handler already sends detailed roll results
+    // This handler only fixes the calculation logic for advantage/disadvantage
   }
 }

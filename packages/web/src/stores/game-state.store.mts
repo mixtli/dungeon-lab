@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, readonly, toRaw } from 'vue';
 import { z } from 'zod';
+import deepDiffDefault from 'deep-diff';
+const deepDiff = deepDiffDefault;
 import type { 
   StateUpdate, 
   StateUpdateResponse,
@@ -60,6 +62,9 @@ export const useGameStateStore = defineStore(
     const selectedCharacter = ref<ICharacter | null>(null);
     const loading = ref<boolean>(false);
     const error = ref<string | null>(null);
+    
+    // Debug state for hash mismatch analysis
+    const corruptedStateSnapshot = ref<ServerGameStateWithVirtuals | null>(null);
 
     // Update management (GM only)
     const isUpdating = ref<boolean>(false);
@@ -208,6 +213,84 @@ export const useGameStateStore = defineStore(
                 encounterTokenCount: Object.keys(gameState.value?.currentEncounter?.tokens || {}).length,
                 encounterTokenIds: Object.keys(gameState.value?.currentEncounter?.tokens || {})
               });
+
+              // Perform hash mismatch debugging if we have a corrupted state snapshot
+              if (corruptedStateSnapshot.value) {
+                try {
+                  console.log('[GameState] 🔍 Starting deep diff analysis between corrupted and fresh state...');
+                  
+                  const freshState = toRaw(gameState.value);
+                  const differences = deepDiff.diff(corruptedStateSnapshot.value, freshState);
+                  
+                  if (differences && differences.length > 0) {
+                    console.group('[GameState] 📊 HASH MISMATCH DIFF ANALYSIS');
+                    console.log(`Found ${differences.length} differences between corrupted and fresh state:`);
+                    
+                    // Group differences by type for better analysis
+                    const diffsByType = {
+                      edited: differences.filter(d => d.kind === 'E'),
+                      added: differences.filter(d => d.kind === 'N'), 
+                      deleted: differences.filter(d => d.kind === 'D'),
+                      array: differences.filter(d => d.kind === 'A')
+                    };
+                    
+                    console.log('📈 Summary:', {
+                      totalDifferences: differences.length,
+                      edited: diffsByType.edited.length,
+                      added: diffsByType.added.length, 
+                      deleted: diffsByType.deleted.length,
+                      arrayChanges: diffsByType.array.length
+                    });
+                    
+                    // Log document-specific differences (most likely culprits)
+                    const documentDiffs = differences.filter(d => 
+                      Array.isArray(d.path) && d.path[0] === 'documents'
+                    );
+                    if (documentDiffs.length > 0) {
+                      console.log('📄 Document-related differences:', documentDiffs.length);
+                      documentDiffs.forEach((diff, i) => {
+                        console.log(`  ${i+1}. [${diff.kind}] ${diff.path?.join('.')}:`, {
+                          kind: diff.kind,
+                          path: diff.path,
+                          oldValue: diff.lhs,
+                          newValue: diff.rhs,
+                          item: diff.item
+                        });
+                      });
+                    }
+                    
+                    // Log all differences for complete picture (but limit to prevent spam)
+                    const maxDiffsToShow = 20;
+                    const diffsToShow = differences.slice(0, maxDiffsToShow);
+                    
+                    console.log('🔍 Detailed differences (first 20):');
+                    diffsToShow.forEach((diff, i) => {
+                      const pathStr = Array.isArray(diff.path) ? diff.path.join('.') : 'root';
+                      console.log(`  ${i+1}. [${diff.kind}] ${pathStr}:`, {
+                        kind: diff.kind,
+                        path: diff.path,
+                        oldValue: diff.lhs,
+                        newValue: diff.rhs,
+                        item: diff.item
+                      });
+                    });
+                    
+                    if (differences.length > maxDiffsToShow) {
+                      console.log(`  ... and ${differences.length - maxDiffsToShow} more differences`);
+                    }
+                    
+                    console.groupEnd();
+                  } else {
+                    console.log('[GameState] 🤔 No differences found between corrupted and fresh state - this suggests the corruption may be in hash calculation rather than actual data');
+                  }
+                } catch (diffError) {
+                  console.error('[GameState] ❌ Failed to perform diff analysis:', diffError);
+                } finally {
+                  // Clear the snapshot to prevent memory leaks
+                  corruptedStateSnapshot.value = null;
+                  console.log('[GameState] 🧹 Cleared corrupted state snapshot');
+                }
+              }
 
               resolve();
             } else {
@@ -561,6 +644,20 @@ export const useGameStateStore = defineStore(
         const isValid = calculatedHash === expectedHash;
         
         if (!isValid) {
+          // Capture corrupted state snapshot for debugging before requesting refresh
+          try {
+            corruptedStateSnapshot.value = structuredClone(rawGameState);
+            console.log('[GameState] 🔍 Captured corrupted state snapshot for diff analysis');
+          } catch (cloneError) {
+            console.warn('[GameState] Failed to clone corrupted state, trying JSON fallback:', cloneError);
+            try {
+              corruptedStateSnapshot.value = JSON.parse(JSON.stringify(rawGameState));
+            } catch (jsonError) {
+              console.error('[GameState] Failed to capture corrupted state snapshot:', jsonError);
+              corruptedStateSnapshot.value = null;
+            }
+          }
+          
           console.error('Client-side hash mismatch after applying operations', {
             expected: expectedHash.substring(0, 16) + '...',
             calculated: calculatedHash.substring(0, 16) + '...',
@@ -569,7 +666,8 @@ export const useGameStateStore = defineStore(
             documentTypes: Object.values(gameState.value.documents || {}).reduce((types, doc) => {
               types[doc.documentType] = (types[doc.documentType] || 0) + 1;
               return types;
-            }, {} as Record<string, number>)
+            }, {} as Record<string, number>),
+            snapshotCaptured: !!corruptedStateSnapshot.value
           });
           
           // Show user notification about hash validation failure

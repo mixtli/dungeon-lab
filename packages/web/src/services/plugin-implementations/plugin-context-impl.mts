@@ -371,25 +371,15 @@ export class PluginContextImpl implements PluginContext {
    * Open a document sheet by ID and type
    * Plugins use this to open spell sheets, item sheets, etc.
    */
-  openDocumentSheet(documentId: string, documentType: string): void {
+  openDocumentSheet(documentId: string, pluginDocumentType: string): void {
     const documentSheetStore = useDocumentSheetStore();
-    
-    // Map plugin document types to actual document types
-    const getActualDocumentType = (pluginDocumentType: string): BaseDocument['documentType'] => {
-      // For weapon sheets, use 'item' document type
-      if (pluginDocumentType === 'weapon') {
-        return 'item';
-      }
-      // For other types like spell, use 'vtt-document'
-      return 'vtt-document';
-    };
     
     // Create minimal document for sheet opening
     const mockDocument: BaseDocument = {
       id: documentId,
       name: 'Loading...', // Will be loaded by the sheet
-      documentType: getActualDocumentType(documentType),
-      pluginDocumentType: documentType,
+      documentType: 'item', // All items opened via plugin context are item documents
+      pluginDocumentType: pluginDocumentType,
       pluginId: this.pluginId, // Use the current plugin's ID
       slug: '',
       pluginData: {},
@@ -399,7 +389,7 @@ export class PluginContextImpl implements PluginContext {
     };
     
     documentSheetStore.openDocumentSheet(mockDocument);
-    console.log(`[PluginContext] Opened document sheet from plugin '${this.pluginId}': ${documentId} (${documentType})`);
+    console.log(`[PluginContext] Opened document sheet from plugin '${this.pluginId}': ${documentId} (${pluginDocumentType})`);
   }
 
   /**

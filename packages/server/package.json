@@ -16,7 +16,7 @@
     "import:users": "tsx src/scripts/import-users.mts",
     "upload-compendium": "tsx scripts/upload-compendium.mts",
     "reassign:characters": "tsx src/scripts/reassign-character-ownership.mts",
-    "reassign:characters:dry-run": "tsx src/scripts/reassign-character-ownership.mts --dry-run",
+    "reassign:eharacters:dry-run": "tsx src/scripts/reassign-character-ownership.mts --dry-run",
     "migrate:gamestate": "tsx src/scripts/migrate-campaign-gamestate.mts",
     "migrate:gamestate:dry-run": "tsx src/scripts/migrate-campaign-gamestate.mts --dry-run",
     "migrate:owner-fields": "tsx src/scripts/migrate-owner-fields.mts",

@@ -15,6 +15,7 @@ import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-con
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
+import { calculateD20Total } from '../../utils/dnd-roll-utilities.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
 
 /**
@@ -437,31 +438,52 @@ async function executeAttackRollWorkflow(
     try {
       const rollResult = await context.sendRollRequest(request.playerId, attackRoll.rollType, attackRoll.rollData);
       
-      // Calculate attack total from roll result
-      let attackTotal = 0;
-      for (const diceGroup of rollResult.results) {
-        attackTotal += diceGroup.results.reduce((sum, result) => sum + result, 0);
-      }
-      for (const modifier of rollResult.modifiers) {
-        attackTotal += modifier.value;
-      }
-      attackTotal += rollResult.arguments.customModifier;
+      // Use calculated total from roll handler if available (handles advantage/disadvantage correctly)
+      // Otherwise fall back to manual calculation for non-plugin rolls
+      const attackTotal = 'calculatedTotal' in rollResult ? 
+        (rollResult as { calculatedTotal: number }).calculatedTotal : 
+        calculateD20Total(rollResult);
       
       const targetAC = getTargetAC(target);
       const isHit = attackTotal >= targetAC;
       
-      await context.sendChatMessage(
-        `${creature.name}'s ${action.name}: ${attackTotal} vs AC ${targetAC} → ${isHit ? 'HIT' : 'MISS'}`,
-        {}
+      // Check for critical hit/miss
+      const isNaturalTwenty = rollResult.results.some(group => 
+        group.sides === 20 && group.results.some(roll => roll === 20)
+      );
+      const isNaturalOne = rollResult.results.some(group => 
+        group.sides === 20 && group.results.some(roll => roll === 1)
       );
       
+      // Create structured attack result message matching weapon attack format
+      let attackResultMessage = `${creature.name} attacks ${target.document.name} with ${action.name}: ${attackTotal} vs AC ${targetAC}`;
       if (isHit) {
-        // Check for critical hit (natural 20)
-        const isNaturalTwenty = rollResult.results.some(group => 
-          group.sides === 20 && group.results.some(roll => roll === 20)
-        );
-        
-        // Roll and apply damage
+        if (isNaturalTwenty) {
+          attackResultMessage += ' (Critical Hit!)';
+        } else {
+          attackResultMessage += ' (Hit)';
+        }
+      } else {
+        if (isNaturalOne) {
+          attackResultMessage += ' (Critical Miss)';
+        } else {
+          attackResultMessage += ' (Miss)';
+        }
+      }
+      
+      // Send structured roll result instead of chat message
+      context.sendRollResult({
+        message: attackResultMessage,
+        result: attackTotal,
+        target: targetAC,
+        success: isHit,
+        rollType: 'monster-attack',
+        recipients: rollResult.recipients,
+        chatComponentType: 'dnd-roll-card'
+      });
+      
+      if (isHit) {
+        // Roll and apply damage (using isNaturalTwenty from above)
         if (action.damage) {
           await rollAndApplyDamage(action, target, context, isNaturalTwenty, request);
         } else {
@@ -632,10 +654,19 @@ async function rollAndApplyDamage(
       if (halfDamage) damage = Math.floor(damage / 2);
       
       applyDamageToTarget(target, damage, damageData.damageType || 'unspecified');
-      await context.sendChatMessage(
-        `${target.document.name} takes ${damage} ${damageData.damageType || ''} damage`,
-        {}
-      );
+      
+      // Send damage result with component type for rich damage card display
+      context.sendRollResult({
+        message: `${target.document.name} takes ${damage} ${damageData.damageType || ''} damage`,
+        result: damage,
+        success: true,
+        rollType: 'monster-damage',
+        chatComponentType: 'damage-card',
+        damageInfo: {
+          amount: damage,
+          type: damageData.damageType || 'unspecified'
+        }
+      });
       return;
     }
     
@@ -677,10 +708,18 @@ async function rollAndApplyDamage(
     
     applyDamageToTarget(target, damage, damageData.damageType || 'unspecified');
     
-    await context.sendChatMessage(
-      `${target.document.name} takes ${damage} ${damageData.damageType || ''} damage${halfDamage ? ' (halved)' : ''}`,
-      {}
-    );
+    // Send damage result with component type for rich damage card display
+    context.sendRollResult({
+      message: `${target.document.name} takes ${damage} ${damageData.damageType || ''} damage${halfDamage ? ' (halved)' : ''}`,
+      result: damage,
+      success: true,
+      rollType: 'monster-damage',
+      chatComponentType: 'damage-card',
+      damageInfo: {
+        amount: damage,
+        type: damageData.damageType || 'unspecified'
+      }
+    });
     
   } catch (error) {
     console.error(`[MonsterAction] Damage roll failed:`, error);
@@ -690,10 +729,19 @@ async function rollAndApplyDamage(
     if (halfDamage) damage = Math.floor(damage / 2);
     
     applyDamageToTarget(target, damage, damageData.damageType || 'unspecified');
-    await context.sendChatMessage(
-      `${target.document.name} takes ${damage} ${damageData.damageType || ''} damage (average)`,
-      {}
-    );
+    
+    // Send damage result with component type for rich damage card display
+    context.sendRollResult({
+      message: `${target.document.name} takes ${damage} ${damageData.damageType || ''} damage (average)`,
+      result: damage,
+      success: true,
+      rollType: 'monster-damage',
+      chatComponentType: 'damage-card',
+      damageInfo: {
+        amount: damage,
+        type: damageData.damageType || 'unspecified'
+      }
+    });
   }
 }
 

@@ -22,6 +22,7 @@ const gameSessionSchemaMongoose = gameSessionSchema
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema<IGameSession>(gameSessionSchemaMongoose);
+mongooseSchema.set('minimize', false);
 
 mongooseSchema.path('campaignId').get(function (value: ObjectId | undefined) {
   return value?.toString();

@@ -10,7 +10,8 @@ import type { GameActionRequest, ServerGameStateWithVirtuals, JsonPatchOperation
 import { 
   getHandlers, 
   requiresManualApproval, 
-  generateApprovalMessage 
+  generateApprovalMessage,
+  getRegistrationStats 
 } from './multi-handler-registry.mjs';
 import type { ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { createDraft, finishDraft, enablePatches } from 'immer';
@@ -74,11 +75,36 @@ export class GMActionHandlerService {
     
     // Only GMs should handle these requests
     if (!this.gameSessionStore.isGameMaster) {
+      console.log('[GMActionHandler] Not a GM, skipping initialization');
       return;
     }
 
+    console.log('[GMActionHandler] User is GM, setting up socket listeners');
+    
+    if (!this.socketStore.socket) {
+      console.error('[GMActionHandler] No socket available for GM action handler');
+      return;
+    }
+    
+    console.log('[GMActionHandler] Socket available, registering gameAction:forward listener');
+
     // Listen for action requests routed from server
-    this.socketStore.socket?.on('gameAction:forward', this.handleActionRequest.bind(this));
+    this.socketStore.socket.on('gameAction:forward', this.handleActionRequest.bind(this));
+    
+    // Add debug listener to verify socket events are being received
+    this.socketStore.socket.on('gameAction:forward', (request: any) => {
+      console.log('[GMActionHandler] 🔍 DEBUG: gameAction:forward event received:', {
+        action: request?.action,
+        playerId: request?.playerId,
+        requestId: request?.id,
+        fullRequest: request
+      });
+    });
+    
+    console.log('[GMActionHandler] GM action handler initialized successfully');
+    
+    // Debug: Log current handler registrations
+    this.debugHandlerRegistrations();
   }
 
   /**
@@ -466,6 +492,31 @@ export class GMActionHandlerService {
     
     // Fallback to player ID
     return `Player ${playerId.substring(0, 8)}...`;
+  }
+
+  /**
+   * Debug function to check handler registrations
+   */
+  private debugHandlerRegistrations(): void {
+    const stats = getRegistrationStats();
+    console.log('[GMActionHandler] 🔍 Handler registration debug:', stats);
+    
+    // Specifically check assign-item handler
+    const assignItemHandlers = getHandlers('assign-item');
+    console.log('[GMActionHandler] 🔍 assign-item handlers:', {
+      count: assignItemHandlers.length,
+      handlers: assignItemHandlers.map(h => ({
+        pluginId: h.pluginId || 'core',
+        priority: h.priority || 0,
+        requiresManualApproval: h.requiresManualApproval,
+        hasValidate: !!h.validate,
+        hasExecute: !!h.execute
+      }))
+    });
+    
+    // Check if assign-item requires approval
+    const requiresApproval = requiresManualApproval('assign-item');
+    console.log('[GMActionHandler] 🔍 assign-item requires manual approval:', requiresApproval);
   }
 
   /**

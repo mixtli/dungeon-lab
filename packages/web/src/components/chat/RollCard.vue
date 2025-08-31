@@ -84,7 +84,12 @@ const props = defineProps<Props>();
  * Calculate total from dice results and modifiers
  */
 function calculateTotal(): number {
-  // Sum all dice results
+  // Use plugin-calculated total if available (from D&D handler, etc.)
+  if (typeof (props.rollData as any).calculatedTotal === 'number') {
+    return (props.rollData as any).calculatedTotal;
+  }
+  
+  // Fallback to generic calculation for non-plugin rolls
   let total = 0;
   for (const diceGroup of props.rollData.results) {
     total += diceGroup.results.reduce((sum, result) => sum + result, 0);

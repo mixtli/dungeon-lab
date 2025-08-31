@@ -1083,13 +1083,20 @@ watch(() => props.targetTokenIds, (newTargetIds) => {
 watch(() => gameStateStore.gameState, () => {
   // Update status bars when any document changes (like HP changes)
   // Note: Watching gameState instead of documents since documents is not directly exposed
-  refreshAllTokenStatusBars();
+  // Use nextTick to defer updates until after Vue finishes applying state changes
+  // This prevents hash mismatches during gameState updates
+  nextTick(() => {
+    refreshAllTokenStatusBars();
+  });
 }, { deep: true });
 
 // Watch for plugin registry changes (plugin loads/unloads)
 watch(() => pluginRegistry.getPlugins(), () => {
   // Update status bars when plugin availability changes
-  refreshAllTokenStatusBars();
+  // Use nextTick for consistency and safety
+  nextTick(() => {
+    refreshAllTokenStatusBars();
+  });
 }, { deep: true });
 
 // Lifecycle

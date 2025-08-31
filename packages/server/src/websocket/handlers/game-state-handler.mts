@@ -222,6 +222,29 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       // Set gameSessionId on socket for other handlers to use
       socket.gameSessionId = sessionId;
       
+      // Debug: Verify room membership immediately after joining
+      const roomsAfterJoin = Array.from(socket.rooms);
+      const expectedRoom = `session:${sessionId}`;
+      const isInRoom = roomsAfterJoin.includes(expectedRoom);
+      
+      console.log('[GameStateHandler] 🔍 Session room join verification:', {
+        userId,
+        sessionId,
+        expectedRoom,
+        roomsAfterJoin,
+        isInRoom,
+        socketId: socket.id.substring(0, 8) + '...'
+      });
+      
+      if (!isInRoom) {
+        console.error('[GameStateHandler] ❌ CRITICAL: Socket failed to join session room!', {
+          userId,
+          sessionId,
+          expectedRoom,
+          actualRooms: roomsAfterJoin
+        });
+      }
+      
       logger.info('User joined socket room:', { sessionId, userId });
 
       // Get fully populated session data to return to client
@@ -435,6 +458,16 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     // Check what rooms this socket was actually in before disconnecting
     const roomsSocketWasIn = Array.from(socket.rooms);
     const gameSessionRooms = roomsSocketWasIn.filter(room => room.startsWith('session:'));
+    
+    // Enhanced debugging for socket disconnect
+    console.log('[GameStateHandler] 🔍 Socket disconnect analysis:', {
+      userId,
+      socketId: socket.id.substring(0, 8) + '...',
+      roomsSocketWasIn,
+      gameSessionRooms,
+      gameSessionId: socket.gameSessionId,
+      disconnectTime: new Date().toISOString()
+    });
     
     logger.info('Socket was in rooms:', { rooms: roomsSocketWasIn, gameSessionRooms, userId });
     

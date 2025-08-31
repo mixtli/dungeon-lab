@@ -28,7 +28,9 @@ import {
   dndDisengageHandler,
   dndSearchHandler,
   dndReadyHandler,
-  weaponAttackHandler
+  weaponAttackHandler,
+  equipItemActionHandler,
+  unequipItemActionHandler
 } from './handlers/actions/index.mjs';
 import { unifiedSpellCastHandler } from './handlers/actions/spell-casting.handler.mjs';
 import { monsterActionHandler } from './handlers/actions/monster-action.handler.mjs';
@@ -342,6 +344,10 @@ export class DnD5e2024Plugin extends BaseGameSystemPlugin {
       context.registerActionHandler('dnd5e-2024:disengage', dndDisengageHandler);
       context.registerActionHandler('dnd5e-2024:search', dndSearchHandler);
       context.registerActionHandler('dnd5e-2024:ready', dndReadyHandler);
+      
+      // Register D&D equipment action handlers
+      context.registerActionHandler('equip-item', equipItemActionHandler);
+      context.registerActionHandler('unequip-item', unequipItemActionHandler);
       
       // Register D&D token context actions
       this.registerTokenActions(context);

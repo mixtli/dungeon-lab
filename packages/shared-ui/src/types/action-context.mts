@@ -45,6 +45,8 @@ export interface RollResultData {
     amount: number;
     type: string;
   };
+  /** Optional plugin component type for custom chat UI (e.g., 'dnd-roll-card', 'damage-card') */
+  chatComponentType?: string;
 }
 
 /**

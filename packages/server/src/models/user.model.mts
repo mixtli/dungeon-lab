@@ -14,6 +14,7 @@ function generateApiKey() {
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema(userSchema.merge(baseMongooseZodSchema));
+mongooseSchema.set('minimize', false);
 
 // Add password comparison method
 mongooseSchema.methods.comparePassword = async function (

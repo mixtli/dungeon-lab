@@ -93,9 +93,36 @@ function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
 
       // Find GM socket and forward request
       const io = SocketServer.getInstance().socketIo;
+      
+      // Debug: Log socket search details
+      console.log('[GameActionHandler] 🔍 Searching for GM socket:', {
+        gmUserId: session.gameMasterId,
+        sessionId: request.sessionId,
+        requiredRoom: `session:${request.sessionId}`,
+        totalConnectedSockets: io.sockets.sockets.size
+      });
+
+      // Debug: List all connected sockets and their rooms
+      const connectedSockets = [];
+      for (const [socketId, socket] of io.sockets.sockets) {
+        connectedSockets.push({
+          socketId: socketId.substring(0, 8) + '...',
+          userId: socket.userId,
+          rooms: Array.from(socket.rooms),
+          isTargetGM: socket.userId === session.gameMasterId
+        });
+      }
+      console.log('[GameActionHandler] 🔍 All connected sockets and rooms:', connectedSockets);
+
       const gmSocketId = findGMSocketForSession(session.gameMasterId, request.sessionId);
       
       if (!gmSocketId) {
+        console.log('[GameActionHandler] ❌ GM socket not found. Detailed analysis:');
+        console.log('  - GM User ID:', session.gameMasterId);
+        console.log('  - Required session room:', `session:${request.sessionId}`);
+        console.log('  - GM sockets found:', connectedSockets.filter(s => s.isTargetGM));
+        console.log('  - All session rooms across sockets:', connectedSockets.flatMap(s => s.rooms.filter(r => r.startsWith('session:'))));
+        
         return callback({
           success: false,
           requestId: request.id,
@@ -105,6 +132,12 @@ function gameActionHandler(socket: Socket<ClientToServerEvents, ServerToClientEv
           }
         });
       }
+
+      console.log('[GameActionHandler] ✅ Found GM socket:', {
+        socketId: gmSocketId.substring(0, 8) + '...',
+        gmUserId: session.gameMasterId,
+        sessionRoom: `session:${request.sessionId}`
+      });
 
       // Store callback for later execution when GM responds
       const timeout = setTimeout(() => {

@@ -28,6 +28,9 @@
         </div>
       </div>
       <div class="header-actions">
+        <button @click="copyCharacterId" class="copy-btn" title="Copy Character ID">
+          📋
+        </button>
         <button 
           v-if="!readonly"
           @click="toggleEditMode" 
@@ -102,7 +105,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-label">Armor Class</div>
-            <div v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</div>
+            <div v-if="!editMode || readonly" class="stat-value">{{ calculatedAC }}</div>
             <input 
               v-else-if="characterCopy?.pluginData && (characterCopy.pluginData as any)?.attributes?.armorClass"
               v-model.number="(characterCopy.pluginData as any).attributes.armorClass.value"
@@ -117,7 +120,7 @@
             <div v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</div>
             <div v-else class="hit-points-edit">
               <input 
-                v-model.number="hitPointsCurrent"
+                v-model.number="(characterCopy!.pluginData as DndCharacterData).attributes.hitPoints.current"
                 class="stat-input hp-current"
                 type="number"
                 min="0"
@@ -125,7 +128,7 @@
               />
               <span class="hp-separator">/</span>
               <input 
-                v-model.number="hitPointsMax"
+                v-model.number="(characterCopy!.pluginData as DndCharacterData).attributes.hitPoints.maximum"
                 class="stat-input hp-max"
                 type="number"
                 min="1"
@@ -477,9 +480,25 @@
           @dragleave="handleDragLeave"
           @drop="handleDrop"
         >
+          <!-- AC Display Header -->
+          <div class="ac-display-header">
+            <div class="ac-main">
+              <span class="ac-label">Armor Class</span>
+              <span class="ac-value">{{ calculatedAC }}</span>
+            </div>
+            <div class="ac-breakdown">
+              <span v-if="equippedItems.armor" class="ac-source">
+                {{ equippedItems.armor.name }}: {{ getArmorAC(equippedItems.armor) }}
+              </span>
+              <span v-else class="ac-source">Base: 10 + Dex</span>
+              <span v-if="equippedItems.shield" class="ac-source">Shield: +2</span>
+              <span class="ac-source">Dex: {{ getDexModifier() >= 0 ? '+' : '' }}{{ getDexModifier() }}</span>
+            </div>
+          </div>
+
           <!-- Equipment Header -->
           <div class="equipment-header">
-            <h3 class="section-title">Equipment</h3>
+            <h3 class="section-title">Equipment & Gear</h3>
             <div class="item-count">
               {{ props.items?.value?.length || 0 }} item{{ (props.items?.value?.length || 0) !== 1 ? 's' : '' }}
             </div>
@@ -488,30 +507,100 @@
           <!-- Grouped Equipment Lists -->
           <div v-if="props.items?.value?.length" class="equipment-groups">
             
+            <!-- Armor Section -->
+            <div v-if="groupedItems.armor.length" class="item-group">
+              <div class="group-header">
+                <h4 class="group-title">🛡️ Armor</h4>
+                <span class="group-count">{{ groupedItems.armor.length }}</span>
+              </div>
+              <div class="item-list" :class="{ 'scrollable': groupedItems.armor.length > 3 }">
+                <div 
+                  v-for="item in groupedItems.armor" 
+                  :key="item.id"
+                  class="item-row equipment-item"
+                  :class="{ 'equipped': isItemEquipped(item) }"
+                  @dblclick="openArmorSheet(item)"
+                >
+                  <div class="item-content">
+                    <div class="item-equipment-checkbox">
+                      <input
+                        type="checkbox"
+                        :checked="isItemEquipped(item)"
+                        @change="toggleItemEquipped(item, $event)"
+                        :disabled="editMode || readonly"
+                        class="equipment-checkbox"
+                      />
+                    </div>
+                    <div class="item-icon">
+                      <img 
+                        v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                        :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                        :alt="item.name"
+                        class="item-image"
+                        @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                      />
+                      <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                    </div>
+                    <div class="item-details">
+                      <div class="item-name-row">
+                        <span class="item-name">{{ item.name }}</span>
+                        <span v-if="isItemEquipped(item)" class="equipped-badge">EQUIPPED</span>
+                      </div>
+                      <div class="item-stats">
+                        <span v-if="getArmorAC(item)" class="stat">AC {{ getArmorAC(item) }}</span>
+                        <span v-if="getItemType(item) === 'shield'" class="stat">+2 AC</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <!-- Weapons Section -->
             <div v-if="groupedItems.weapons.length" class="item-group">
               <div class="group-header">
                 <h4 class="group-title">⚔️ Weapons</h4>
                 <span class="group-count">{{ groupedItems.weapons.length }}</span>
               </div>
-              <div class="item-list">
+              <div class="item-list" :class="{ 'scrollable': groupedItems.weapons.length > 3 }">
                 <div 
                   v-for="item in groupedItems.weapons" 
                   :key="item.id"
-                  class="item-row"
+                  class="item-row equipment-item"
+                  :class="{ 'equipped': isItemEquipped(item) }"
                   @dblclick="openWeaponSheet(item)"
                 >
-                  <div class="item-icon">
-                    <img 
-                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
-                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
-                      :alt="item.name"
-                      class="item-image"
-                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-                    />
-                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  <div class="item-content">
+                    <div class="item-equipment-checkbox">
+                      <input
+                        type="checkbox"
+                        :checked="isItemEquipped(item)"
+                        @change="toggleItemEquipped(item, $event)"
+                        :disabled="editMode || readonly || (!canEquipWeapon(item) && !isItemEquipped(item))"
+                        class="equipment-checkbox"
+                      />
+                    </div>
+                    <div class="item-icon">
+                      <img 
+                        v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                        :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                        :alt="item.name"
+                        class="item-image"
+                        @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                      />
+                      <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                    </div>
+                    <div class="item-details">
+                      <div class="item-name-row">
+                        <span class="item-name">{{ item.name }}</span>
+                        <span v-if="isItemEquipped(item)" class="equipped-badge">{{ getEquippedSlotName(item) }}</span>
+                      </div>
+                      <div class="item-stats">
+                        <span v-if="getWeaponDamage(item)" class="stat">{{ getWeaponDamage(item) }}</span>
+                        <span v-if="isWeaponTwoHanded(item)" class="stat">Two-handed</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="item-name">{{ item.name }}</div>
                   <div class="item-actions">
                     <button 
                       @click="initiateWeaponAttack(item)" 
@@ -525,61 +614,32 @@
               </div>
             </div>
 
-            <!-- Armor Section -->
-            <div v-if="groupedItems.armor.length" class="item-group">
-              <div class="group-header">
-                <h4 class="group-title">🛡️ Armor</h4>
-                <span class="group-count">{{ groupedItems.armor.length }}</span>
-              </div>
-              <div class="item-list">
-                <div 
-                  v-for="item in groupedItems.armor" 
-                  :key="item.id"
-                  class="item-row"
-                  @dblclick="openArmorSheet(item)"
-                >
-                  <div class="item-icon">
-                    <img 
-                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
-                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
-                      :alt="item.name"
-                      class="item-image"
-                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-                    />
-                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
-                  </div>
-                  <div class="item-name">{{ item.name }}</div>
-                  <div class="item-actions">
-                    <!-- Armor doesn't have action buttons -->
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Gear Section -->
             <div v-if="groupedItems.gear.length" class="item-group">
               <div class="group-header">
                 <h4 class="group-title">🎒 Gear</h4>
                 <span class="group-count">{{ groupedItems.gear.length }}</span>
               </div>
-              <div class="item-list">
+              <div class="item-list" :class="{ 'scrollable': groupedItems.gear.length > 3 }">
                 <div 
                   v-for="item in groupedItems.gear" 
                   :key="item.id"
                   class="item-row"
                   @dblclick="openGearSheet(item)"
                 >
-                  <div class="item-icon">
-                    <img 
-                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
-                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
-                      :alt="item.name"
-                      class="item-image"
-                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-                    />
-                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  <div class="item-content">
+                    <div class="item-icon">
+                      <img 
+                        v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                        :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                        :alt="item.name"
+                        class="item-image"
+                        @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                      />
+                      <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                    </div>
+                    <div class="item-name">{{ item.name }}</div>
                   </div>
-                  <div class="item-name">{{ item.name }}</div>
                   <div class="item-actions">
                     <!-- General gear doesn't have action buttons -->
                   </div>
@@ -749,10 +809,12 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
 import type { ICharacter, IItem, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
+import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { EquipItemParameters, UnequipItemParameters } from '../../shared/types/equipment-actions.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 // Weapon dialogs removed - now using unified action handlers
@@ -907,81 +969,32 @@ if (characterCopy.value) {
 // Direct v-model computed properties for character editing
 
 // Hit points current - prioritize state.currentHitPoints for runtime HP, fallback to pluginData
-const hitPointsCurrent = computed({
-  get() {
-    // First check state for runtime current HP
-    if (typeof character.value!.state?.currentHitPoints === 'number') {
-      return character.value!.state.currentHitPoints;
-    }
-    
-    // Fallback to pluginData (baseline HP)
-    const attributes = character.value!.pluginData?.attributes as any;
-    const baselineHp = attributes?.hitPoints?.current || (character.value!.pluginData as any)?.hitPoints?.current || 8;
-    
-    // Initialize state if missing
-    if (!character.value!.state) character.value!.state = {};
-    character.value!.state.currentHitPoints = baselineHp;
-    
-    return baselineHp;
-  },
-  set(value: number) {
-    // Always update state for runtime HP
-    if (!character.value!.state) character.value!.state = {};
-    character.value!.state.currentHitPoints = value;
-    
-    // Also update pluginData for persistence
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.hitPoints) (character.value!.pluginData as any).attributes.hitPoints = {};
-    (character.value!.pluginData as any).attributes.hitPoints.current = value;
-    // Also update legacy format
-    if (!(character.value!.pluginData as any).hitPoints) (character.value!.pluginData as any).hitPoints = {};
-    (character.value!.pluginData as any).hitPoints.current = value;
+const hitPointsCurrent = computed(() => {
+  // First check state for runtime current HP
+  if (typeof character.value!.state?.currentHitPoints === 'number') {
+    return character.value!.state.currentHitPoints;
   }
+  
+  // Fallback to pluginData (baseline HP)
+  const attributes = character.value!.pluginData?.attributes as any;
+  return attributes?.hitPoints?.current || (character.value!.pluginData as any)?.hitPoints?.current || 8;
 });
 
-// Hit points max - direct binding to character.pluginData.attributes.hitPoints.maximum
-const hitPointsMax = computed({
-  get() {
-    const attributes = character.value!.pluginData?.attributes as any;
-    return attributes?.hitPoints?.maximum || (character.value!.pluginData as any)?.hitPoints?.maximum || 8;
-  },
-  set(value: number) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.hitPoints) (character.value!.pluginData as any).attributes.hitPoints = {};
-    (character.value!.pluginData as any).attributes.hitPoints.maximum = value;
-    // Also update legacy format
-    if (!(character.value!.pluginData as any).hitPoints) (character.value!.pluginData as any).hitPoints = {};
-    (character.value!.pluginData as any).hitPoints.maximum = value;
-  }
+// Hit points max - read-only computed from character.pluginData.attributes.hitPoints.maximum
+const hitPointsMax = computed(() => {
+  const attributes = character.value!.pluginData?.attributes as any;
+  return attributes?.hitPoints?.maximum || (character.value!.pluginData as any)?.hitPoints?.maximum || 8;
 });
 
-// Speed - direct binding to character.pluginData.attributes.movement.walk
-const speedValue = computed({
-  get() {
-    const attributes = character.value!.pluginData?.attributes as any;
-    return attributes?.movement?.walk || (character.value!.pluginData as any)?.speed || 30;
-  },
-  set(value: number) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.movement) (character.value!.pluginData as any).attributes.movement = {};
-    (character.value!.pluginData as any).attributes.movement.walk = value;
-    // Also update legacy format
-    (character.value!.pluginData as any).speed = value;
-  }
+// Speed - read-only computed from character.pluginData.attributes.movement.walk
+const speedValue = computed(() => {
+  const attributes = character.value!.pluginData?.attributes as any;
+  return attributes?.movement?.walk || (character.value!.pluginData as any)?.speed || 30;
 });
 
-// Automate attacks checkbox - direct binding to character.pluginData.automateAttacks
-const automateAttacksValue = computed({
-  get() {
-    return character.value!.pluginData?.automateAttacks || false;
-  },
-  set(value: boolean) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    (character.value!.pluginData as any).automateAttacks = value;
-  }
+// Automate attacks checkbox - read-only computed from character.pluginData.automateAttacks
+const automateAttacksValue = computed(() => {
+  return character.value!.pluginData?.automateAttacks || false;
 });
 
 // Tab definitions
@@ -1268,6 +1281,83 @@ const languageProficiencies = computed(() => {
   });
 });
 
+// Equipment-related computed properties
+const characterItems = computed(() => {
+  return props.items.value.filter(item => item.carrierId === character.value.id);
+});
+
+const equippedItems = computed(() => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  return {
+    armor: characterItems.value.find(item => item.id === equipment.armor),
+    shield: characterItems.value.find(item => item.id === equipment.shield),
+    mainHand: characterItems.value.find(item => item.id === equipment.mainHand),
+    offHand: characterItems.value.find(item => item.id === equipment.offHand),
+    twoHanded: characterItems.value.find(item => item.id === equipment.twoHanded)
+  };
+});
+
+const armorItems = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'armor' &&
+    (item.pluginData as any)?.type !== 'shield'
+  );
+});
+
+const shieldItems = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'armor' &&
+    (item.pluginData as any)?.type === 'shield'
+  );
+});
+
+const oneHandedWeapons = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'weapon' &&
+    !(item.pluginData as any)?.properties?.includes('two-handed')
+  );
+});
+
+const twoHandedWeapons = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'weapon' &&
+    (item.pluginData as any)?.properties?.includes('two-handed')
+  );
+});
+
+const calculatedAC = computed(() => {
+  let baseAC = 10; // Natural AC
+  let dexMod = abilityModifiers.value.dexterity || 0; // Use consistent calculation
+  
+  const equippedArmor = equippedItems.value.armor;
+  const equippedShield = equippedItems.value.shield;
+  
+  // Apply armor AC (only if it's actual armor, not shields)
+  if (equippedArmor && equippedArmor.pluginData) {
+    const armorData = equippedArmor.pluginData as any;
+    // Only apply armor AC if it's not a shield
+    if (armorData.type !== 'shield') {
+      baseAC = armorData.armorClass || 10;
+      
+      // Apply dex modifier limits based on armor type
+      if (armorData.maxDexBonus !== undefined) {
+        dexMod = Math.min(dexMod, armorData.maxDexBonus);
+      }
+    }
+  }
+  
+  // Apply shield bonus (+2)
+  if (equippedShield) {
+    baseAC += 2;
+  }
+  
+  return baseAC + Math.max(0, dexMod);
+});
+
 const armorClassDisplay = computed(() => {
   const attributes = character.value!.pluginData?.attributes as any;
   if (attributes?.armorClass?.value) {
@@ -1414,20 +1504,11 @@ const activeConditions = computed(() => {
   return conditions;
 });
 
-// Notes - direct binding to character.pluginData.roleplay.backstory
-const characterNotes = computed({
-  get() {
-    // Try D&D schema format first, then fallback to legacy
-    return (character.value!.pluginData as any)?.roleplay?.backstory || 
-           (character.value!.pluginData as any)?.notes || '';
-  },
-  set(value: string) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).roleplay) (character.value!.pluginData as any).roleplay = {};
-    (character.value!.pluginData as any).roleplay.backstory = value;
-    // Also update legacy format
-    (character.value!.pluginData as any).notes = value;
-  }
+// Notes - read-only computed from character.pluginData.roleplay.backstory
+const characterNotes = computed(() => {
+  // Try D&D schema format first, then fallback to legacy
+  return (character.value!.pluginData as any)?.roleplay?.backstory || 
+         (character.value!.pluginData as any)?.notes || '';
 });
 
 
@@ -1753,6 +1834,17 @@ const saveCharacter = () => {
 
 const toggleEditMode = () => {
   emit('toggle-edit-mode');
+};
+
+// Copy character ID to clipboard
+const copyCharacterId = async () => {
+  try {
+    await navigator.clipboard.writeText(character.value.id);
+    console.log(`[CharacterSheet] Copied character ID to clipboard: ${character.value.id}`);
+    // Could add a toast notification here if desired
+  } catch (err) {
+    console.error('[CharacterSheet] Failed to copy character ID:', err);
+  }
 };
 
 const closeSheet = () => {
@@ -2480,34 +2572,57 @@ const handleDrop = async (event: DragEvent) => {
   event.preventDefault();
   event.stopPropagation();
   
+  console.log('[CharacterSheet] 🎯 DROP EVENT STARTED');
+  console.log('[CharacterSheet] Event details:', {
+    type: event.type,
+    dataTransfer: !!event.dataTransfer,
+    characterId: character.value?.id,
+    characterName: character.value?.name
+  });
+  
   // Reset drag state
   isDragOver.value = false;
   dragCounter.value = 0;
   
   if (!event.dataTransfer) {
-    console.warn('[CharacterSheet] No drag data available');
+    console.warn('[CharacterSheet] ❌ No drag data available');
     return;
   }
   
   if (!character.value!) {
-    console.warn('[CharacterSheet] No character available for item assignment');
+    console.warn('[CharacterSheet] ❌ No character available for item assignment');
     return;
   }
   
   try {
     // Parse drag data
     const dragDataStr = event.dataTransfer.getData('application/json');
+    console.log('[CharacterSheet] 📄 Raw drag data string:', dragDataStr);
+    
     if (!dragDataStr) {
-      console.warn('[CharacterSheet] No drag data found');
+      console.warn('[CharacterSheet] ❌ No drag data found in dataTransfer');
+      console.log('[CharacterSheet] Available data types:', event.dataTransfer.types);
       return;
     }
     
     const dragData = JSON.parse(dragDataStr);
-    console.log('[CharacterSheet] Processing drop data:', dragData);
+    console.log('[CharacterSheet] 📦 Parsed drag data:', {
+      type: dragData.type,
+      documentType: dragData.documentType,
+      documentId: dragData.documentId,
+      name: dragData.name,
+      pluginId: dragData.pluginId,
+      fullData: dragData
+    });
     
     // Validate drag data format
     if (dragData.type !== 'document-token' || dragData.documentType !== 'item') {
-      console.warn('[CharacterSheet] Invalid drag data type:', dragData.type, dragData.documentType);
+      console.warn('[CharacterSheet] ❌ Invalid drag data format:', {
+        expectedType: 'document-token',
+        actualType: dragData.type,
+        expectedDocType: 'item',
+        actualDocType: dragData.documentType
+      });
       return;
     }
     
@@ -2519,15 +2634,17 @@ const handleDrop = async (event: DragEvent) => {
       targetCharacterName: character.value!.name || 'Unknown Character'
     };
     
-    console.log('[CharacterSheet] Requesting item assignment:', actionParams);
+    console.log('[CharacterSheet] 🎬 Requesting item assignment action:', actionParams);
+    console.log('[CharacterSheet] 🎬 Action will require GM approval (requiresManualApproval: true)');
     
     // Check if plugin context is available
     if (!pluginContext) {
-      console.error('[CharacterSheet] Plugin context not available for action request');
+      console.error('[CharacterSheet] ❌ Plugin context not available for action request');
       return;
     }
     
     // Request the action through the plugin context
+    console.log('[CharacterSheet] 🚀 Calling pluginContext.requestAction...');
     const result = await pluginContext.requestAction(
       'assign-item',
       actionParams.targetCharacterId, // actorId - the character receiving the item
@@ -2539,7 +2656,19 @@ const handleDrop = async (event: DragEvent) => {
       }
     );
     
-    console.log('[CharacterSheet] Action request result:', result);
+    console.log('[CharacterSheet] ✅ Action request completed with result:', result);
+    
+    // Provide user feedback based on result
+    if (result && result.success) {
+      console.log('[CharacterSheet] 🎉 Item assignment successful');
+      pluginContext.showNotification(`✅ Successfully assigned ${actionParams.itemName} to ${actionParams.targetCharacterName}`, 'success', 3000);
+    } else if (result && result.requiresApproval) {
+      console.log('[CharacterSheet] ⏳ Item assignment pending GM approval');
+      pluginContext.showNotification(`⏳ Item assignment pending GM approval: ${actionParams.itemName} → ${actionParams.targetCharacterName}`, 'info', 5000);
+    } else {
+      console.warn('[CharacterSheet] ⚠️ Unexpected action result:', result);
+      pluginContext.showNotification(`⚠️ Item assignment status unclear for ${actionParams.itemName}`, 'warning', 4000);
+    }
     
     // Handle result with console feedback
     if (result.success && result.approved) {
@@ -2551,7 +2680,17 @@ const handleDrop = async (event: DragEvent) => {
     }
     
   } catch (error) {
-    console.error('[CharacterSheet] Failed to process drop:', error);
+    console.error('[CharacterSheet] 💥 CRITICAL: Failed to process drop event:', {
+      error: error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      characterId: character.value?.id,
+      characterName: character.value?.name
+    });
+    
+    if (pluginContext) {
+      pluginContext.showNotification(`❌ Failed to assign item: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error', 5000);
+    }
   }
 };
 
@@ -2623,6 +2762,39 @@ onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown);
   console.log('D&D 5e Character Sheet mounted for character:', character.value!?.name || 'unknown');
   
+  // Log items loaded from gameState documents
+  console.log('[CharacterSheet] Items from gameState documents:');
+  console.log('props.items?.value:', props.items?.value);
+  
+  if (props.items?.value) {
+    const itemsArray = Array.isArray(props.items.value) ? props.items.value : Object.values(props.items.value);
+    console.log(`[CharacterSheet] Found ${itemsArray.length} total items in gameState`);
+    
+    // Log items by character ownership
+    const characterItems = itemsArray.filter(item => item.carrierId === character.value?.id);
+    console.log(`[CharacterSheet] Character ${character.value?.name} owns ${characterItems.length} items:`);
+    
+    characterItems.forEach((item, index) => {
+      console.log(`[CharacterSheet] Item ${index + 1}:`, {
+        id: item.id,
+        name: item.name,
+        itemType: item.pluginData?.itemType,
+        carrierId: item.carrierId,
+        documentType: item.documentType,
+        pluginData: item.pluginData
+      });
+    });
+    
+    // Log grouped items as they would appear in the UI
+    console.log('[CharacterSheet] Grouped items for UI:');
+    const grouped = groupItemsByType(characterItems);
+    Object.entries(grouped).forEach(([type, items]) => {
+      console.log(`[CharacterSheet] ${type}: ${items.length} items`, items.map(item => item.name));
+    });
+  } else {
+    console.log('[CharacterSheet] No items found in props.items?.value');
+  }
+  
   // Load compendium documents
   loadCompendiumDocuments();
   
@@ -2636,6 +2808,199 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
 });
+
+// Equipment methods
+const equipItem = async (itemId: string, slot: string) => {
+  try {
+    console.log('[Equipment] Equipping item:', { itemId, slot });
+    
+    const item = characterItems.value.find(i => i.id === itemId);
+    if (!item) {
+      console.error('[Equipment] Item not found:', itemId);
+      return;
+    }
+
+    await pluginContext.requestAction(
+      'equip-item',
+      character.value.id,
+      {
+        characterId: character.value.id,
+        itemId,
+        slot,
+        itemName: item.name
+      } as EquipItemParameters
+    );
+
+    console.log('[Equipment] Item equipped successfully');
+  } catch (error) {
+    console.error('[Equipment] Error equipping item:', error);
+  }
+};
+
+const unequipSlot = async (slot: string) => {
+  try {
+    console.log('[Equipment] Unequipping slot:', slot);
+    
+    const currentItem = equippedItems.value[slot as keyof typeof equippedItems.value];
+    
+    await pluginContext.requestAction(
+      'unequip-item',
+      character.value.id,
+      {
+        characterId: character.value.id,
+        slot,
+        itemName: currentItem?.name
+      } as UnequipItemParameters
+    );
+
+    console.log('[Equipment] Slot unequipped successfully');
+  } catch (error) {
+    console.error('[Equipment] Error unequipping slot:', error);
+  }
+};
+
+// Equipment checkbox interaction methods for items tab
+const toggleItemEquipped = async (item: any, event?: Event) => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  
+  // Check if item is currently equipped
+  const currentSlot = getItemEquippedSlot(item, equipment);
+  
+  if (currentSlot) {
+    // Item is equipped - unequip it
+    await unequipSlot(currentSlot);
+  } else {
+    // Item is not equipped - equip it in appropriate slot
+    const slot = determineEquipmentSlot(item);
+    if (slot) {
+      await equipItem(item.id, slot);
+    }
+  }
+};
+
+const isItemEquipped = (item: any): boolean => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  return !!getItemEquippedSlot(item, equipment);
+};
+
+const getItemEquippedSlot = (item: any, equipment: any): string | null => {
+  if (equipment.armor === item.id) return 'armor';
+  if (equipment.shield === item.id) return 'shield';
+  if (equipment.mainHand === item.id) return 'main-hand';
+  if (equipment.offHand === item.id) return 'off-hand';
+  if (equipment.twoHanded === item.id) return 'two-hand';
+  return null;
+};
+
+const determineEquipmentSlot = (item: any): string | null => {
+  // Use itemType from pluginData for equipment slot logic
+  const itemData = item.pluginData;
+  if (!itemData) return null;
+  
+  if (itemData.itemType === 'shield') {
+    return 'shield';
+  } else if (itemData.itemType === 'armor') {
+    return 'armor';
+  } else if (itemData.itemType === 'weapon') {
+    if (itemData.properties?.includes('two-handed')) {
+      return 'two-hand';
+    } else {
+      // Default to main hand for one-handed weapons
+      return 'main-hand';
+    }
+  }
+  
+  return null;
+};
+
+const canEquipWeapon = (item: any): boolean => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  const itemData = item.pluginData;
+  
+  if (itemData.itemType !== 'weapon' && itemData.itemType !== 'armor') return true;
+  
+  // Two-handed weapon conflicts with shield
+  if (itemData.properties?.includes('two-handed') && equipment.shield) {
+    return false;
+  }
+  
+  // Shield conflicts with two-handed weapon
+  if (itemData.type === 'shield' && equipment.twoHanded) {
+    return false;
+  }
+  
+  return true;
+};
+
+const getEquippedSlotName = (item: any): string => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  const slot = getItemEquippedSlot(item, equipment);
+  
+  switch (slot) {
+    case 'armor': return 'Armor';
+    case 'shield': return 'Shield';
+    case 'main-hand': return 'Main Hand';
+    case 'off-hand': return 'Off Hand';
+    case 'two-hand': return 'Two Handed';
+    default: return '';
+  }
+};
+
+// Equipment helper functions for AC display
+const getDexModifier = (): number => {
+  return abilityModifiers.value.dexterity || 0;
+};
+
+const getArmorAC = (item: any): number => {
+  if (!item || !item.pluginData) return 0;
+  
+  const itemData = item.pluginData;
+  if (itemData.itemType !== 'armor' || itemData.type === 'shield') return 0;
+  
+  // Return the AC value from armor data
+  return itemData.ac || itemData.armorClass || 0;
+};
+
+const getItemType = (item: any): string => {
+  if (!item) return '';
+  return item.pluginDocumentType || '';
+};
+
+const getWeaponDamage = (item: any): string => {
+  if (!item || !item.pluginData || item.pluginData.itemType !== 'weapon') return '';
+  
+  const weaponData = item.pluginData;
+  
+  // Handle damage as an object with dice and type properties
+  if (weaponData.damage && typeof weaponData.damage === 'object') {
+    const dice = weaponData.damage.dice || weaponData.damage.roll;
+    const type = weaponData.damage.type || weaponData.damage.damageType;
+    
+    if (dice && type) {
+      return `${dice} ${type}`;
+    } else if (dice) {
+      return dice;
+    }
+  }
+  
+  // Handle damage as separate dice and damageType properties
+  if (weaponData.dice && weaponData.damageType) {
+    return `${weaponData.dice} ${weaponData.damageType}`;
+  }
+  
+  // Handle damage as a simple string
+  if (typeof weaponData.damage === 'string') {
+    return weaponData.damage;
+  }
+  
+  return '';
+};
+
+const isWeaponTwoHanded = (item: any): boolean => {
+  if (!item || !item.pluginData || item.pluginData.itemType !== 'weapon') return false;
+  
+  return item.pluginData.properties?.includes('two-handed') || false;
+};
 
 // Watch for character changes and reload compendium data
 watch(() => {
@@ -3355,13 +3720,45 @@ watch(() => props.items?.value, () => {
   flex-direction: column;
 }
 
+.item-list.scrollable {
+  max-height: 200px; /* Roughly 3.5 items at ~55px each */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.item-list.scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.item-list.scrollable::-webkit-scrollbar-track {
+  background: var(--dnd-parchment-light);
+  border-radius: 3px;
+}
+
+.item-list.scrollable::-webkit-scrollbar-thumb {
+  background: var(--dnd-brown-light);
+  border-radius: 3px;
+}
+
+.item-list.scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--dnd-brown);
+}
+
 .item-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   padding: 6px 12px;
   border-bottom: 1px solid rgba(139, 87, 42, 0.1);
   transition: background-color 0.2s ease;
+}
+
+.item-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0; /* Allow content to shrink */
 }
 
 .item-row:last-child {
@@ -3409,6 +3806,7 @@ watch(() => props.items?.value, () => {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto; /* Ensure right alignment */
 }
 
 .compact-action-btn {
@@ -4181,6 +4579,118 @@ watch(() => props.items?.value, () => {
   padding: 8px;
   background: var(--dnd-parchment);
   border-radius: 4px;
+  border: 1px solid var(--dnd-brown-light);
+}
+
+/* Equipment Styles for Items Tab */
+.ac-display-header {
+  background: var(--dnd-parchment-dark);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  margin-bottom: 16px;
+}
+
+.ac-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ac-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red);
+}
+
+.ac-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--dnd-red-dark);
+  background: var(--dnd-parchment-light);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--dnd-brown-light);
+  min-width: 40px;
+  text-align: center;
+}
+
+.ac-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dnd-gray-dark);
+  line-height: 1.4;
+}
+
+.ac-source {
+  background: var(--dnd-parchment);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--dnd-brown-light);
+  font-weight: 500;
+}
+
+.ac-display-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red);
+  margin-bottom: 6px;
+}
+
+.equipment-item {
+  position: relative;
+  padding-left: 50px; /* Make room for checkbox */
+}
+
+.equipment-item.equipped {
+  background: var(--dnd-parchment-light);
+  border-left: 3px solid var(--dnd-gold);
+}
+
+.item-equipment-checkbox {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.equipment-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--dnd-red);
+  cursor: pointer;
+}
+
+.equipment-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.equipped-badge {
+  background: var(--dnd-gold);
+  color: var(--dnd-black);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.item-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--dnd-gray-dark);
+  margin-top: 2px;
+}
+
+.item-stats .stat {
+  background: var(--dnd-parchment-dark);
+  padding: 2px 6px;
+  border-radius: 3px;
   border: 1px solid var(--dnd-brown-light);
 }
 </style>

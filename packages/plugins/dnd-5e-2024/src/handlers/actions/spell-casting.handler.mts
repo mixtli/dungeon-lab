@@ -493,6 +493,7 @@ const executeSpellCast: ActionExecutionHandler = async (
           result: totalDamage,
           success: true, // Damage rolls are always successful
           rollType: 'spell-damage',
+          chatComponentType: 'damage-card',
           damageInfo: {
             amount: totalDamage,
             type: damageInfo.type

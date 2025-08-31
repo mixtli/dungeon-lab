@@ -60,6 +60,8 @@ import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { useDocumentState } from '../../composables/useDocumentState.mts';
 import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
 import { useNotificationStore } from '../../stores/notification.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mts';
+import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { PlayerActionService } from '../../services/player-action.service.mjs';
 import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
 import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.mjs';
@@ -88,6 +90,8 @@ const editMode = ref(false);
 // Services for GM request system
 const playerActionService = new PlayerActionService();
 const notificationStore = useNotificationStore();
+const gameStateStore = useGameStateStore();
+const gameSessionStore = useGameSessionStore();
 
 // Context-aware document state management
 const context = computed(() => props.context || 'admin');
@@ -477,6 +481,30 @@ const getComponentProps = () => {
     cancel: cancelChanges,
     reset: resetDocumentCopy
   };
+
+  // Add owner character for item document types (weapons, armor, gear, etc.)
+  if (props.documentType === 'item' && reactiveDocument.value && isGameContext.value) {
+    const item = reactiveDocument.value as IItem;
+    const ownerCharacter = item.carrierId 
+      ? gameStateStore.characters.find(char => char.id === item.carrierId)
+      : null;
+    
+    const ownerUser = item.ownerId 
+      ? gameSessionStore.currentSession?.participants?.find(user => user.id === item.ownerId)
+      : null;
+    
+    (componentProps as any).ownerCharacter = computed(() => ownerCharacter);
+    (componentProps as any).ownerUser = computed(() => ownerUser);
+    
+    console.log(`[DocumentSheetContainer] Adding owner character for item "${item.name}":`, {
+      carrierId: item.carrierId,
+      ownerName: ownerCharacter?.name || 'Unassigned'
+    });
+    console.log(`[DocumentSheetContainer] Adding owner user for item "${item.name}":`, {
+      ownerId: item.ownerId,
+      userName: ownerUser?.displayName || ownerUser?.username || 'Unassigned'
+    });
+  }
   
   console.log(`[DocumentSheetContainer] getComponentProps - Enhanced props:`, {
     document: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name, type: reactiveDocument.value.documentType } : null,

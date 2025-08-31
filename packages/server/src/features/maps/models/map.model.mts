@@ -34,6 +34,7 @@ const serverMapSchema = mapSchema.extend({
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema<IMap>(serverMapSchema.merge(baseMongooseZodSchema));
+mongooseSchema.set('minimize', false);
 
 // Override the uvtt field to use Mixed type to avoid _id issues with nested arrays
 mongooseSchema.path('uvtt', mongoose.Schema.Types.Mixed);

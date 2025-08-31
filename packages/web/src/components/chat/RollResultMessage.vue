@@ -1,19 +1,22 @@
 <template>
-  <div class="roll-result-message" :class="resultClass">
+  <!-- Plugin component if available -->
+  <component 
+    v-if="pluginComponent" 
+    :is="pluginComponent" 
+    v-bind="pluginComponentProps"
+  />
+  
+  <!-- Default generic component if no plugin component -->
+  <div v-else class="roll-result-message" :class="resultClass">
     <div class="result-header">
-      <span class="result-icon">{{ resultIcon }}</span>
+      <span class="result-icon">🎲</span>
       <div class="result-content">
         <span class="result-text">{{ message }}</span>
         <div class="result-details">
           <span class="roll-value">{{ result }}</span>
-          <span v-if="target" class="vs-text">{{ vsText }}</span>
+          <span v-if="target" class="vs-text">vs</span>
           <span v-if="target" class="target-value">{{ target }}</span>
-          <span class="result-status" :class="statusClass">{{ statusText }}</span>
-        </div>
-        <div v-if="damageInfo" class="damage-info">
-          <span class="damage-amount">{{ damageInfo.amount }}</span>
-          <span class="damage-type">{{ damageInfo.type }}</span>
-          <span class="damage-text">damage</span>
+          <span class="result-status" :class="statusClass">{{ success ? 'SUCCESS' : 'FAILURE' }}</span>
         </div>
       </div>
     </div>
@@ -21,12 +24,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-
-interface DamageInfo {
-  amount: number;
-  type: string;
-}
+import { computed, shallowRef, watchEffect } from 'vue';
+import type { Component } from 'vue';
+import { pluginRegistry } from '../../services/plugin-registry.mts';
 
 interface Props {
   message: string;
@@ -34,12 +34,63 @@ interface Props {
   target?: number;
   success: boolean;
   rollType: string;
-  damageInfo?: DamageInfo;
+  chatComponentType?: string;
 }
 
 const props = defineProps<Props>();
 
-// Dynamic styling based on success/failure
+// Plugin component loading
+const pluginComponent = shallowRef<Component | null>(null);
+
+// Load plugin component if chatComponentType is specified
+watchEffect(async () => {
+  if (!props.chatComponentType) {
+    pluginComponent.value = null;
+    return;
+  }
+  
+  try {
+    // Extract game system ID from metadata (for now default to dnd-5e-2024)
+    const gameSystemId = 'dnd-5e-2024'; // Could be extracted from rollType or other metadata
+    const componentType = props.chatComponentType;
+    
+    console.log(`[RollResultMessage] Loading plugin component: ${componentType} from ${gameSystemId}`);
+    
+    // Use the plugin registry to load the component
+    const component = await pluginRegistry.getComponent(gameSystemId, componentType);
+    if (component) {
+      console.log(`[RollResultMessage] Plugin component loaded successfully: ${componentType}`);
+      pluginComponent.value = component;
+    } else {
+      console.warn(`[RollResultMessage] Plugin component not found: ${componentType} from ${gameSystemId}`);
+      pluginComponent.value = null;
+    }
+  } catch (error) {
+    console.error('[RollResultMessage] Failed to load plugin component:', error);
+    pluginComponent.value = null;
+  }
+});
+
+// Props to pass to plugin component 
+// Plugin components expect a rollData object, but we currently only have simple props
+// For now, create a minimal rollData structure from available props
+const pluginComponentProps = computed(() => ({
+  rollData: {
+    metadata: {
+      title: props.message,
+      result: props.result,
+      success: props.success
+    },
+    rollType: props.rollType,
+    // Plugin components may need these fields - will be enhanced when we have full roll data
+    results: [],
+    arguments: { customModifier: 0 },
+    modifiers: [],
+    timestamp: new Date()
+  }
+}));
+
+// Dynamic styling based on success/failure (for generic fallback only)
 const resultClass = computed(() => ({
   'success': props.success,
   'failure': !props.success
@@ -49,48 +100,6 @@ const statusClass = computed(() => ({
   'status-success': props.success,
   'status-failure': !props.success
 }));
-
-// Icons based on roll type
-const resultIcon = computed(() => {
-  switch (props.rollType) {
-    case 'spell-attack':
-    case 'weapon-attack':
-      return '⚔️';
-    case 'saving-throw':
-      return '🛡️';
-    case 'ability-check':
-      return '🎯';
-    case 'spell-damage':
-    case 'weapon-damage':
-      return '💥';
-    default:
-      return '🎲';
-  }
-});
-
-// Terminology based on roll type
-const vsText = computed(() => {
-  switch (props.rollType) {
-    case 'spell-attack':
-    case 'weapon-attack':
-      return 'vs AC';
-    case 'saving-throw':
-      return 'vs DC';
-    case 'ability-check':
-      return 'vs';
-    default:
-      return 'vs';
-  }
-});
-
-// Status text based on roll type and success
-const statusText = computed(() => {
-  if (props.rollType === 'saving-throw') {
-    return props.success ? 'SAVED' : 'FAILED';
-  } else {
-    return props.success ? 'HIT' : 'MISS';
-  }
-});
 </script>
 
 <style scoped>
@@ -210,38 +219,7 @@ const statusText = computed(() => {
   box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
 }
 
-.damage-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: rgba(255, 193, 7, 0.1);
-  border: 1px solid rgba(255, 193, 7, 0.3);
-  border-radius: 6px;
-}
-
-.damage-amount {
-  background: linear-gradient(135deg, #ffc107, #e0a800);
-  color: #212529;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  font-size: 16px;
-  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
-}
-
-.damage-type {
-  color: #e8590c;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.damage-text {
-  color: #6c757d;
-  font-weight: 500;
-}
+/* Damage-related styles moved to plugin components (DamageCard.vue) */
 
 /* Mobile responsiveness */
 @media (max-width: 640px) {

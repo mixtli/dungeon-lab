@@ -316,6 +316,15 @@ export const dndCharacterDataSchema = z.object({
   /** Features and feats */
   features: characterFeaturesSchema,
   
+  /** Equipment slots */
+  equipment: z.object({
+    armor: z.string().nullable().optional(),        // item ID
+    shield: z.string().nullable().optional(),       // item ID  
+    mainHand: z.string().nullable().optional(),     // weapon item ID
+    offHand: z.string().nullable().optional(),      // weapon item ID
+    twoHanded: z.string().nullable().optional()     // weapon item ID (mutually exclusive)
+  }).optional(),
+  
   /** Roleplaying information */
   roleplay: z.object({
     alignment: alignmentSchema.optional(),

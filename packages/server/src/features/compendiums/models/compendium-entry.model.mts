@@ -18,6 +18,7 @@ const compendiumEntrySchemaForMongoose = compendiumEntrySchema
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema<ICompendiumEntry>(compendiumEntrySchemaForMongoose);
+mongooseSchema.set('minimize', false);
 
 // Override complex fields to use Mixed type for flexibility
 mongooseSchema.path('entry', mongoose.Schema.Types.Mixed); // Entry metadata
