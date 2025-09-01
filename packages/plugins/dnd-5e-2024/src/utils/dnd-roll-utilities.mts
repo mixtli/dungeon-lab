@@ -51,27 +51,56 @@ export function calculateD20Total(result: RollServerResult): number {
 }
 
 /**
+ * Get the selected d20 die value after advantage/disadvantage calculation
+ * 
+ * This returns the actual die face value that was used in the final total,
+ * respecting advantage/disadvantage rules:
+ * - Advantage: higher of 2 dice
+ * - Disadvantage: lower of 2 dice  
+ * - Normal: first/only die
+ */
+export function getSelectedD20Value(result: RollServerResult): number | null {
+  for (const diceGroup of result.results) {
+    if (diceGroup.sides === 20) {
+      if (diceGroup.results.length === 2) {
+        const advantageMode = result.arguments.pluginArgs?.advantageMode;
+        if (advantageMode === 'advantage') {
+          return Math.max(...diceGroup.results);
+        } else if (advantageMode === 'disadvantage') {
+          return Math.min(...diceGroup.results);
+        } else {
+          // Normal case with 2 dice - take the first one
+          return diceGroup.results[0];
+        }
+      } else if (diceGroup.results.length === 1) {
+        // Single d20 roll
+        return diceGroup.results[0];
+      }
+    }
+  }
+  return null; // No d20 found
+}
+
+/**
  * Check if a d20 roll is a critical hit (natural 20)
  * 
  * Used for attack rolls to determine critical hits.
- * Returns true if any d20 in the roll shows a natural 20.
+ * Only checks the die that was actually selected after advantage/disadvantage.
  */
 export function isCriticalHit(result: RollServerResult): boolean {
-  return result.results.some(diceGroup => 
-    diceGroup.sides === 20 && diceGroup.results.some(roll => roll === 20)
-  );
+  const selectedDie = getSelectedD20Value(result);
+  return selectedDie === 20;
 }
 
 /**
  * Check if a d20 roll is a critical failure (natural 1)
  * 
  * Used for attack rolls and saving throws to determine critical failures.
- * Returns true if any d20 in the roll shows a natural 1.
+ * Only checks the die that was actually selected after advantage/disadvantage.
  */
 export function isCriticalFailure(result: RollServerResult): boolean {
-  return result.results.some(diceGroup => 
-    diceGroup.sides === 20 && diceGroup.results.some(roll => roll === 1)
-  );
+  const selectedDie = getSelectedD20Value(result);
+  return selectedDie === 1;
 }
 
 /**

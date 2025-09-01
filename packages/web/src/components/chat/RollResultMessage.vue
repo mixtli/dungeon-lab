@@ -34,6 +34,7 @@ interface Props {
   result: number;
   target?: number;
   success: boolean;
+  critical?: boolean;
   rollType: string;
   chatComponentType?: string;
   // Full roll data for plugin components (if available)
@@ -85,7 +86,8 @@ const pluginComponentProps = computed(() => {
           ...props.rollData.metadata,
           title: props.message, // Use the message as title
           result: props.result,
-          success: props.success
+          success: props.success,
+          critical: props.critical
         }
       }
     };

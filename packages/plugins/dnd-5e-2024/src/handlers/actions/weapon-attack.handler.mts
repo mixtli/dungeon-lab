@@ -15,7 +15,7 @@ import {
 } from '../../utils/action-economy.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateGridDistance } from '@dungeon-lab/shared-ui/utils/grid-distance.mjs';
-import { calculateD20Total } from '../../utils/dnd-roll-utilities.mjs';
+import { calculateD20Total, isCriticalHit, isCriticalFailure } from '../../utils/dnd-roll-utilities.mjs';
 import type { DndItemDocument, DndWeaponData } from '../../types/dnd/item.mjs';
 import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
@@ -570,13 +570,9 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       (attackResult as { calculatedTotal: number }).calculatedTotal : 
       calculateD20Total(attackResult);
 
-    // Determine if natural 20 or natural 1
-    const isNaturalTwenty = attackResult.results.some(group => 
-      group.sides === 20 && group.results.some(roll => roll === 20)
-    );
-    const isNaturalOne = attackResult.results.some(group => 
-      group.sides === 20 && group.results.some(roll => roll === 1)
-    );
+    // Determine if natural 20 or natural 1 on the selected die (respecting advantage/disadvantage)
+    const isNaturalTwenty = isCriticalHit(attackResult);
+    const isNaturalOne = isCriticalFailure(attackResult);
 
     // Use target documents already resolved earlier for AC checking
     
@@ -618,6 +614,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       result: attackTotal,
       target: targetAC,
       success: hits,
+      critical: isNaturalTwenty || isNaturalOne,
       rollType: 'weapon-attack',
       recipients: attackResult.recipients,
       chatComponentType: 'dnd-roll-card'
@@ -722,14 +719,15 @@ const executeWeaponAttack: ActionExecutionHandler = async (
           console.log(`[WeaponAttack] Dealt ${totalDamage} ${damageType} damage`);
           
           // Create descriptive damage message
-          let damageMessage = `${weapon.name} deals ${totalDamage} ${damageType} damage`;
-          if (isNaturalTwenty) {
-            damageMessage = `Critical hit! ${damageMessage}`;
-          }
+          let damageMessage = `${actor.name} deals ${totalDamage} ${damageType} damage`;
           if (targetNames.length === 1) {
             damageMessage += ` to ${targetNames[0]}`;
           } else if (targetNames.length > 1) {
             damageMessage += ` to ${targetNames.length} targets`;
+          }
+          damageMessage += ` with ${weapon.name}`;
+          if (isNaturalTwenty) {
+            damageMessage = `Critical hit! ${damageMessage}`;
           }
           
           // Send damage result with component type for rich damage card display
@@ -767,14 +765,15 @@ const executeWeaponAttack: ActionExecutionHandler = async (
         
         // Create descriptive damage message
         const damageType = weaponData?.damage?.type || 'slashing';
-        let damageMessage = `${weapon.name} deals ${totalDamage} ${damageType} damage`;
-        if (isNaturalTwenty) {
-          damageMessage = `Critical hit! ${damageMessage}`;
-        }
+        let damageMessage = `${actor.name} deals ${totalDamage} ${damageType} damage`;
         if (targetNames.length === 1) {
           damageMessage += ` to ${targetNames[0]}`;
         } else if (targetNames.length > 1) {
           damageMessage += ` to ${targetNames.length} targets`;
+        }
+        damageMessage += ` with ${weapon.name}`;
+        if (isNaturalTwenty) {
+          damageMessage = `Critical hit! ${damageMessage}`;
         }
         
         // Send damage result directly (no dice rolling needed)
@@ -784,7 +783,7 @@ const executeWeaponAttack: ActionExecutionHandler = async (
           success: true,
           rollType: 'weapon-damage',
           recipients: attackResult.recipients,
-          chatComponentType: 'DamageCard'
+          chatComponentType: 'damage-card'
         });
         
         console.log(`[WeaponAttack] Applied fixed damage: ${totalDamage} ${damageType}`);
