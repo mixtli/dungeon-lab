@@ -39,7 +39,7 @@ const baseDocumentFields = {
   pluginId: z.string().min(1),
   
   // Source book/module identifier (e.g., "XPHB", "XMM")
-  source: z.string().min(1).optional(),
+  source: z.string().min(1).nullable().optional(),
   
   // Campaign association (documents belong to campaigns)
   campaignId: z.string().optional(),
@@ -72,15 +72,15 @@ const baseDocumentFields = {
   userData: z.record(z.string(), z.any()).default({}),
   
   // Compendium reference (optional - only set for compendium content)
-  compendiumId: z.string().optional(),
+  compendiumId: z.string().nullable().optional(),
   
   // Compendium entry reference (optional - tracks which entry this was created from)
-  compendiumEntryId: z.string().optional(),
+  compendiumEntryId: z.string().nullable().optional(),
   
   // Image asset references (shared by all document types)
-  imageId: z.string().optional(),
-  thumbnailId: z.string().optional(),
-  tokenImageId: z.string().optional()
+  imageId: z.string().nullable().optional(),
+  thumbnailId: z.string().nullable().optional(),
+  tokenImageId: z.string().nullable().optional()
 };
 
 /**
@@ -91,7 +91,7 @@ export const characterDocumentSchema = baseSchema.extend({
   documentType: z.literal('character'),
   
   // Character-specific image field
-  avatarId: z.string().optional()
+  avatarId: z.string().nullable().optional()
 });
 
 /**

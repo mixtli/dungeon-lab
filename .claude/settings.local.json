@@ -98,7 +98,12 @@
       "mcp__git__git_diff",
       "Bash(npx eslint:*)",
       "Bash(sed:*)",
-      "mcp__git__git_diff_unstaged"
+      "mcp__git__git_diff_unstaged",
+      "WebFetch(domain:immerjs.github.io)",
+      "mcp__playwright__browser_tab_list",
+      "Bash(/dev/null)",
+      "mcp__playwright__browser_resize",
+      "Bash(vue-tsc:*)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

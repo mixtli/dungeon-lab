@@ -5,9 +5,10 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import type { ActionHandler, ValidationResult } from '../../services/action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import { registerAction, getHandlers, clearAllHandlers } from '../../services/multi-handler-registry.mjs';
-// import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 describe('ActionHandler Registration and Priority System', () => {
   beforeEach(() => {
@@ -121,11 +122,11 @@ describe('ActionHandler Registration and Priority System', () => {
       requiresManualApproval: true,
       gmOnly: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: async (_request, _gameState) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {},
+      execute: async (_request, _draft) => {},
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      approvalMessage: (_request) => 'Test approval message'
+      approvalMessage: async (_request) => 'Test approval message'
     };
 
     registerAction('test-action', handler);
@@ -150,7 +151,7 @@ describe('ActionHandler Interface Validation', () => {
   test('should accept handler with only validate function', () => {
     const handler: ActionHandler = {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState): ValidationResult => {
+      validate: async (_request, _gameState): Promise<ActionValidationResult> => {
         return { valid: true };
       }
     };
@@ -163,7 +164,7 @@ describe('ActionHandler Interface Validation', () => {
   test('should accept handler with only execute function', () => {
     const handler: ActionHandler = {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft): void => {
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals, _context: AsyncActionContext): Promise<void> => {
         // Test execute function
       }
     };
@@ -180,11 +181,11 @@ describe('ActionHandler Interface Validation', () => {
       requiresManualApproval: true,
       gmOnly: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: async (_request, _gameState) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {},
+      execute: async (_request, _draft) => {},
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      approvalMessage: (_request) => 'Test approval message'
+      approvalMessage: async (_request) => 'Test approval message'
     };
 
     registerAction('test-action', handler);

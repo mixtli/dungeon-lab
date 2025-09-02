@@ -29,7 +29,7 @@
       </div>
     </div>
     <!-- Main Encounter View - Fullscreen with AppHeader -->
-    <div v-else-if="encounter" class="encounter-view-fullscreen" :style="hudLayoutStyle">
+    <div v-else-if="encounter" class="encounter-view-fullscreen" :class="{ 'mobile-with-bottom-nav': deviceConfig.type === 'phone', 'mobile-landscape-fullscreen': isMobileLandscape }" :style="hudLayoutStyle">
         <!-- Main Content Area - Canvas -->
         <div 
           class="encounter-content" 
@@ -153,7 +153,8 @@
         </div>
         
         <!-- HUD System overlays the encounter container -->
-        <HUD v-if="deviceConfig.type !== 'phone'" />
+        <!-- Use isTrueMobile to ensure HUD never shows on mobile phones regardless of orientation -->
+        <HUD v-if="!isTrueMobile" />
       </div>
     </div>
     <!-- Not Found State -->
@@ -199,6 +200,7 @@ import TokenStateManager from './TokenStateManager.vue';
 import EncounterDebugInfo from './EncounterDebugInfo.vue';
 import type { Token, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from '../../stores/auth.store.mjs';
+import { useNotificationStore } from '../../stores/notification.store.mjs';
 // Add import for MapContextMenu
 import MapContextMenu from './MapContextMenu.vue';
 import DiceOverlay from '../dice/DiceOverlay.vue';
@@ -208,9 +210,10 @@ import { turnManagerService } from '../../services/turn-manager.service.mjs';
 
 // Composables
 const gameStateStore = useGameStateStore();
-const { deviceConfig, deviceClass } = useDeviceAdaptation();
-const { requestTokenMove, requestTokenRemove } = usePlayerActions();
+const { deviceConfig, deviceClass, isTrueMobile, isMobileLandscape } = useDeviceAdaptation();
+const { requestTokenMove, requestTokenRemove, requestAction } = usePlayerActions();
 const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
 
 // Encounter socket functionality removed - using session-based architecture through encounter store
 
@@ -223,6 +226,9 @@ const targetTokenIds = ref(new Set<string>());
 // Provide target context to child components (including plugin character sheets)
 const encounterTargetTokenIds = computed(() => Array.from(targetTokenIds.value));
 provide('encounterTargetTokenIds', encounterTargetTokenIds);
+
+// Provide selected token context to child components (including plugin character sheets)
+provide('encounterSelectedToken', selectedToken);
 
 
 const showTokenGenerator = ref(false);
@@ -268,10 +274,10 @@ const debugSelectedTokenId = computed(() => {
 // Convert encounter tokens to format expected by PixiMapViewer
 const encounterTokens = computed(() => {
   // Tokens are now part of currentEncounter in the unified game state
-  const tokens = gameStateStore.currentEncounter?.tokens || [];
+  const tokens = gameStateStore.currentEncounter?.tokens || {};
   
-  // Tokens now use the new bounds format - pass them through directly
-  return tokens;
+  // Convert record to array for PixiMapViewer
+  return Object.values(tokens);
 });
 
 // Initialize encounter view - no loading needed, just use gameState
@@ -303,6 +309,7 @@ const retryLoad = () => {
   initializeEncounter();
 };
 
+
 // Helper computed for all selected token IDs (actor + targets)
 // TODO: This will be used for visual rendering of selected tokens in next task
 // const allSelectedTokenIds = computed(() => {
@@ -318,8 +325,8 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   }
   
   // Find the token in the encounter
-  const tokens = gameStateStore.currentEncounter?.tokens || [];
-  const clickedToken = tokens.find((t: Token) => t.id === tokenId) || null;
+  const tokens = gameStateStore.currentEncounter?.tokens || {};
+  const clickedToken = Object.values(tokens).find((t: Token) => t.id === tokenId) || null;
   
   if (!clickedToken) {
     console.warn('[EncounterView] Token not found for selection:', tokenId);
@@ -351,29 +358,47 @@ const handleTokenSelection = (tokenId: string, modifiers?: { shift?: boolean; ct
   contextMenuToken.value = null;
 };
 
-const handleTokenMoved = async (tokenId: string, x: number, y: number) => {
+
+const handleTokenMoved = async (tokenId: string, gridX: number, gridY: number) => {
   if (!encounter.value) return;
   
-  const token = encounter.value.tokens?.find(t => t.id === tokenId);
+  const token = encounter.value.tokens ? Object.values(encounter.value.tokens).find(t => t.id === tokenId) : undefined;
   if (!token) {
     console.error('[EncounterView] Token not found:', tokenId);
     return;
   }
   
   try {
-    // Use the new action request system for token movement
+    // Use the new action request system for token movement with grid coordinates
     const elevation = token.bounds?.elevation || 0;
-    const result = await requestTokenMove(tokenId, { x, y, elevation });
+    const result = await requestTokenMove(tokenId, { gridX, gridY, elevation });
     
     if (result.success && !result.approved) {
-      // TODO: Show notification to player that movement is pending approval
+      // Show notification to player that movement is pending approval
+      notificationStore.addNotification({
+        type: 'info',
+        message: 'Movement is pending Game Master approval',
+        duration: 4000
+      });
     } else if (!result.success) {
       console.error('[EncounterView] Token movement failed:', result.error);
-      // TODO: Show error notification to user
+      
+      // Show error notification with direct message from handler
+      notificationStore.addNotification({
+        type: 'warning',
+        message: result.error || 'Movement failed',
+        duration: 4000
+      });
     }
   } catch (error) {
     console.error('[EncounterView] Failed to request token movement:', error);
-    // TODO: Show error notification to user
+    
+    // Show error notification for unexpected failures
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to process movement request. Please try again.',
+      duration: 4000
+    });
   }
 };
 
@@ -491,14 +516,29 @@ const handleTokenAction = async (action: string) => {
               selectedToken.value = null;
             }
           } else if (result.success && !result.approved) {
-            // TODO: Show notification to user that removal is pending approval
+            // Show notification to user that removal is pending approval
+            notificationStore.addNotification({
+              type: 'info',
+              message: 'Token removal is pending Game Master approval',
+              duration: 4000
+            });
           } else {
             console.error('[EncounterView] Token removal failed:', result.error);
-            // TODO: Show error notification to user
+            // Show error notification to user
+            notificationStore.addNotification({
+              type: 'warning',
+              message: result.error || 'Failed to remove token',
+              duration: 4000
+            });
           }
         } catch (error) {
           console.error('[EncounterView] Failed to request token removal:', error);
-          // TODO: Show error notification to user
+          // Show error notification for unexpected failures
+          notificationStore.addNotification({
+            type: 'error',
+            message: 'Failed to process token removal. Please try again.',
+            duration: 4000
+          });
         }
       }
       break;
@@ -514,16 +554,17 @@ const handleTokensCreated = async (tokenIds: string[]) => {
   if (!encounter.value || !lastClickPosition.value) return;
   
   try {
+    // Convert world coordinates to grid coordinates
+    const gridSize = pixiMapViewer.value?.getGridSize ? pixiMapViewer.value.getGridSize() : 50;
+    const gridX = Math.floor((lastClickPosition.value.x - gridSize / 2) / gridSize);
+    const gridY = Math.floor((lastClickPosition.value.y - gridSize / 2) / gridSize);
+    
     // Update the position of each created token
     for (const tokenId of tokenIds) {
       const token = encounterTokens.value.find(t => t.id === tokenId);
       if (token) {
-        // Update token position and emit socket event
-        handleTokenMoved(
-          tokenId,
-          lastClickPosition.value.x,
-          lastClickPosition.value.y
-        );
+        // Update token position using grid coordinates
+        handleTokenMoved(tokenId, gridX, gridY);
       }
     }
     
@@ -637,11 +678,7 @@ const handleDrop = async (event: DragEvent) => {
     return;
   }
 
-  // Validate GM permissions
-  if (!gameStateStore.canUpdate) {
-    console.warn('[EncounterView] Only the GM can create tokens by dragging');
-    return;
-  }
+  // Players can now request token creation - the action system will handle approval
 
   try {
     // Get drag data
@@ -692,26 +729,63 @@ const handleDrop = async (event: DragEvent) => {
 
     // Convert screen coordinates to world coordinates using proper PIXI transformation
     const worldCoords = pixiViewer.screenToWorld(screenX, screenY);
-    const worldX = Math.round(worldCoords.x);
-    const worldY = Math.round(worldCoords.y);
-
-    // Create token using the new method
-    await gameStateStore.createTokenFromDocument(document, {
-      x: worldX,
-      y: worldY,
-      elevation: 0
+    
+    // Convert world coordinates to grid cell coordinates (TOP-LEFT)
+    const gridSize = pixiViewer.getGridSize();
+    const gridX = Math.floor(worldCoords.x / gridSize);
+    const gridY = Math.floor(worldCoords.y / gridSize);
+    
+    console.log('[EncounterView] Drop coordinate conversion:', {
+      screenCoords: { x: screenX, y: screenY },
+      worldCoords: { x: worldCoords.x, y: worldCoords.y },
+      gridSize,
+      gridPosition: { x: gridX, y: gridY }
     });
 
-    console.info(`[EncounterView] Created token for ${document.name}`);
+    // Use action request system instead of direct gameState call
+    const result = await requestAction(
+      'add-token',
+      undefined, // no actor needed for token creation
+      {
+        documentId: document.id,
+        gridPosition: { x: gridX, y: gridY },
+        elevation: 0
+      }
+    );
+    
+    // Handle approval workflow
+    if (result.success && !result.approved) {
+      // Show notification to GM that token creation is pending approval
+      notificationStore.addNotification({
+        type: 'info',
+        message: 'Token creation is pending Game Master approval',
+        duration: 4000
+      });
+      console.info(`[EncounterView] Token creation pending approval for ${document.name}`);
+    } else if (result.success) {
+      console.info(`[EncounterView] Token created for ${document.name} at grid position (${gridX}, ${gridY})`);
+    } else {
+      console.error(`[EncounterView] Token creation failed for ${document.name}:`, result.error);
+    }
+
+    // Show error notification if token creation failed
+    if (!result.success) {
+      notificationStore.addNotification({
+        type: 'error',
+        message: result.error || 'Failed to create token',
+        duration: 4000
+      });
+    }
 
   } catch (error) {
     console.error('[EncounterView] Error handling drop:', error);
     
     // Show user-friendly error message
-    if (error instanceof Error) {
-      // You could show a toast notification here
-      console.error('[EncounterView] Failed to create token:', error.message);
-    }
+    notificationStore.addNotification({
+      type: 'error',
+      message: 'Failed to process token creation request. Please try again.',
+      duration: 4000
+    });
   }
 };
 
@@ -787,9 +861,8 @@ const handleTokenUpdate = async (updatedToken: Token) => {
     return;
   }
   
-  // Find the token index in the encounter
-  const tokenIndex = encounter.value.tokens?.findIndex(token => token.id === updatedToken.id);
-  if (tokenIndex === undefined || tokenIndex === -1) {
+  // Check if token exists in the encounter
+  if (!encounter.value.tokens?.[updatedToken.id]) {
     console.error('[EncounterView] Token not found for update:', updatedToken.id);
     return;
   }
@@ -798,13 +871,13 @@ const handleTokenUpdate = async (updatedToken: Token) => {
     // Create state operations to update all token properties
     const { name, imageUrl, bounds, isVisible, isPlayerControlled, conditions } = updatedToken;
     const operations: StateOperation[] = [
-      { path: `currentEncounter.tokens.${tokenIndex}.name`, op: 'replace', value: name },
-      { path: `currentEncounter.tokens.${tokenIndex}.imageUrl`, op: 'replace', value: imageUrl },
-      { path: `currentEncounter.tokens.${tokenIndex}.bounds`, op: 'replace', value: bounds },
-      { path: `currentEncounter.tokens.${tokenIndex}.isVisible`, op: 'replace', value: isVisible },
-      { path: `currentEncounter.tokens.${tokenIndex}.isPlayerControlled`, op: 'replace', value: isPlayerControlled },
-      { path: `currentEncounter.tokens.${tokenIndex}.conditions`, op: 'replace', value: conditions },
-      { path: `currentEncounter.tokens.${tokenIndex}.data`, op: 'replace', value: updatedToken.data || {} }
+      { path: `currentEncounter.tokens.${updatedToken.id}.name`, op: 'replace', value: name },
+      { path: `currentEncounter.tokens.${updatedToken.id}.imageUrl`, op: 'replace', value: imageUrl },
+      { path: `currentEncounter.tokens.${updatedToken.id}.bounds`, op: 'replace', value: bounds },
+      { path: `currentEncounter.tokens.${updatedToken.id}.isVisible`, op: 'replace', value: isVisible },
+      { path: `currentEncounter.tokens.${updatedToken.id}.isPlayerControlled`, op: 'replace', value: isPlayerControlled },
+      { path: `currentEncounter.tokens.${updatedToken.id}.conditions`, op: 'replace', value: conditions },
+      { path: `currentEncounter.tokens.${updatedToken.id}.data`, op: 'replace', value: updatedToken.data || {} }
     ];
     
     const response = await gameStateStore.updateGameState(operations);
@@ -856,7 +929,7 @@ const hudLayoutStyle = computed(() => {
   background: #000;
   margin: 0;
   padding: 0;
-  z-index: 50; /* Above normal content but below modals */
+  z-index: 30; /* Below bottom navigation (z-40) but above normal content */
 }
 
 .encounter-container {
@@ -898,7 +971,7 @@ const hudLayoutStyle = computed(() => {
 }
 
 .encounter-overlays {
-  z-index: 10;
+  z-index: auto; /* Remove stacking context to allow dice overlay z-index to compete directly with character sheets */
 }
 
 /* Device-specific styles */
@@ -930,6 +1003,18 @@ const hudLayoutStyle = computed(() => {
 
 .full-motion * {
   @apply transition-all duration-200;
+}
+
+/* Mobile adjustments for bottom navigation */
+.mobile-with-bottom-nav {
+  bottom: 80px; /* Leave space for bottom navigation (64px + 16px padding) */
+}
+
+/* Mobile landscape fullscreen - no header or navigation chrome */
+.mobile-landscape-fullscreen {
+  top: 0 !important;
+  height: 100vh !important;
+  bottom: 0 !important;
 }
 
 /* Fullscreen encounter experience */

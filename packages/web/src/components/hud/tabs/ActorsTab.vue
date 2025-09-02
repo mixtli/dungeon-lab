@@ -81,6 +81,9 @@
           <button class="action-button" title="Edit Actor" @click.stop="editActor(actor)">
             <i class="mdi mdi-pencil"></i>
           </button>
+          <button class="action-button" title="Delete" @click.stop="requestDeleteActor(actor)">
+            <i class="mdi mdi-delete"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -99,6 +102,19 @@
         Create NPC
       </button>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <ConfirmationDialog
+      :show="showDeleteConfirmation"
+      title="Delete Actor"
+      :message="actorToDelete ? `Are you sure you want to remove '${actorToDelete.name}' from the game session?` : ''"
+      confirm-text="Delete"
+      cancel-text="Cancel"
+      variant="danger"
+      :show-database-option="true"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
+    />
   </div>
 </template>
 
@@ -108,13 +124,21 @@ import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
-import type { IActor, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import { playerActionService } from '../../../services/player-action.service.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
+import type { IActor, StateOperation, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const documentSheetStore = useDocumentSheetStore();
+const documentsClient = new DocumentsClient();
 const router = useRouter();
 const searchQuery = ref('');
 const activeFilter = ref('all');
+
+// Confirmation dialog state
+const showDeleteConfirmation = ref(false);
+const actorToDelete = ref<IActor | null>(null);
 
 // Drag and drop state
 const isDragging = ref(false);
@@ -191,22 +215,111 @@ async function addToEncounter(actor: IActor): Promise<void> {
       return;
     }
     
-    // Add actor as a participant using game state operations
-    const operations: StateOperation[] = [{
-      path: 'currentEncounter.participants',
+    const operations: StateOperation[] = [];
+    
+    // Add actor as an encounter participant
+    operations.push({
+      path: '/currentEncounter/participants/-',
       op: 'add',
       value: actor.id
-    }];
+    });
+    
+    // If turn order is active, also add to turn order with default values (if not already present)
+    const turnManager = gameStateStore.gameState?.turnManager;
+    if (turnManager?.isActive) {
+      // Check if participant already exists in turn order
+      const existingParticipant = turnManager.participants?.some(p => p.actorId === actor.id);
+      
+      if (!existingParticipant) {
+        const turnParticipant = {
+          id: `participant_${actor.id}`,
+          name: actor.name,
+          actorId: actor.id,
+          turnOrder: 0, // Will need to be rolled for initiative later
+          hasActed: false
+        };
+        
+        operations.push({
+          path: '/turnManager/participants/-',
+          op: 'add',
+          value: turnParticipant
+        });
+      } else {
+        console.log('Actor already exists in turn order:', actor.name);
+      }
+    }
     
     const response = await gameStateStore.updateGameState(operations);
     
     if (response.success) {
       console.log('Actor added to encounter successfully:', actor.name);
+      if (turnManager?.isActive) {
+        console.log('Actor also added to active turn order');
+      }
     } else {
       console.error('Failed to add actor to encounter:', response.error?.message);
     }
   } catch (error) {
     console.error('Failed to add actor to encounter:', error);
+  }
+}
+
+function requestDeleteActor(actor: IActor): void {
+  actorToDelete.value = actor;
+  showDeleteConfirmation.value = true;
+}
+
+function handleDeleteCancel(): void {
+  showDeleteConfirmation.value = false;
+  actorToDelete.value = null;
+}
+
+async function handleDeleteConfirm(deleteFromDatabase: boolean): Promise<void> {
+  if (!actorToDelete.value) return;
+
+  const actor = actorToDelete.value;
+  showDeleteConfirmation.value = false;
+  actorToDelete.value = null;
+
+  try {
+    // Always remove from game session first
+    const parameters: RemoveDocumentParameters = {
+      documentId: actor.id,
+      documentName: actor.name,
+      documentType: actor.documentType
+    };
+
+    const result = await playerActionService.requestAction(
+      'remove-document',
+      undefined, // actorId - not an actor-specific action
+      parameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Remove ${actor.name} from session`
+      }
+    );
+
+    if (result.success && result.approved) {
+      console.log(`[ActorsTab] ${actor.name} removed from session successfully`);
+
+      // If user requested database deletion, do that too
+      if (deleteFromDatabase) {
+        try {
+          await documentsClient.deleteDocument(actor.id);
+          console.log(`[ActorsTab] ${actor.name} deleted from database successfully`);
+        } catch (dbError) {
+          console.error('[ActorsTab] Failed to delete actor from database:', dbError);
+          // Don't throw - session removal succeeded
+        }
+      }
+    } else if (result.success && !result.approved) {
+      console.log(`[ActorsTab] Waiting for GM approval to remove ${actor.name}`);
+    } else {
+      console.error('[ActorsTab] Failed to remove actor from session:', result.error);
+    }
+  } catch (error) {
+    console.error('Failed to delete actor:', error);
   }
 }
 

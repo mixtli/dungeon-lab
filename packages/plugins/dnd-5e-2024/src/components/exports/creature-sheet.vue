@@ -61,48 +61,70 @@
     
     <!-- Stat Block Content -->
     <main class="sheet-content stat-block-content">
-      <!-- Basic Stats Section -->
-      <section class="dnd-section basic-stats">
-        <div class="stat-line">
-          <span class="stat-label">Armor Class</span>
-          <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
-          <input 
-            v-else-if="actorCopy"
-            v-model.number="armorClassCopy"
-            class="stat-input inline"
-            type="number"
-            min="1"
-            max="30"
-          />
+      <div class="creature-layout">
+        <!-- Top Row: Portrait and Basic Stats -->
+        <div class="top-row">
+          <div class="creature-portrait-section">
+            <div class="prominent-portrait">
+              <img 
+                v-if="prominentAvatarUrl" 
+                :src="prominentAvatarUrl" 
+                :alt="actor?.name"
+                class="portrait-image"
+              />
+              <div v-else class="portrait-placeholder">
+                <div class="placeholder-icon">🐲</div>
+                <div class="placeholder-text">No Image</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Basic Stats Section (AC, HP, Speed) -->
+          <section class="dnd-section basic-stats">
+            <div class="stat-line">
+              <span class="stat-label">Armor Class</span>
+              <span v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</span>
+              <input 
+                v-else-if="actorCopy"
+                v-model.number="armorClassCopy"
+                class="stat-input inline"
+                type="number"
+                min="1"
+                max="30"
+              />
+            </div>
+            
+            <div class="stat-line">
+              <span class="stat-label">Hit Points</span>
+              <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
+              <div v-else-if="actorCopy" class="hit-points-edit inline">
+                <input 
+                  v-model.number="(actorCopy!.pluginData as DndCreatureData).hitPoints.current"
+                  class="stat-input hp-current"
+                  type="number"
+                  min="0"
+                  :max="(actorCopy!.pluginData as DndCreatureData).hitPoints.average"
+                />
+                <span class="hp-separator">/</span>
+                <input 
+                  v-model.number="(actorCopy!.pluginData as DndCreatureData).hitPoints.average"
+                  class="stat-input hp-max"
+                  type="number"
+                  min="1"
+                  max="999"
+                />
+              </div>
+            </div>
+
+            <div class="stat-line">
+              <span class="stat-label">Speed</span>
+              <span class="stat-value">{{ speedDisplay }}</span>
+            </div>
+          </section>
         </div>
         
-        <div class="stat-line">
-          <span class="stat-label">Hit Points</span>
-          <span v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</span>
-          <div v-else class="hit-points-edit inline">
-            <input 
-              v-model.number="hitPointsCurrentCopy"
-              class="stat-input hp-current"
-              type="number"
-              min="0"
-              :max="hitPointsMaxCopy"
-            />
-            <span class="hp-separator">/</span>
-            <input 
-              v-model.number="hitPointsMaxCopy"
-              class="stat-input hp-max"
-              type="number"
-              min="1"
-              max="999"
-            />
-          </div>
-        </div>
-
-        <div class="stat-line">
-          <span class="stat-label">Speed</span>
-          <span class="stat-value">{{ speedDisplay }}</span>
-        </div>
-      </section>
+        <!-- Remaining Content (flows below and left-aligns) -->
+        <div class="remaining-stats">
 
       <!-- Ability Scores -->
       <section class="dnd-section ability-scores">
@@ -212,10 +234,9 @@
           <div class="action-header">
             <h4 class="action-name">{{ action.name }}</h4>
             <button 
-              v-if="action.rollable"
               @click="rollAction(action)"
               class="action-roll-btn"
-              title="Roll action"
+              title="Use action"
             >
               🎲
             </button>
@@ -232,10 +253,9 @@
           <div class="action-header">
             <h4 class="action-name">{{ action.name }} <span v-if="action.cost > 1">(Costs {{ action.cost }} Actions)</span></h4>
             <button 
-              v-if="action.rollable"
               @click="rollAction(action)"
               class="action-roll-btn"
-              title="Roll action"
+              title="Use action"
             >
               🎲
             </button>
@@ -243,13 +263,32 @@
           <p class="action-description" v-html="action.description"></p>
         </div>
       </section>
+        </div>
+      </div>
     </main>
   </div>
+
+  <!-- Ability Check Roll Dialog -->
+  <AdvantageRollDialog
+    v-model="showRollDialog"
+    :ability="currentRollAbility"
+    :base-modifier="currentRollAbility ? Math.floor((getAbilityScore(currentRollAbility) - 10) / 2) : 0"
+    :character-name="actor.name"
+    @roll="handleRollSubmission"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, type Ref } from 'vue';
-import type { IActor, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { computed, inject, onMounted, ref, type Ref } from 'vue';
+import type { IActor, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
+import type { DndCreatureData } from '../../types/dnd/creature.mjs';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
+
+// Utility function to generate unique roll IDs
+function generateUniqueId(): string {
+  return `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 // Props - unified interface for all document types
 interface Props {
@@ -267,6 +306,16 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
+
+// Get plugin context once for use throughout the component
+const pluginContext = getPluginContext();
+if (!pluginContext) {
+  throw new Error('[ActorSheet] Plugin context not available - this should never happen');
+}
+
+// Inject encounter context for monster actions
+const encounterTargetTokenIds = inject<Ref<string[]>>('encounterTargetTokenIds', () => ref([]), true);
+const encounterSelectedToken = inject<Ref<IToken | null>>('encounterSelectedToken', () => ref(null), true);
 
 // Type-safe actor accessor - assumes valid document
 const actor = computed(() => {
@@ -310,8 +359,13 @@ const emit = defineEmits<{
   (e: 'toggle-edit-mode'): void;
 }>();
 
+
 // Edit mode comes from DocumentSheetContainer
 const editMode = computed(() => props.editMode || false);
+
+// Roll dialog state
+const showRollDialog = ref(false);
+const currentRollAbility = ref<string>('');
 
 // Ability scores data
 const abilities = [
@@ -377,81 +431,6 @@ const armorClassCopy = computed({
   }
 });
 
-const hitPointsMaxCopy = computed({
-  get: () => {
-    if (!actorCopy.value?.pluginData) return 1;
-    const hpData = actorCopy.value.pluginData.hitPoints;
-    if (typeof hpData === 'object' && hpData && 'average' in hpData) {
-      return (hpData as any).average;
-    }
-    return actorCopy.value.pluginData.hitPointsMax || 1;
-  },
-  set: (value) => {
-    if (!actorCopy.value?.pluginData) {
-      if (actorCopy.value) {
-        actorCopy.value.pluginData = {};
-      }
-      return;
-    }
-    // Update the hitPoints.average if structured data exists
-    const existing = actorCopy.value.pluginData.hitPoints;
-    if (typeof existing === 'object') {
-      actorCopy.value.pluginData.hitPoints = { ...existing, average: value };
-    } else {
-      actorCopy.value.pluginData.hitPointsMax = value;
-    }
-  }
-});
-
-const hitPointsCurrentCopy = computed({
-  get: () => {
-    if (!actorCopy.value) return 1;
-    
-    // First check state for runtime current HP
-    if (typeof actorCopy.value.state?.currentHitPoints === 'number') {
-      return actorCopy.value.state.currentHitPoints;
-    }
-    
-    // Fallback to pluginData
-    if (!actorCopy.value.pluginData) return 1;
-    const hpData = actorCopy.value.pluginData.hitPoints;
-    let baselineHp: number;
-    
-    if (typeof hpData === 'object' && hpData) {
-      const current = 'current' in hpData ? (hpData as any).current : undefined;
-      const average = 'average' in hpData ? (hpData as any).average : undefined;
-      baselineHp = current ?? average ?? 1;
-    } else {
-      baselineHp = actorCopy.value.pluginData.hitPointsCurrent ?? hitPointsMaxCopy.value;
-    }
-    
-    // Initialize state if missing
-    if (!actorCopy.value.state) actorCopy.value.state = {};
-    actorCopy.value.state.currentHitPoints = baselineHp;
-    
-    return baselineHp;
-  },
-  set: (value) => {
-    if (!actorCopy.value) return;
-    
-    // Always update state for runtime HP
-    if (!actorCopy.value.state) actorCopy.value.state = {};
-    actorCopy.value.state.currentHitPoints = value;
-    
-    // Also update pluginData for persistence
-    if (!actorCopy.value.pluginData) {
-      actorCopy.value.pluginData = {};
-    }
-    
-    // Update the hitPoints.current if structured data exists
-    const existing = actorCopy.value.pluginData.hitPoints;
-    if (typeof existing === 'object') {
-      actorCopy.value.pluginData.hitPoints = { ...existing, current: value };
-    } else {
-      actorCopy.value.pluginData.hitPointsCurrent = value;
-    }
-  }
-});
 
 // Read-only computed properties for display (use original actor)
 const hitPointsMax = computed(() => {
@@ -463,30 +442,12 @@ const hitPointsMax = computed(() => {
 });
 
 const hitPointsCurrent = computed(() => {
-  // First check state for runtime current HP
-  if (actor.value && typeof actor.value.state?.currentHitPoints === 'number') {
-    return actor.value.state.currentHitPoints;
-  }
-  
-  // Fallback to pluginData (baseline HP)
   const hpData = actor.value?.pluginData?.hitPoints;
-  let baselineHp: number;
-  
-  if (typeof hpData === 'object' && hpData) {
-    const current = 'current' in hpData ? (hpData as any).current : undefined;
-    const average = 'average' in hpData ? (hpData as any).average : undefined;
-    baselineHp = current ?? average ?? 1;
-  } else {
-    baselineHp = actor.value?.pluginData?.hitPointsCurrent ?? hitPointsMax.value;
+  if (typeof hpData === 'object' && hpData && 'current' in hpData) {
+    return (hpData as any).current;
   }
-  
-  // Initialize state if missing
-  if (actor.value) {
-    if (!actor.value.state) actor.value.state = {};
-    actor.value.state.currentHitPoints = baselineHp;
-  }
-  
-  return baselineHp;
+  // Fallback to average if current not set
+  return hitPointsMax.value;
 });
 
 const hitPointsDisplay = computed(() => {
@@ -512,6 +473,11 @@ const speedDisplay = computed(() => {
   }
   
   return speedParts.join(', ') || '30 ft.';
+});
+
+const prominentAvatarUrl = computed(() => {
+  // Use only tokenImage since that's the available property
+  return actor.value?.tokenImage?.url || null;
 });
 
 // Saving throws
@@ -670,12 +636,8 @@ const startDrag = (event: MouseEvent) => {
 
 // Roll functions
 const rollAbilityCheck = (ability: string) => {
-  const modifier = Math.floor((getAbilityScore(ability) - 10) / 2);
-  emit('roll', 'ability-check', {
-    ability,
-    modifier,
-    formula: `1d20${formatModifier(modifier)}`
-  });
+  currentRollAbility.value = ability;
+  showRollDialog.value = true;
 };
 
 const rollSavingThrow = (ability: string) => {
@@ -699,11 +661,66 @@ const rollSkillCheck = (skillName: string) => {
   }
 };
 
-const rollAction = (action: any) => {
-  emit('roll', 'action', {
-    actionName: action.name,
-    action
-  });
+const rollAction = async (action: any) => {
+  console.log('[ActorSheet] Initiating monster action:', action.name);
+  if (!actor.value) {
+    console.error('Actor not available');
+    return;
+  }
+  try {
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:monster-action',
+      actor.value.id,                       // actorId
+      { actionName: action.name },           // parameters
+      encounterSelectedToken.value?.id,      // actorTokenId
+      encounterTargetTokenIds.value || [],   // targetTokenIds
+      { description: `${actor.value.name} uses ${action.name}` }
+    );
+    console.log('[ActorSheet] Monster action result:', result);
+  } catch (error) {
+    console.error('[ActorSheet] Error initiating monster action:', error);
+  }
+};
+
+// Handle ability check roll submission from dialog
+const handleRollSubmission = (rollData: RollDialogData) => {
+  // Generate unique roll ID
+  const rollId = generateUniqueId();
+  
+  // Create roll object following the established schema
+  const roll = {
+    rollId: rollId,
+    rollType: 'ability-check',
+    pluginId: 'dnd-5e-2024',
+    dice: [{ 
+      sides: 20, 
+      quantity: rollData.advantageMode === 'normal' ? 1 : 2 
+    }],
+    recipients: rollData.recipients,
+    arguments: { 
+      customModifier: rollData.customModifier,
+      pluginArgs: {
+        ability: rollData.ability,
+        advantageMode: rollData.advantageMode
+      }
+    },
+    modifiers: [
+      { 
+        type: 'ability', 
+        value: rollData.baseModifier, 
+        source: `${rollData.ability} modifier` 
+      }
+    ],
+    metadata: {
+      title: `${rollData.ability.charAt(0).toUpperCase()}${rollData.ability.slice(1)} Check`,
+      characterName: actor.value.name
+    }
+  };
+
+  // Submit roll via plugin context
+  pluginContext.submitRoll(roll);
+  console.log(`[ActorSheet] Submitted ${rollData.ability} ability check roll:`, roll);
+  showRollDialog.value = false;
 };
 
 // Lifecycle
@@ -730,6 +747,70 @@ onMounted(() => {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+}
+
+.creature-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.top-row {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+}
+
+.creature-portrait-section {
+  flex-shrink: 0;
+}
+
+.prominent-portrait {
+  width: 160px;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--dnd-brown-light);
+  background: var(--dnd-parchment);
+  box-shadow: 0 2px 8px var(--dnd-shadow);
+}
+
+.portrait-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--dnd-brown);
+  background: linear-gradient(135deg, #f8f6f0 0%, #ede5d3 100%);
+}
+
+.placeholder-icon {
+  font-size: 2.5rem;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
+.placeholder-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.basic-stats {
+  flex: 1;
+  min-width: 200px;
+}
+
+.remaining-stats {
   display: flex;
   flex-direction: column;
   gap: 16px;

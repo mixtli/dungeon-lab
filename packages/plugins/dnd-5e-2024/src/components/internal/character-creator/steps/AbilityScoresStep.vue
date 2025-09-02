@@ -649,7 +649,7 @@ const loadBackgroundDocument = async (backgroundId: string) => {
     backgroundError.value = null;
     
     const backgrounds = await fetchBackgrounds();
-    const backgroundEntry = backgrounds.find(bg => bg.entryId === backgroundId);
+    const backgroundEntry = backgrounds.find(bg => bg.documentId === backgroundId);
     
     if (backgroundEntry) {
       backgroundDocument.value = backgroundEntry.document;

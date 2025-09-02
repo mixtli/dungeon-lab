@@ -35,7 +35,7 @@ export interface GameDocumentStateReturn<T extends BaseDocument = BaseDocument> 
 
 export function useGameDocumentState<T extends BaseDocument = BaseDocument>(
   documentId: string,
-  documentType: 'character' | 'actor',
+  documentType: 'character' | 'actor' | 'item',
   options: GameDocumentStateOptions = {}
 ): GameDocumentStateReturn<T> {
   const {
@@ -54,7 +54,8 @@ export function useGameDocumentState<T extends BaseDocument = BaseDocument>(
     console.log(`[useGameDocumentState] Looking for ${documentType} with id:`, documentId);
     console.log(`[useGameDocumentState] Available ${documentType}s in gameState:`, 
       documentType === 'character' ? gameStateStore.characters.map(c => ({ id: c.id, name: c.name })) :
-      documentType === 'actor' ? gameStateStore.actors.map(a => ({ id: a.id, name: a.name })) : []);
+      documentType === 'actor' ? gameStateStore.actors.map(a => ({ id: a.id, name: a.name })) :
+      documentType === 'item' ? gameStateStore.items.map(i => ({ id: i.id, name: i.name })) : []);
     
     if (documentType === 'character') {
       const found = gameStateStore.characters.find((c: ICharacter) => c.id === documentId) as T | null;
@@ -63,6 +64,10 @@ export function useGameDocumentState<T extends BaseDocument = BaseDocument>(
     } else if (documentType === 'actor') {
       const found = gameStateStore.actors.find((a: IActor) => a.id === documentId) as T | null;
       console.log(`[useGameDocumentState] Found actor:`, found ? { id: found.id, name: found.name } : null);
+      return found;
+    } else if (documentType === 'item') {
+      const found = gameStateStore.items.find((i: IItem) => i.id === documentId) as T | null;
+      console.log(`[useGameDocumentState] Found item:`, found ? { id: found.id, name: found.name } : null);
       return found;
     }
     console.log(`[useGameDocumentState] Unknown document type:`, documentType);

@@ -118,9 +118,32 @@ function clearImage() {
     <button
       type="button"
       @click="triggerFileInput"
-      class="py-2 px-4 border border-onyx dark:border-ash rounded-md shadow-sm text-sm font-medium text-onyx dark:text-parchment bg-parchment dark:bg-onyx hover:bg-stone-100 dark:hover:bg-ash focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-dragon"
+      class="upload-button font-heading text-base px-6 py-3 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
     >
       {{ previewUrl ? 'Change Image' : 'Upload Image' }}
     </button>
   </div>
 </template>
+
+<style scoped>
+.upload-button {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(50, 50, 50, 0.9) 100%);
+  border: 2px solid rgb(212, 175, 55);
+  border-radius: 0.5rem;
+  color: rgb(212, 175, 55);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-button:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.2) 100%);
+  border-color: rgb(255, 200, 85);
+  color: rgb(255, 200, 85);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.upload-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+</style>

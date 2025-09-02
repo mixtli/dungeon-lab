@@ -13,6 +13,5 @@ export * from './validation.mjs';
 // Export types for convenience
 export type {
   IEncounter,
-  IToken,
-  EncounterStatusType
+  IToken
 } from '@dungeon-lab/shared/types/index.mjs'; 

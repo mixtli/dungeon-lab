@@ -4,10 +4,14 @@ import type { RouteRecordRaw } from 'vue-router';
 // Layouts
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import ChatView from '@/views/ChatView.vue';
+// import MobileChatView from '@/views/MobileChatView.vue'; // Currently unused
 
 // Views - Lazy loaded
 const HomeView = () => import('@/views/HomeView.vue');
 const GameTableView = () => import('@/views/GameTableView.vue');
+const MobileActorsView = () => import('@/views/MobileActorsView.vue');
+const MobileActorSheetView = () => import('@/views/MobileActorSheetView.vue');
+const MobileTabsContainer = () => import('@/components/mobile/MobileTabsContainer.vue');
 const CharacterSheetView = () => import('@/views/CharacterSheetView.vue');
 const CharacterListView = () => import('@/views/CharacterListView.vue');
 const CharacterCreateView = () => import('@/views/CharacterCreateView.vue');
@@ -21,6 +25,7 @@ const PluginManagerView = () => import('@/views/plugin/PluginManagerView.vue');
 const AdminDashboardView = () => import('@/views/AdminDashboardView.vue');
 // ChatView is now statically imported above
 const SettingsView = () => import('@/views/SettingsView.vue');
+const DebugView = () => import('@/views/DebugView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 
 // Campaign views
@@ -250,6 +255,33 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true
         }
       },
+      {
+        path: '/mobile',
+        name: 'mobile-container',
+        component: MobileTabsContainer,
+        meta: {
+          title: 'Mobile Interface',
+          requiresAuth: true
+        }
+      },
+      {
+        path: '/mobile-actors',
+        name: 'mobile-actors',
+        component: MobileActorsView,
+        meta: {
+          title: 'Actors',
+          requiresAuth: true
+        }
+      },
+      {
+        path: '/mobile-actors/:id',
+        name: 'mobile-actor-sheet',
+        component: MobileActorSheetView,
+        meta: {
+          title: 'Actor Sheet',
+          requiresAuth: true
+        }
+      },
       // Encounter routes - non-nested structure
       {
         path: 'encounters/create/:campaignId',
@@ -342,6 +374,15 @@ const routes: RouteRecordRaw[] = [
         component: SettingsView,
         meta: {
           title: 'Settings',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'debug',
+        name: 'debug',
+        component: DebugView,
+        meta: {
+          title: 'Debug Tools',
           requiresAuth: true
         }
       },
@@ -506,6 +547,63 @@ router.beforeEach(async (to, from, next) => {
     console.log('Redirecting to home - already authenticated');
     next({ name: 'home' });
     return;
+  }
+
+  // Mobile redirect logic - force mobile users to use container system
+  if (isAuthenticated && to.meta.requiresAuth) {
+    // Simple mobile detection based on screen width and touch capability
+    const isMobile = window.innerWidth <= 768 || ('ontouchstart' in window && !window.matchMedia('(hover: hover)').matches);
+
+    if (isMobile && to.name !== 'mobile-container') {
+      // Map old routes to mobile container with appropriate tabs
+      if (to.name === 'active-encounter' || to.path === '/encounter') {
+        next({ 
+          name: 'mobile-container', 
+          query: { tab: 'encounter' } 
+        });
+        return;
+      }
+      
+      if (to.name === 'mobile-actors' || to.path.startsWith('/mobile-actors')) {
+        const query: any = { tab: 'actors' };
+        
+        // Preserve actor ID if navigating to specific actor sheet
+        if (to.name === 'mobile-actor-sheet' && to.params.id) {
+          query.actor = to.params.id;
+        }
+        
+        next({ 
+          name: 'mobile-container', 
+          query 
+        });
+        return;
+      }
+
+      // Redirect other main routes to mobile container with appropriate tabs
+      if (to.name === 'chat') {
+        next({ 
+          name: 'mobile-container', 
+          query: { tab: 'chat' } 
+        });
+        return;
+      }
+      
+      if (to.name === 'settings') {
+        next({ 
+          name: 'mobile-container', 
+          query: { tab: 'settings' } 
+        });
+        return;
+      }
+
+      if (to.name === 'debug') {
+        next({ 
+          name: 'mobile-container', 
+          query: { tab: 'debug' } 
+        });
+        return;
+      }
+    }
   }
 
   console.log('Proceeding with navigation to:', to.path);

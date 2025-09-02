@@ -13,6 +13,21 @@ export class TurnManagerService {
     return useGameStateStore();
   }
   
+  /**
+   * Reset turn state for a participant at the START of their turn (D&D 5e rules)
+   */
+  private async resetTurnStateForParticipant(participant: ITurnParticipant): Promise<void> {
+    if (!participant.actorId) return;
+    
+    // Generate lifecycle reset patches for this specific participant
+    const lifecyclePatches = generateLifecycleResetPatches([participant.actorId], 'turn');
+    
+    if (lifecyclePatches.length > 0) {
+      await this.gameStateStore.updateGameState(lifecyclePatches);
+      console.log(`[TurnManagerService] Reset turn state for participant at turn start: ${participant.name} (${participant.actorId})`);
+    }
+  }
+  
   async initialize(pluginId: string): Promise<void> {
     const gameSystemPlugin = pluginRegistry.getGameSystemPlugin(pluginId);
     this.plugin = gameSystemPlugin?.turnManager || null;
@@ -52,10 +67,15 @@ export class TurnManagerService {
     
     // Notify plugin
     await this.plugin.onTurnOrderStart(plainTurnManager);
+    
+    // Reset turn state for first participant (D&D 5e: action economy resets at turn start)
+    await this.resetTurnStateForParticipant(orderedParticipants[0]);
+    
     await this.plugin.onTurnStart(orderedParticipants[0], plainTurnManager);
   }
   
   async nextTurn(): Promise<boolean> {
+    console.log('[TurnManagerService] nextTurn called');
     const turnManager = this.gameStateStore.gameState?.turnManager;
     if (!turnManager || !this.plugin) return false;
     
@@ -85,83 +105,40 @@ export class TurnManagerService {
       // Reset hasActed flags for new round
       participants = participants.map(p => ({ ...p, hasActed: false }));
       
-      // Collect document IDs for turn state lifecycle resets
-      const participantDocumentIds: string[] = [];
-      for (const participant of participants) {
-        if (participant.actorId) {
-          participantDocumentIds.push(participant.actorId);
-        }
-      }
-      
       const operations: JsonPatchOperation[] = [
         { op: 'replace', path: '/turnManager/round', value: nextRound },
         { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn },
         { op: 'replace', path: '/turnManager/participants', value: participants }
       ];
       
-      // Add turn lifecycle reset patches
-      try {
-        const lifecyclePatches = generateLifecycleResetPatches(participantDocumentIds, 'turn');
-        if (lifecyclePatches.length > 0) {
-          operations.push(...lifecyclePatches);
-          console.log(`[TurnManagerService] Added ${lifecyclePatches.length} turn lifecycle reset patches`);
-        }
-      } catch (error) {
-        console.error('[TurnManagerService] Failed to generate turn lifecycle resets:', error);
-        // Continue without lifecycle resets - turn advancement should still work
-      }
-      
       await this.gameStateStore.updateGameState(operations);
       
       const updatedTurnManager = { ...plainTurnManager, round: nextRound, currentTurn: nextTurn, participants };
       await this.plugin.onRoundStart(updatedTurnManager);
+      
+      // Reset turn state for first participant of new round (D&D 5e: action economy resets at turn start)
+      await this.resetTurnStateForParticipant(participants[0]);
+      
       await this.plugin.onTurnStart(participants[0], updatedTurnManager);
     } else {
       // Normal turn progression
-      
-      // Collect document IDs for turn state lifecycle resets
-      const participantDocumentIds: string[] = [];
-      for (const participant of plainTurnManager.participants) {
-        if (participant.actorId) {
-          participantDocumentIds.push(participant.actorId);
-        }
-      }
       
       const operations: JsonPatchOperation[] = [
         { op: 'replace', path: `/turnManager/participants/${turnManager.currentTurn}/hasActed`, value: true },
         { op: 'replace', path: '/turnManager/currentTurn', value: nextTurn }
       ];
       
-      // Clear turnState for the participant whose turn just ended
-      const currentParticipant = plainTurnManager.participants[turnManager.currentTurn];
-      if (currentParticipant?.actorId) {
-        operations.push({
-          op: 'replace',
-          path: `/documents/${currentParticipant.actorId}/state/turnState`,
-          value: {}
-        });
-        console.log(`[TurnManagerService] Clearing turnState for participant: ${currentParticipant.actorId}`);
-      }
-      
-      // Add turn lifecycle reset patches
-      try {
-        const lifecyclePatches = generateLifecycleResetPatches(participantDocumentIds, 'turn');
-        if (lifecyclePatches.length > 0) {
-          operations.push(...lifecyclePatches);
-          console.log(`[TurnManagerService] Added ${lifecyclePatches.length} turn lifecycle reset patches`);
-        }
-      } catch (error) {
-        console.error('[TurnManagerService] Failed to generate turn lifecycle resets:', error);
-        // Continue without lifecycle resets - turn advancement should still work
-      }
-      
       await this.gameStateStore.updateGameState(operations);
       
       const nextParticipant = plainTurnManager.participants[nextTurn];
       const updatedTurnManager = { ...plainTurnManager, currentTurn: nextTurn };
+      
+      // Reset turn state for next participant (D&D 5e: action economy resets at turn start)
+      await this.resetTurnStateForParticipant(nextParticipant);
+      
       await this.plugin.onTurnStart(nextParticipant, updatedTurnManager);
     }
-    
+    console.log('[TurnManagerService] nextTurn completed');
     return true;
   }
   

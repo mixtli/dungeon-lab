@@ -8,6 +8,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { endTurnActionHandler } from '../../services/handlers/actions/end-turn.handler.mjs';
 import { stopEncounterActionHandler } from '../../services/handlers/actions/stop-encounter.handler.mjs';
 import { registerPluginStateLifecycle, clearAllPluginStateLifecycles } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
@@ -90,12 +92,20 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       // Validate the request
-      const validation = endTurnActionHandler.validate!(request, gameState);
+      const validation = await endTurnActionHandler.validate!(request, gameState);
       expect(validation.valid).toBe(true);
 
       // Execute the turn end (this should apply lifecycle resets)
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
-      endTurnActionHandler.execute!(request, draftState);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await endTurnActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      });
 
       // Verify turn advancement - with 1 participant, goes to next round
       expect(draftState.turnManager?.currentTurn).toBe(0); // Back to first participant
@@ -164,7 +174,14 @@ describe('Document State Lifecycle Integration', () => {
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
       
       // Should not throw even when no lifecycles are registered
-      expect(() => endTurnActionHandler.execute!(request, draftState)).not.toThrow();
+      expect(() => endTurnActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      })).not.toThrow();
 
       // Turn should still advance normally - note: with only 1 participant, advancing goes to next round
       expect(draftState.turnManager?.currentTurn).toBe(0); // Back to first participant in new round
@@ -226,11 +243,10 @@ describe('Document State Lifecycle Integration', () => {
         currentEncounter: {
           id: 'encounter-1',
           name: 'Test Encounter',
-          status: 'in_progress',
           participants: [],
           campaignId: 'campaign-1',
           mapId: 'map-1',
-          tokens: []
+          tokens: {}
         }
       };
 
@@ -246,15 +262,23 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       // Validate the request
-      const validation = stopEncounterActionHandler.validate!(request, gameState);
+      const validation = await stopEncounterActionHandler.validate!(request, gameState);
       expect(validation.valid).toBe(true);
 
       // Execute the encounter stop
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
-      stopEncounterActionHandler.execute!(request, draftState);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await stopEncounterActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      });
 
       // Verify encounter was stopped
-      expect(draftState.currentEncounter?.status).toBe('stopped');
+      expect(draftState.currentEncounter).toBe(null);
       expect(draftState.turnManager?.isActive).toBe(false);
 
       // Verify lifecycle reset was applied  
@@ -333,7 +357,15 @@ describe('Document State Lifecycle Integration', () => {
       };
 
       const draftState = JSON.parse(JSON.stringify(gameState)) as ServerGameStateWithVirtuals;
-      endTurnActionHandler.execute!(request, draftState);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await endTurnActionHandler.execute!(request, draftState, {
+        pluginContext: {} as PluginContext,
+        sendRollRequest: async () => ({} as RollServerResult),
+        sendMultipleRollRequests: async () => [],
+        sendChatMessage: async () => {},
+        sendRollResult: () => {},
+        requestGMConfirmation: async () => false
+      });
 
       // Both plugin resets should be applied
       // Note: The second plugin's reset will overwrite the first's turnState

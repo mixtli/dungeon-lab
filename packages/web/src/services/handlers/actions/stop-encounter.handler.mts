@@ -6,16 +6,19 @@
 
 import type { GameActionRequest, StopEncounterParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { generateLifecycleResetPatches } from '@dungeon-lab/shared/utils/document-state-lifecycle.mjs';
+import { useSocketStore } from '../../../stores/socket.store.mjs';
+import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
 
 /**
  * Validate stop encounter request
  */
-function validateStopEncounter(
+const validateStopEncounter: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as StopEncounterParameters;
 
   console.log('[StopEncounterHandler] Validating encounter stop:', {
@@ -56,16 +59,6 @@ function validateStopEncounter(
     };
   }
 
-  // Check if encounter is already stopped
-  if (gameState.currentEncounter.status === 'stopped') {
-    return {
-      valid: false,
-      error: {
-        code: 'ENCOUNTER_ALREADY_STOPPED',
-        message: 'Encounter is already stopped'
-      }
-    };
-  }
 
   return { valid: true };
 }
@@ -73,10 +66,12 @@ function validateStopEncounter(
 /**
  * Execute encounter stop using direct state mutation
  */
-function executeStopEncounter(
+const executeStopEncounter: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as StopEncounterParameters;
 
   console.log('[StopEncounterHandler] Executing encounter stop:', {
@@ -94,10 +89,7 @@ function executeStopEncounter(
     }
   }
 
-  // Stop the current encounter
-  if (draft.currentEncounter) {
-    draft.currentEncounter.status = 'stopped';
-  }
+  // Note: We'll sync the encounter data back to MongoDB and then clear currentEncounter
 
   // Deactivate turn manager
   if (draft.turnManager) {
@@ -144,9 +136,41 @@ function executeStopEncounter(
     // Don't throw - encounter stop should still succeed even if lifecycle resets fail
   }
 
+  // Sync all gameState data back to backing models (MongoDB) before clearing currentEncounter
+  try {
+    const socketStore = useSocketStore();
+    const gameSessionStore = useGameSessionStore();
+    
+    if (socketStore.socket && gameSessionStore.currentSession?.id) {
+      console.log('[StopEncounterHandler] Syncing gameState to backing models...');
+      
+      const syncPromise = new Promise<{ success: boolean; error?: string }>((resolve) => {
+        socketStore.socket?.emit('gameState:sync', gameSessionStore.currentSession!.id, (response) => {
+          resolve(response);
+        });
+      });
+
+      const syncResult = await syncPromise;
+      
+      if (syncResult.success) {
+        console.log('[StopEncounterHandler] Successfully synced gameState to backing models');
+      } else {
+        console.warn('[StopEncounterHandler] Failed to sync gameState to backing models:', syncResult.error);
+        // Don't throw - encounter stop should still succeed even if sync fails
+      }
+    } else {
+      console.warn('[StopEncounterHandler] Cannot sync gameState: no socket connection or session');
+    }
+  } catch (error) {
+    console.error('[StopEncounterHandler] Error during gameState sync:', error);
+    // Don't throw - encounter stop should still succeed even if sync fails
+  }
+
+  // Clear the current encounter from gameState
+  draft.currentEncounter = null;
+
   console.log('[StopEncounterHandler] Encounter stopped successfully:', {
     encounterId: params.encounterId,
-    encounterStatus: draft.currentEncounter?.status,
     turnManagerActive: draft.turnManager?.isActive,
     requestId: request.id
   });
@@ -155,12 +179,12 @@ function executeStopEncounter(
 /**
  * Core stop-encounter action handler
  */
-export const stopEncounterActionHandler: ActionHandler = {
+export const stopEncounterActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   gmOnly: true, // Only GMs can stop encounters
   validate: validateStopEncounter,
   execute: executeStopEncounter,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as StopEncounterParameters;
     return `wants to stop encounter ${params.encounterId}`;
   }

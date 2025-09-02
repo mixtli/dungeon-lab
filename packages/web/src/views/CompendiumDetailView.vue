@@ -46,7 +46,7 @@ async function deleteCompendium() {
   
   deleting.value = true;
   try {
-    await compendiumsClient.deleteCompendium(compendium.value.slug);
+    await compendiumsClient.deleteCompendium(compendium.value.id);
     router.push('/compendiums');
   } catch (err: unknown) {
     console.error('Failed to delete compendium:', err);
@@ -163,7 +163,7 @@ function formatDate(dateString?: Date | string): string {
         <div class="flex space-x-3 ml-6">
           <button 
             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
-            @click="$router.push(`/compendiums/${compendium.slug}/edit`)"
+            @click="$router.push(`/compendiums/${compendium.id}/edit`)"
           >
             <i class="fas fa-edit mr-2"></i>
             Edit

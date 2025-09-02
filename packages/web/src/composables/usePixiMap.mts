@@ -1,21 +1,25 @@
-import { ref, onUnmounted, readonly, type Ref } from 'vue';
+import { ref, onUnmounted, type Ref } from 'vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/services/encounter/PixiMapRenderer.mjs';
 import { TokenRenderer } from '@/services/encounter/TokenRenderer.mjs';
 import { ViewportManager, type ViewportState } from '@/services/encounter/ViewportManager.mjs';
+import { TokenStatusBarService } from '@/services/token-status-bar.service.mjs';
+import { useViewportState } from './useViewportState.mjs';
 
 export interface UsePixiMapOptions {
   platform?: Platform;
   width?: number;
   height?: number;
   autoResize?: boolean;
-  onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenClick?: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => void;
   onTokenDoubleClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void; // <-- Added
+  onTokenLongPress?: (tokenId: string) => void; // <-- Added for mobile
+  onTokenDragStart?: (tokenId: string, worldPos: { x: number; y: number }) => void;
+  onTokenDragMove?: (tokenId: string, worldPos: { x: number; y: number }) => void;
+  onTokenDragEnd?: (tokenId: string, startPos: { x: number; y: number }, endPos: { x: number; y: number }) => void;
 }
 
 export interface UsePixiMapReturn {
@@ -24,7 +28,7 @@ export interface UsePixiMapReturn {
   isInitialized: Ref<boolean>;
   viewportState: Ref<ViewportState | null>;
   selectedTokenId: Ref<string | null>;
-  tokenRenderer: Readonly<Ref<TokenRenderer | null>>;
+  tokenRenderer: TokenRenderer | null;
   
   // Methods
   initializeMap: (canvas: HTMLCanvasElement, options?: UsePixiMapOptions) => Promise<void>;
@@ -34,6 +38,7 @@ export interface UsePixiMapReturn {
   removeToken: (tokenId: string) => void;
   moveToken: (tokenId: string, x: number, y: number, animate?: boolean) => void;
   clearAllTokens: () => void;
+  updateTokenStatusBars: (tokenId: string, document: any, plugin: GameSystemPlugin) => void;
   
   // Token selection and interaction
   selectToken: (tokenId: string) => void;
@@ -41,7 +46,6 @@ export interface UsePixiMapReturn {
   addTarget: (tokenId: string) => void;
   removeTarget: (tokenId: string) => void;
   clearTargets: () => void;
-  enableTokenDragging: (enabled: boolean) => void;
   
   // Grid controls
   enableSnapToGrid: (enabled: boolean) => void;
@@ -85,12 +89,50 @@ export function usePixiMap(): UsePixiMapReturn {
   let tokenRenderer: TokenRenderer | null = null;
   let viewportManager: ViewportManager | null = null;
   
+  // Viewport state persistence
+  const { 
+    saveViewportState, 
+    restoreViewportState
+  } = useViewportState();
+  
   // Platform detection
   const detectPlatform = (): Platform => {
     const width = window.innerWidth;
     if (width >= 1200) return 'desktop';
     if (width >= 768) return 'tablet';
     return 'phone';
+  };
+  
+  // Debounced viewport state saving
+  let saveStateTimeout: number | null = null;
+  const debouncedSaveViewportState = () => {
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+    }
+    saveStateTimeout = window.setTimeout(() => {
+      if (viewportManager) {
+        const state = viewportManager.getCurrentViewportState();
+        saveViewportState(state.zoom, state.pan.x, state.pan.y);
+      }
+    }, 500); // Save after 500ms of no changes
+  };
+  
+  // Restore viewport state if available
+  const restoreViewportStateIfNeeded = () => {
+    if (!viewportManager) return;
+    
+    const savedState = restoreViewportState();
+    if (savedState) {
+      console.log('[usePixiMap] Restoring viewport state:', savedState);
+      try {
+        viewportManager.setViewportState({
+          zoom: savedState.zoom,
+          pan: savedState.pan
+        });
+      } catch (error) {
+        console.error('[usePixiMap] Failed to restore viewport state:', error);
+      }
+    }
   };
   
   // Store the options for later use
@@ -126,16 +168,19 @@ export function usePixiMap(): UsePixiMapReturn {
       // Initialize viewport manager
       viewportManager = new ViewportManager(mapRenderer.getApp(), mapRenderer.getMapContainer());
       
-      // Initialize token renderer with scale provider
+      // Initialize token renderer with scale provider and viewport manager
       tokenRenderer = new TokenRenderer(
         mapRenderer.getTokenContainer(),
         undefined, // options
-        () => viewportManager?.getCurrentScale() || 1 // scale provider
+        () => viewportManager?.getCurrentScale() || 1, // scale provider
+        viewportManager // viewport manager for proven screenToWorld coordinate conversion
       );
       
       // Set up viewport change listener
       mapRenderer.getApp().stage.on('viewport:changed', (state: ViewportState) => {
         viewportState.value = state;
+        // Debounced save of viewport state for persistence
+        debouncedSaveViewportState();
       });
       
       // Set up token event listeners
@@ -147,6 +192,9 @@ export function usePixiMap(): UsePixiMapReturn {
       }
       
       isInitialized.value = true;
+      
+      // Restore viewport state if available
+      restoreViewportStateIfNeeded();
       
     } catch (error) {
       console.error('Failed to initialize Pixi map:', error);
@@ -190,6 +238,9 @@ export function usePixiMap(): UsePixiMapReturn {
       }
       
       isLoaded.value = true;
+      
+      // Restore viewport state after map is loaded and bounds are set
+      restoreViewportStateIfNeeded();
       
     } catch (error) {
       console.error('Failed to load map:', error);
@@ -241,6 +292,22 @@ export function usePixiMap(): UsePixiMapReturn {
   const clearAllTokens = (): void => {
     if (!tokenRenderer) return;
     tokenRenderer.clearAllTokens();
+  };
+  
+  /**
+   * Update status bars for a token based on document data and plugin configuration
+   */
+  const updateTokenStatusBars = (tokenId: string, document: any, plugin: GameSystemPlugin): void => {
+    if (!tokenRenderer) {
+      console.warn('[usePixiMap] No token renderer available for status bar update');
+      return;
+    }
+    
+    // Calculate status bar data using the service
+    const statusBars = TokenStatusBarService.calculateStatusBars(document, plugin);
+    
+    // Update the token renderer with the new status bar data
+    tokenRenderer.updateTokenStatusBars(tokenId, statusBars);
   };
   
   /**
@@ -303,13 +370,6 @@ export function usePixiMap(): UsePixiMapReturn {
     return viewportManager.worldToScreen(worldX, worldY);
   };
   
-  /**
-   * Enable token dragging
-   */
-  const enableTokenDragging = (enabled: boolean): void => {
-    if (!tokenRenderer) return;
-    tokenRenderer.setDragEnabled(enabled);
-  };
   
   /**
    * Enable or disable snap-to-grid
@@ -382,16 +442,6 @@ export function usePixiMap(): UsePixiMapReturn {
         selectedTokenId.value = null;
       },
       
-      // Token drag events
-      dragStart: pixiMapOptions?.onTokenDragStart || ((tokenId, position) => {
-        console.log('Token drag started:', tokenId, position);
-      }),
-      dragMove: pixiMapOptions?.onTokenDragMove || (() => {
-        // Default: do nothing
-      }),
-      dragEnd: pixiMapOptions?.onTokenDragEnd || ((tokenId, position) => {
-        console.log('Token drag ended:', tokenId, position);
-      }),
       
       // Token click events
       click: (tokenId, event) => {
@@ -414,6 +464,20 @@ export function usePixiMap(): UsePixiMapReturn {
       }),
       rightClick: pixiMapOptions?.onTokenRightClick || ((tokenId) => {
         console.log('Token right-clicked:', tokenId);
+      }),
+      longPress: pixiMapOptions?.onTokenLongPress || ((tokenId) => {
+        console.log('Token long-pressed:', tokenId);
+      }),
+      
+      // Drag event handlers
+      dragStart: pixiMapOptions?.onTokenDragStart || ((tokenId, worldPos) => {
+        console.log('Token drag started:', tokenId, worldPos);
+      }),
+      dragMove: pixiMapOptions?.onTokenDragMove || ((tokenId, worldPos) => {
+        console.log('Token dragging:', tokenId, worldPos);
+      }),
+      dragEnd: pixiMapOptions?.onTokenDragEnd || ((tokenId, startPos, endPos) => {
+        console.log('Token drag ended:', tokenId, startPos, endPos);
       })
     });
   };
@@ -463,6 +527,14 @@ export function usePixiMap(): UsePixiMapReturn {
     if (!tokenRenderer) return;
     tokenRenderer.clearTargets();
   };
+
+  /**
+   * Restore token visibility after a failed move action
+   */
+  const restoreTokenVisibility = (tokenId: string): void => {
+    if (!tokenRenderer) return;
+    tokenRenderer.restoreTokenVisibility(tokenId);
+  };
   
   /**
    * Set up auto-resize functionality
@@ -490,6 +562,12 @@ export function usePixiMap(): UsePixiMapReturn {
    * Clean up resources when unmounting
    */
   const destroy = (): void => {
+    // Clear any pending viewport state saves
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+      saveStateTimeout = null;
+    }
+    
     // Remove event listeners
     if (tokenRenderer) {
       tokenRenderer.setEventHandlers({});
@@ -529,7 +607,7 @@ export function usePixiMap(): UsePixiMapReturn {
     selectedTokenId,
     
     // Instance access (for advanced use cases)
-    tokenRenderer: readonly(ref(tokenRenderer)),
+    tokenRenderer,
     
     // Methods
     initializeMap,
@@ -539,6 +617,7 @@ export function usePixiMap(): UsePixiMapReturn {
     removeToken,
     moveToken,
     clearAllTokens,
+    updateTokenStatusBars,
     
     // Token interaction
     selectToken,
@@ -546,7 +625,7 @@ export function usePixiMap(): UsePixiMapReturn {
     addTarget,
     removeTarget,
     clearTargets,
-    enableTokenDragging,
+    restoreTokenVisibility,
     
     // Grid controls
     enableSnapToGrid,

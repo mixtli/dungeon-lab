@@ -16,10 +16,6 @@ import { mapSchemaWithVirtuals } from './map.schema.mjs';
 // ENCOUNTER SCHEMAS
 // ============================================================================
 
-export const EncounterStatusEnum = z.enum([
-  'stopped',
-  'in_progress'
-]);
 
 export const encounterSettingsSchema = z.object({
   showHiddenTokensToPlayers: z.boolean().default(false),
@@ -36,8 +32,7 @@ export const encounterSchema = baseSchema.extend({
   mapId: z.string(),
   ownerId: z.string().optional(), // Owner of the encounter (usually the game master)
   currentMap: mapSchemaWithVirtuals.nullable().optional(),
-  status: EncounterStatusEnum.default('stopped'),
-  tokens: z.array(tokenSchema).default([]),
+  tokens: z.record(z.string(), tokenSchema).default({}),
   settings: encounterSettingsSchema.optional(),
   participants: z.array(z.string()).default([])
 });

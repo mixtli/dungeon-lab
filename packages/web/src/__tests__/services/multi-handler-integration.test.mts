@@ -5,7 +5,8 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import type { ActionHandler, ValidationResult } from '../../services/action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { registerAction, getHandlers, clearAllHandlers } from '../../services/multi-handler-registry.mjs';
 import { produceGameStateChanges } from '../../services/immer-utils.mjs';
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
@@ -41,8 +42,8 @@ describe('Multi-Handler Workflow Integration', () => {
     const coreHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
-      execute: (_request, draft) => {
+      validate: async (_request, _gameState) => ({ valid: true }),
+      execute: async (_request, draft) => {
         executionOrder.push('core');
         draft.documents.char1.state.movementUsed = 10;
       }
@@ -53,8 +54,8 @@ describe('Multi-Handler Workflow Integration', () => {
       pluginId: 'test-plugin',
       priority: 100,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
-      execute: (_request, draft) => {
+      validate: async (_request, _gameState) => ({ valid: true }),
+      execute: async (_request, draft) => {
         executionOrder.push('plugin');
         draft.documents.char1.state.currentHitPoints = 70;
       }
@@ -69,10 +70,10 @@ describe('Multi-Handler Workflow Integration', () => {
     expect(handlers[0].priority).toBe(0);   // Core first
     expect(handlers[1].priority).toBe(100); // Plugin second
 
-    // Execute all handlers in order (synchronously, as recommended)
+    // Execute all handlers in order (with async support)
     const [newState, patches] = await produceGameStateChanges(
       mockGameState,
-      (draft) => {
+      async (draft) => {
         for (const handler of handlers) {
           if (handler.execute) {
             const mockRequest: GameActionRequest = {
@@ -83,7 +84,16 @@ describe('Multi-Handler Workflow Integration', () => {
               sessionId: 'test-session',
               playerId: 'test-player'
             };
-            handler.execute(mockRequest, draft);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await handler.execute(mockRequest, draft, {
+              pluginContext: {} as PluginContext,
+              sendRollRequest: async () => ({} as RollServerResult),
+              sendMultipleRollRequests: async () => [],
+              sendChatMessage: async () => {},
+              sendRollResult: () => {},
+              requestGMConfirmation: async () => false
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
           }
         }
       }
@@ -102,14 +112,14 @@ describe('Multi-Handler Workflow Integration', () => {
     const failingHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState): ValidationResult => {
+      validate: async (_request, _gameState): Promise<ActionValidationResult> => {
         validateSpy();
         return {
           valid: false,
           error: { code: 'VALIDATION_FAILED', message: 'Test validation failure' }
         };
       },
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         executeSpy();
         draft.documents.char1.state.currentHitPoints = 50;
       }
@@ -128,7 +138,7 @@ describe('Multi-Handler Workflow Integration', () => {
       playerId: 'test-player'
     };
 
-    let validationResult: ValidationResult | undefined;
+    let validationResult: ActionValidationResult | undefined;
     for (const handler of handlers) {
       if (handler.validate) {
         validationResult = await handler.validate(mockRequest, mockGameState);
@@ -148,8 +158,8 @@ describe('Multi-Handler Workflow Integration', () => {
     const passingHandler: ActionHandler = {
       priority: 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
-      execute: (_request, draft) => {
+      validate: async (_request, _gameState) => ({ valid: true }),
+      execute: async (_request, draft) => {
         draft.documents.char1.state.movementUsed = 5;
       }
     };
@@ -157,11 +167,11 @@ describe('Multi-Handler Workflow Integration', () => {
     const failingHandler: ActionHandler = {
       priority: 100,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState): ValidationResult => ({
+      validate: async (_request, _gameState): Promise<ActionValidationResult> => ({
         valid: false,
         error: { code: 'PLUGIN_VALIDATION_FAILED', message: 'Plugin validation failed' }
       }),
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         draft.documents.char1.state.currentHitPoints = 50;
       }
     };
@@ -203,20 +213,20 @@ describe('Multi-Handler Workflow Integration', () => {
       priority: 0,
       requiresManualApproval: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {}
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {}
     };
 
     const manualHandler: ActionHandler = {
       priority: 100,
       requiresManualApproval: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {},
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {},
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      approvalMessage: (_request) => 'Plugin wants to do something'
+      approvalMessage: async (_request: GameActionRequest) => 'Plugin wants to do something'
     };
 
     registerAction('move-token', autoHandler);
@@ -241,7 +251,7 @@ describe('Multi-Handler Workflow Integration', () => {
         sessionId: 'test-session',
         playerId: 'test-player'
       };
-      const message = approvalHandler.approvalMessage(mockRequest);
+      const message = await approvalHandler.approvalMessage(mockRequest);
       expect(message).toBe('Plugin wants to do something');
     }
   });
@@ -251,18 +261,18 @@ describe('Multi-Handler Workflow Integration', () => {
       priority: 0,
       gmOnly: false,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {}
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {}
     };
 
     const gmOnlyHandler: ActionHandler = {
       priority: 100,
       gmOnly: true,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      validate: (_request, _gameState) => ({ valid: true }),
+      validate: async (_request: GameActionRequest, _gameState: Readonly<ServerGameStateWithVirtuals>) => ({ valid: true }),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: (_request, _draft) => {}
+      execute: async (_request: GameActionRequest, _draft: ServerGameStateWithVirtuals) => {}
     };
 
     registerAction('move-token', playerHandler);
@@ -281,14 +291,14 @@ describe('Multi-Handler Workflow Integration', () => {
   test('should generate combined patches from multiple handlers', async () => {
     const handler1: ActionHandler = {
       priority: 0,
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         draft.documents.char1.state.movementUsed = 15;
       }
     };
 
     const handler2: ActionHandler = {
       priority: 100,
-      execute: (_request, draft) => {
+      execute: async (_request, draft) => {
         draft.documents.char1.state.currentHitPoints = 60;
       }
     };
@@ -306,13 +316,22 @@ describe('Multi-Handler Workflow Integration', () => {
       playerId: 'test-player'
     };
 
-    // Execute all handlers and collect patches (synchronously)
+    // Execute all handlers and collect patches (with async support)
     const [newState, patches] = await produceGameStateChanges(
       mockGameState,
-      (draft) => {
+      async (draft) => {
         for (const handler of handlers) {
           if (handler.execute) {
-            handler.execute(mockRequest, draft);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await handler.execute(mockRequest, draft, {
+              pluginContext: {} as PluginContext,
+              sendRollRequest: async () => ({} as RollServerResult),
+              sendMultipleRollRequests: async () => [],
+              sendChatMessage: async () => {},
+              sendRollResult: () => {},
+              requestGMConfirmation: async () => false
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
           }
         }
       }

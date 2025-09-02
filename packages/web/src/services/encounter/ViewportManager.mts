@@ -311,6 +311,34 @@ export class ViewportManager {
   }
 
   /**
+   * Get the current pan position
+   */
+  getCurrentPan(): { x: number; y: number } {
+    return {
+      x: this.mapContainer.x,
+      y: this.mapContainer.y
+    };
+  }
+
+  /**
+   * Get the current viewport state (zoom and pan)
+   */
+  getCurrentViewportState(): { zoom: number; pan: { x: number; y: number } } {
+    return {
+      zoom: this.getCurrentScale(),
+      pan: this.getCurrentPan()
+    };
+  }
+
+  /**
+   * Set the viewport state (zoom and pan)
+   */
+  setViewportState(state: { zoom: number; pan: { x: number; y: number } }): void {
+    this.setZoom(state.zoom);
+    this.setPan(state.pan.x, state.pan.y);
+  }
+
+  /**
    * Zoom by a delta amount
    */
   zoom(delta: number): void {
@@ -444,6 +472,19 @@ export class ViewportManager {
       x: (screenX - this.mapContainer.x) / this.currentScale,
       y: (screenY - this.mapContainer.y) / this.currentScale
     };
+  }
+  
+  /**
+   * Convert global screen coordinates to world coordinates
+   * This handles the same coordinate conversion as character drops
+   */
+  globalScreenToWorld(globalX: number, globalY: number): { x: number; y: number } {
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = globalX - rect.left;
+    const canvasY = globalY - rect.top;
+    
+    return this.screenToWorld(canvasX, canvasY);
   }
   
   /**

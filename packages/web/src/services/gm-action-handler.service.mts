@@ -10,15 +10,21 @@ import type { GameActionRequest, ServerGameStateWithVirtuals, JsonPatchOperation
 import { 
   getHandlers, 
   requiresManualApproval, 
-  generateApprovalMessage 
+  generateApprovalMessage,
+  getRegistrationStats 
 } from './multi-handler-registry.mjs';
-import type { ActionHandler } from './action-handler.interface.mjs';
-import { produceWithPatches, enablePatches } from 'immer';
+import type { ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import { createDraft, finishDraft, enablePatches } from 'immer';
 import { toRaw } from 'vue';
 import { useChatStore, type ApprovalData } from '../stores/chat.store.mts';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
+import { useNotificationStore } from '../stores/notification.store.mjs';
+import { rollRequestService } from './roll-request.service.mts';
+import { createActionContext } from './action-context.service.mts';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 // Enable Immer patches for automatic patch generation
 enablePatches();
@@ -37,6 +43,9 @@ export class GMActionHandlerService {
     timestamp: number;
   }>();
 
+  // Roll request service for async action context (use singleton)
+  private rollRequestService = rollRequestService;
+
   // Lazy-loaded stores to avoid initialization order issues
   private get gameSessionStore() {
     return useGameSessionStore();
@@ -54,6 +63,10 @@ export class GMActionHandlerService {
     return useChatStore();
   }
 
+  private get notificationStore() {
+    return useNotificationStore();
+  }
+
   /**
    * Initialize the GM action handler - sets up socket listeners
    */
@@ -62,11 +75,36 @@ export class GMActionHandlerService {
     
     // Only GMs should handle these requests
     if (!this.gameSessionStore.isGameMaster) {
+      console.log('[GMActionHandler] Not a GM, skipping initialization');
       return;
     }
 
+    console.log('[GMActionHandler] User is GM, setting up socket listeners');
+    
+    if (!this.socketStore.socket) {
+      console.error('[GMActionHandler] No socket available for GM action handler');
+      return;
+    }
+    
+    console.log('[GMActionHandler] Socket available, registering gameAction:forward listener');
+
     // Listen for action requests routed from server
-    this.socketStore.socket?.on('gameAction:forward', this.handleActionRequest.bind(this));
+    this.socketStore.socket.on('gameAction:forward', this.handleActionRequest.bind(this));
+    
+    // Add debug listener to verify socket events are being received
+    this.socketStore.socket.on('gameAction:forward', (request: any) => {
+      console.log('[GMActionHandler] 🔍 DEBUG: gameAction:forward event received:', {
+        action: request?.action,
+        playerId: request?.playerId,
+        requestId: request?.id,
+        fullRequest: request
+      });
+    });
+    
+    console.log('[GMActionHandler] GM action handler initialized successfully');
+    
+    // Debug: Log current handler registrations
+    this.debugHandlerRegistrations();
   }
 
   /**
@@ -148,6 +186,8 @@ export class GMActionHandlerService {
    * Execute an action using multiple handlers with Immer draft mutation
    */
   private async executeMultiHandlerAction(request: GameActionRequest, handlers: ActionHandler[]) {
+    let actionContext: AsyncActionContext | null = null; // Initialize outside try block for cleanup access
+    
     try {
       const currentGameState = this.gameStateStore.gameState;
       
@@ -178,7 +218,7 @@ export class GMActionHandlerService {
             priority: handler.priority || 0
           });
           
-          const result = handler.validate(request, currentGameState as ServerGameStateWithVirtuals);
+          const result = await handler.validate(request, currentGameState as ServerGameStateWithVirtuals);
           if (!result.valid) {
             console.log('[GMActionHandler] Validation failed:', {
               pluginId: handler.pluginId || 'core',
@@ -198,57 +238,72 @@ export class GMActionHandlerService {
         }
       }
 
-      // Phase 2: Execute all handlers using Immer draft mutation
-      console.log('[GMActionHandler] All validations passed, executing handlers with Immer draft');
+      // Phase 2: Execute all handlers using Immer createDraft/finishDraft for async support
+      console.log('[GMActionHandler] All validations passed, executing handlers with async Immer draft');
       
       // Extract raw game state to avoid Vue proxy conflicts
       const rawGameState = toRaw(currentGameState);
       
-      // Use Immer to create draft and automatically generate patches
-      const [, immerPatches] = produceWithPatches(rawGameState, (draft) => {
-        // Execute all handlers with the same draft - they mutate it directly
-        for (const handler of handlers) {
-          if (handler.execute) {
-            console.log('[GMActionHandler] Executing handler:', {
+      // Create draft for async operations
+      const draft = createDraft(rawGameState);
+      
+      // Create action context for unified handlers
+      const pluginContext = getPluginContext();
+      actionContext = createActionContext(
+        this.rollRequestService,
+        pluginContext
+      );
+      
+      // Execute all handlers against the draft with proper async support
+      for (const handler of handlers) {
+        if (handler.execute) {
+          console.log('[GMActionHandler] Executing handler:', {
+            pluginId: handler.pluginId || 'core',
+            priority: handler.priority || 0,
+            supportsContext: handler.execute.length >= 3 // Check if handler accepts context parameter
+          });
+          
+          try {
+            // Pass context as third parameter for backward compatibility
+            // Existing handlers ignore it, new unified handlers can use it
+            await handler.execute(request, draft as ServerGameStateWithVirtuals, actionContext);
+            
+            console.log('[GMActionHandler] Handler executed successfully:', {
+              pluginId: handler.pluginId || 'core'
+            });
+          } catch (error) {
+            console.error('[GMActionHandler] Handler execution failed:', {
               pluginId: handler.pluginId || 'core',
-              priority: handler.priority || 0
+              error: error instanceof Error ? error.message : 'Unknown error'
             });
             
-            try {
-              handler.execute(request, draft as ServerGameStateWithVirtuals);
-              
-              console.log('[GMActionHandler] Handler executed successfully:', {
-                pluginId: handler.pluginId || 'core'
-              });
-            } catch (error) {
-              console.error('[GMActionHandler] Handler execution failed:', {
-                pluginId: handler.pluginId || 'core',
-                error: error instanceof Error ? error.message : 'Unknown error'
-              });
-              
-              // Re-throw to exit the Immer producer and fail the entire operation
-              throw error;
-            }
+            // Re-throw to fail the entire operation
+            throw error;
           }
         }
-      });
+      }
       
-      // Convert Immer patches to our JsonPatchOperation format
-      const jsonPatches: JsonPatchOperation[] = immerPatches.map(patch => ({
-        ...patch,
-        path: Array.isArray(patch.path) ? '/' + patch.path.join('/') : patch.path
-      }));
+      // Finish draft and collect patches
+      let immerPatches: JsonPatchOperation[] = [];
+      finishDraft(draft, (patches) => {
+        // Patch callback - convert Immer patches to our JsonPatchOperation format
+        console.log('[GMActionHandler] Immer patches:', patches);
+        immerPatches = patches.map(patch => ({
+          ...patch,
+          path: Array.isArray(patch.path) ? '/' + patch.path.join('/') : patch.path
+        }));
+      });
 
       // Phase 3: Apply all patches atomically
-      if (jsonPatches.length > 0) {
+      if (immerPatches.length > 0) {
         console.log('[GMActionHandler] Applying Immer-generated patches:', {
           action: request.action,
-          patchCount: jsonPatches.length,
+          patchCount: immerPatches.length,
           requestId: request.id,
-          patches: jsonPatches
+          patches: immerPatches
         });
         
-        const updateResult = await this.gameStateStore.updateGameState(jsonPatches);
+        const updateResult = await this.gameStateStore.updateGameState(immerPatches);
         
         if (!updateResult.success) {
           this.socketStore.emit('gameAction:response', {
@@ -282,10 +337,15 @@ export class GMActionHandlerService {
         requestId: request.id,
         action: request.action,
         handlersExecuted: handlers.length,
-        patchesApplied: jsonPatches.length
+        patchesApplied: immerPatches.length
       });
+
+      // Clean up action context resources
+      actionContext.cleanup?.();
       
     } catch (error) {
+      // Clean up action context on failure as well
+      actionContext?.cleanup?.();
       console.error('[GMActionHandler] Error executing multi-handler action:', error);
       this.socketStore.emit('gameAction:response', {
         success: false,
@@ -334,12 +394,19 @@ export class GMActionHandlerService {
       requestId: request.id,
       actionType: request.action,
       playerName,
-      description: generateApprovalMessage(request.action, request),
+      description: await generateApprovalMessage(request.action, request),
       request
     };
 
     // Send to chat store for display
     this.chatStore.sendApprovalRequest(approvalData);
+    
+    // Send notification toast to alert GM
+    this.notificationStore.addNotification({
+      message: `${playerName} requests approval for ${request.action}`,
+      type: 'info',
+      duration: 5000 // Longer duration so GM has time to notice
+    });
     
     console.log('[GMActionHandler] Approval request sent to chat:', request.id);
   }
@@ -428,6 +495,31 @@ export class GMActionHandlerService {
   }
 
   /**
+   * Debug function to check handler registrations
+   */
+  private debugHandlerRegistrations(): void {
+    const stats = getRegistrationStats();
+    console.log('[GMActionHandler] 🔍 Handler registration debug:', stats);
+    
+    // Specifically check assign-item handler
+    const assignItemHandlers = getHandlers('assign-item');
+    console.log('[GMActionHandler] 🔍 assign-item handlers:', {
+      count: assignItemHandlers.length,
+      handlers: assignItemHandlers.map(h => ({
+        pluginId: h.pluginId || 'core',
+        priority: h.priority || 0,
+        requiresManualApproval: h.requiresManualApproval,
+        hasValidate: !!h.validate,
+        hasExecute: !!h.execute
+      }))
+    });
+    
+    // Check if assign-item requires approval
+    const requiresApproval = requiresManualApproval('assign-item');
+    console.log('[GMActionHandler] 🔍 assign-item requires manual approval:', requiresApproval);
+  }
+
+  /**
    * Cleanup - remove socket listeners
    */
   destroy() {
@@ -436,6 +528,9 @@ export class GMActionHandlerService {
     
     // Clear pending requests
     this.pendingRequests.clear();
+    
+    // Clean up roll request service
+    this.rollRequestService.destroy?.();
   }
 }
 

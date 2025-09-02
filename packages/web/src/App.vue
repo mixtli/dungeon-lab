@@ -6,6 +6,7 @@ import MobileApp from './components/layout/MobileApp.vue';
 import { useSocketStore } from './stores/socket.store.mts';
 import { useAuthStore } from './stores/auth.store.mts';
 import { rollHandlerService } from './services/roll-handler.service.mts';
+import { rollRequestService } from './services/roll-request.service.mts';
 import { useDeviceAdaptation } from './composables/useDeviceAdaptation.mts';
 import { watch } from 'vue';
 
@@ -34,6 +35,7 @@ watch(
   () => store.socket,
   (socket) => {
     if (socket) {
+      rollHandlerService.setRollRequestService(rollRequestService);
       rollHandlerService.setupListener(socket);
     }
   },

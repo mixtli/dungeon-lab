@@ -11,15 +11,16 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionHandler, ActionValidationResult, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
  * Validate long rest requirements
  */
-export function validateLongRest(
+export async function validateLongRest(
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> {
   console.log('[DnD5e] Validating long rest:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -68,20 +69,16 @@ export function validateLongRest(
 /**
  * Execute long rest - restore resources and reset session state
  */
-export function executeLongRest(
+const executeLongRest: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing long rest recovery');
 
-  // Find the character for this player
+  // Get character from validation (validation already confirmed it exists)
   const character = Object.values(draft.documents)
-    .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId);
-  
-  if (!character) {
-    console.warn('[DnD5e] Character not found during long rest execution');
-    return;
-  }
+    .find(doc => doc.documentType === 'character' && doc.createdBy === request.playerId)!;
 
   // Initialize state if needed
   if (!character.state) character.state = {};
@@ -135,5 +132,5 @@ export function executeLongRest(
 export const dndLongRestHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateLongRest,
   execute: executeLongRest,
-  approvalMessage: () => 'wants to take a long rest and recover resources'
+  approvalMessage: async () => 'wants to take a long rest and recover resources'
 };

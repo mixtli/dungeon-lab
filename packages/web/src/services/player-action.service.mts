@@ -9,20 +9,79 @@
 import { 
   type GameActionRequest, 
   type ActionRequestResult,
-  type GameActionType,
-  type ActionRequestResponse
+  type ActionRequestResponse,
+  type ServerGameStateWithVirtuals
 } from '@dungeon-lab/shared/types/index.mjs';
 import { useGameSessionStore } from '../stores/game-session.store.mjs';
 import { useAuthStore } from '../stores/auth.store.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
-import { turnManagerService } from './turn-manager.service.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
+import { getHandlers } from './multi-handler-registry.mjs';
+import type { ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
  * Generate unique request ID
  */
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
+
+/**
+ * Validate action using the same handlers as the server
+ * This provides client-side optimization while maintaining consistency
+ */
+async function validateActionClientSide(
+  action: string,
+  actorId: string | undefined,
+  parameters: Record<string, unknown>,
+  actorTokenId: string | undefined,
+  targetTokenIds: string[] | undefined,
+  gameState: Readonly<ServerGameStateWithVirtuals>,
+  playerId: string
+): Promise<ActionValidationResult | null> {
+  try {
+    const handlers = getHandlers(action);
+    console.log('[PlayerActionService] Client-side validation using server handlers:', {
+      action,
+      handlersFound: handlers.length,
+      handlers: handlers.map(h => ({ pluginId: h.pluginId, priority: h.priority }))
+    });
+
+    // Run validation through all registered handlers (same as server)
+    for (const handler of handlers) {
+      if (handler.validate) {
+        const request: GameActionRequest = {
+          id: 'client-validation-' + Date.now(),
+          action,
+          actorId,
+          actorTokenId,
+          targetTokenIds,
+          parameters,
+          playerId,
+          sessionId: '',
+          timestamp: Date.now()
+        };
+
+        const result = await handler.validate(request, gameState);
+        console.log('[PlayerActionService] Handler validation result:', {
+          pluginId: handler.pluginId,
+          priority: handler.priority,
+          valid: result.valid,
+          error: result.error?.message
+        });
+
+        if (!result.valid) {
+          return result;
+        }
+      }
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.warn('[PlayerActionService] Client-side validation error:', error);
+    // If client-side validation fails, let server handle it
+    return null;
+  }
 }
 
 
@@ -68,8 +127,11 @@ export class PlayerActionService {
    * Request an action to be performed
    */
   async requestAction(
-    action: GameActionType,
+    action: string,
+    actorId: string | undefined,
     parameters: Record<string, unknown>,
+    actorTokenId?: string,
+    targetTokenIds?: string[],
     options: { 
       description?: string;
     } = {}
@@ -83,54 +145,35 @@ export class PlayerActionService {
       throw new Error('User not authenticated');
     }
 
-    // Check turn-based permissions
-    const userId = this.authStore.user.id;
-    const userTokens = this.getUserTokens(userId);
+    // Client-side validation using the same handlers as the server
+    // This provides optimization while ensuring consistency with server-side validation
+    const gameState = this.gameStateStore.gameState;
+    let clientValidationResult: ActionValidationResult | null = null;
     
-    // For actions that require it to be your turn
-    if (this.requiresCurrentTurn(action)) {
-      let hasValidTurn = false;
+    if (!gameState) {
+      // If there's no game state, skip client-side validation and let server handle it
+      console.log('[PlayerActionService] ⏭️ No game state available, skipping client-side validation');
+    } else {
+      // Cast deeply readonly Vue proxy to shallow readonly type for validation handlers
+      // This is safe because validation handlers only read data, never mutate it
+      clientValidationResult = await validateActionClientSide(action, actorId, parameters, actorTokenId, targetTokenIds, gameState as Readonly<ServerGameStateWithVirtuals>, this.authStore.user.id);
+    }
+    
+    if (clientValidationResult && !clientValidationResult.valid) {
+      console.log('[PlayerActionService] 🚫 Client-side validation failed:', clientValidationResult.error);
       
-      // For token movement, check the specific token being moved
-      if (action === 'move-token') {
-        const tokenId = parameters.tokenId as string;
-        if (!tokenId) {
-          return {
-            success: false,
-            approved: false,
-            requestId: '',
-            error: "Invalid token movement request"
-          };
-        }
-        
-        // Check if user owns the specific token being moved
-        const isUserToken = userTokens.some(token => token.id === tokenId);
-        if (!isUserToken) {
-          return {
-            success: false,
-            approved: false,
-            requestId: '',
-            error: "You don't own this token"
-          };
-        }
-        
-        // Check if that specific token can perform the action (is it their turn?)
-        hasValidTurn = turnManagerService.canPerformAction(tokenId, action);
-      } else {
-        // For other actions, check if any user token can perform the action
-        hasValidTurn = userTokens.some(token => 
-          turnManagerService.canPerformAction(token.id, action)
-        );
-      }
-      
-      if (!hasValidTurn) {
-        return {
-          success: false,
-          approved: false,
-          requestId: '',
-          error: "It's not your turn or you cannot perform this action now"
-        };
-      }
+      return {
+        success: false,
+        approved: false,
+        requestId: '',
+        error: clientValidationResult.error?.message || 'Action validation failed'
+      };
+    }
+    
+    if (clientValidationResult) {
+      console.log('[PlayerActionService] ✅ Client-side validation passed, sending request to server');
+    } else {
+      console.log('[PlayerActionService] ⏭️ Client-side validation skipped (no handlers), sending request to server');
     }
 
     const request: GameActionRequest = {
@@ -139,6 +182,9 @@ export class PlayerActionService {
       sessionId: this.gameSessionStore.currentSession.id,
       timestamp: Date.now(),
       action,
+      actorId,
+      actorTokenId,
+      targetTokenIds,
       parameters,
       description: options.description
     };
@@ -146,15 +192,26 @@ export class PlayerActionService {
     console.log('[PlayerActionService] Requesting action:', {
       action,
       description: request.description,
-      requestId: request.id
+      requestId: request.id,
+      parameters
     });
 
     // Send request via socket to GM client for validation
     return new Promise<ActionRequestResult>((resolve) => {
-      console.log('[PlayerActionService] Sending action request via socket:', request.id);
+      console.log('[PlayerActionService] 🚀 SENDING gameAction:request to GM client:', {
+        requestId: request.id,
+        action: request.action,
+        description: request.description
+      });
       
       this.socketStore.emit('gameAction:request', request, (response: ActionRequestResponse) => {
-        console.log('[PlayerActionService] Received response:', response);
+        console.log('[PlayerActionService] 📥 RECEIVED GM response:', {
+          requestId: response.requestId,
+          success: response.success,
+          approved: response.approved,
+          error: response.error?.message,
+          fullResponse: response
+        });
         
         resolve({
           success: response.success,
@@ -166,31 +223,8 @@ export class PlayerActionService {
     });
   }
 
-  private requiresCurrentTurn(action: GameActionType): boolean {
-    return ['move-token', 'attack', 'cast-spell', 'use-ability'].includes(action);
-  }
-  
-  private getUserTokens(userId: string) {
-    // Get tokens owned by this user (direct ownership via ownerId)
-    const tokens = this.gameStateStore.currentEncounter?.tokens || [];
-    
-    return tokens.filter(token => {
-      // Direct ownership check via ownerId field
-      if (token.ownerId === userId) {
-        return true;
-      }
-      
-      // Fallback to document ownership chain for backwards compatibility
-      // This can be removed once all tokens have ownerId set
-      if (!token.documentId) return false;
-      
-      const documents = Object.values(this.gameStateStore.gameState?.documents || {});
-      const document = documents.find(doc => doc.id === token.documentId);
-      
-      // Check if the user owns the document (character/actor) or the document has direct ownerId
-      return document?.ownerId === userId || document?.createdBy === userId;
-    });
-  }
+  // Note: Turn validation is now handled by the same server validation handlers
+  // used on client-side for consistency. No need for separate requiresCurrentTurn logic.
 }
 
 // Singleton instance

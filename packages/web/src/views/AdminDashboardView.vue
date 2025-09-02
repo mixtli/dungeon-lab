@@ -111,29 +111,12 @@ async function generateAllVTTDocuments() {
 
     console.log(`Found ${vttEntries.length} VTT-document entries to process`);
 
-    // First, create a mapping of compendium ObjectId to slug
-    // Get all compendiums to create the mapping
-    const allCompendiums = await compendiumsClient.getCompendiums();
-    const compendiumMap = new Map<string, string>();
-    allCompendiums.forEach(comp => {
-      compendiumMap.set(comp.id, comp.slug);
-    });
-
-    console.log(`Created mapping for ${compendiumMap.size} compendiums`);
-
     // Process each entry
     for (const entry of vttEntries) {
       try {
-        // Get the compendium slug from our mapping
-        const compendiumSlug = compendiumMap.get(entry.compendiumId);
-        console.log('compendiumSlug', compendiumSlug);
-        console.log('compendiumMap', compendiumMap);
-        if (!compendiumSlug) {
-          throw new Error(`Could not find compendium slug for ID: ${entry.compendiumId}`);
-        }
-        
-        // Instantiate the template (create or update - service handles the logic)
-        const document = await compendiumsClient.instantiateTemplate(compendiumSlug, entry.id);
+        // Instantiate the template using the compendium ObjectId directly
+        // No need to map to slug - the backend expects ObjectId
+        const document = await compendiumsClient.instantiateTemplate(entry.compendiumId, entry.id);
         
         // Detect if this was an update by checking if createdAt and updatedAt are different
         // (This is a simple heuristic - newly created documents have the same timestamps)
@@ -240,26 +223,12 @@ async function generateAllCharacterDocuments() {
 
     console.log(`Found ${characterEntries.length} character entries to process`);
 
-    // Create a mapping of compendium ObjectId to slug
-    const allCompendiums = await compendiumsClient.getCompendiums();
-    const compendiumMap = new Map<string, string>();
-    allCompendiums.forEach(comp => {
-      compendiumMap.set(comp.id, comp.slug);
-    });
-
-    console.log(`Created mapping for ${compendiumMap.size} compendiums`);
-
     // Process each entry with create-only (skip if exists) workflow
     for (const entry of characterEntries) {
       try {
-        // Get the compendium slug from our mapping
-        const compendiumSlug = compendiumMap.get(entry.compendiumId);
-        if (!compendiumSlug) {
-          throw new Error(`Could not find compendium slug for ID: ${entry.compendiumId}`);
-        }
-        
-        // Instantiate the template with skipIfExists: true (create-only workflow)
-        const document = await compendiumsClient.instantiateTemplate(compendiumSlug, entry.id, {}, { skipIfExists: true });
+        // Instantiate the template using the compendium ObjectId directly
+        // No need to map to slug - the backend expects ObjectId
+        const document = await compendiumsClient.instantiateTemplate(entry.compendiumId, entry.id, {}, { skipIfExists: true });
         
         if (document === null) {
           // Document was skipped because it already exists

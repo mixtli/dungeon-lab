@@ -60,6 +60,8 @@ import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { useDocumentState } from '../../composables/useDocumentState.mts';
 import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
 import { useNotificationStore } from '../../stores/notification.store.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.mts';
+import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { PlayerActionService } from '../../services/player-action.service.mjs';
 import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
 import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.mjs';
@@ -68,7 +70,7 @@ import PluginContainer from './PluginContainer.vue';
 const props = defineProps<{
   show: boolean;
   documentId?: string;
-  documentType?: 'character' | 'actor' | 'vtt-document';
+  documentType?: 'character' | 'actor' | 'vtt-document' | 'item';
   context?: 'admin' | 'game';
   readonly?: boolean;
 }>();
@@ -88,6 +90,8 @@ const editMode = ref(false);
 // Services for GM request system
 const playerActionService = new PlayerActionService();
 const notificationStore = useNotificationStore();
+const gameStateStore = useGameStateStore();
+const gameSessionStore = useGameSessionStore();
 
 // Context-aware document state management
 const context = computed(() => props.context || 'admin');
@@ -152,13 +156,30 @@ const initializeDocumentCopy = () => {
   console.log('[DocumentSheetContainer] Document copy initialized for editing:', doc.name);
 };
 
+// Reactive flag for triggering change detection when documentCopy changes
+const changeDetectionTrigger = ref(0);
+
 // Check if form has unsaved changes by comparing copy to original
 const hasUnsavedChanges = computed(() => {
-  if (!reactiveDocument.value || !documentCopy.value) return false;
+  // Access changeDetectionTrigger to make this computed reactive to our manual triggers
+  changeDetectionTrigger.value;
+  
+  if (!reactiveDocument.value || !documentCopy.value) {
+    return false;
+  }
   
   // Simple JSON comparison using toRaw() to extract raw data from Vue proxies
-  return JSON.stringify(toRaw(reactiveDocument.value)) !== JSON.stringify(toRaw(documentCopy.value));
+  const originalJson = JSON.stringify(toRaw(reactiveDocument.value));
+  const copyJson = JSON.stringify(toRaw(documentCopy.value));
+  const hasChanges = originalJson !== copyJson;
+  
+  return hasChanges;
 });
+
+// Watch documentCopy for deep changes and trigger change detection
+watch(() => documentCopy.value, () => {
+  changeDetectionTrigger.value++;
+}, { deep: true });
 
 // Reset document copy to original state
 const resetDocumentCopy = () => {
@@ -197,33 +218,23 @@ const documentInfo = computed(() => {
   };
 });
 
-// Watch for document changes and load the appropriate component based on documentType
-watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType, documentInfo.value.pluginDocumentType], async ([pluginId, documentType, pluginDocumentType]) => {
-  console.log('[DocumentSheetContainer] Document game system ID:', pluginId, 'documentType:', documentType, 'pluginDocumentType:', pluginDocumentType, 'context:', context.value);
+// Load the appropriate component based on pluginDocumentType
+const loadSheetComponent = async () => {
+  const pluginId = documentInfo.value.pluginId;
+  const pluginDocumentType = documentInfo.value.pluginDocumentType;
   
-  if (!pluginId || !documentType) {
+  console.log('[DocumentSheetContainer] Loading component for pluginId:', pluginId, 'pluginDocumentType:', pluginDocumentType);
+  
+  if (!pluginId || !pluginDocumentType) {
     documentSheetComponent.value = null;
     return;
   }
 
   try {
-    // Determine component type based on documentType
-    let componentType: string;
+    // Simple rule: componentType is always ${pluginDocumentType}-sheet
+    const componentType = `${pluginDocumentType}-sheet`;
     
-    if (documentType === 'actor') {
-      componentType = 'actor-sheet';
-    } else if (documentType === 'character') {
-      componentType = 'character-sheet';
-    } else if (documentType === 'vtt-document' && pluginDocumentType) {
-      // For VTT documents, use pluginDocumentType to determine component
-      componentType = `${pluginDocumentType}-sheet`;
-    } else {
-      console.warn(`[DocumentSheetContainer] Unsupported document type: ${documentType}`);
-      documentSheetComponent.value = null;
-      return;
-    }
-    
-    // Use the new async getComponent API
+    // Use the async getComponent API
     const component = await pluginRegistry.getComponent(pluginId, componentType);
     if (component) {
       console.log(`[DocumentSheetContainer] ${componentType} component loaded successfully`);
@@ -236,6 +247,11 @@ watch(() => [documentInfo.value.pluginId, documentInfo.value.documentType, docum
     console.error('[DocumentSheetContainer] Failed to load sheet component:', error);
     documentSheetComponent.value = null;
   }
+};
+
+// Load component when document info becomes available
+watch(() => [documentInfo.value.pluginId, documentInfo.value.pluginDocumentType], () => {
+  loadSheetComponent();
 }, { immediate: true });
 
 
@@ -320,12 +336,15 @@ const handleGameContextSave = async () => {
     // Use PlayerActionService to request document update
     const result = await playerActionService.requestAction(
       'update-document',
+      undefined, // actorId - document updates are not actor-specific
       {
         documentId: props.documentId,
         operations,
         documentName: reactiveDocument.value?.name || 'Unknown Document',
         documentType: props.documentType
       } as UpdateDocumentParameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: generateChangesSummary(operations)
       }
@@ -479,6 +498,30 @@ const getComponentProps = () => {
     cancel: cancelChanges,
     reset: resetDocumentCopy
   };
+
+  // Add owner character for item document types (weapons, armor, gear, etc.)
+  if (props.documentType === 'item' && reactiveDocument.value && isGameContext.value) {
+    const item = reactiveDocument.value as IItem;
+    const ownerCharacter = item.carrierId 
+      ? gameStateStore.characters.find(char => char.id === item.carrierId)
+      : null;
+    
+    const ownerUser = item.ownerId 
+      ? gameSessionStore.currentSession?.participants?.find(user => user.id === item.ownerId)
+      : null;
+    
+    (componentProps as any).ownerCharacter = computed(() => ownerCharacter);
+    (componentProps as any).ownerUser = computed(() => ownerUser);
+    
+    console.log(`[DocumentSheetContainer] Adding owner character for item "${item.name}":`, {
+      carrierId: item.carrierId,
+      ownerName: ownerCharacter?.name || 'Unassigned'
+    });
+    console.log(`[DocumentSheetContainer] Adding owner user for item "${item.name}":`, {
+      ownerId: item.ownerId,
+      userName: ownerUser?.displayName || ownerUser?.username || 'Unassigned'
+    });
+  }
   
   console.log(`[DocumentSheetContainer] getComponentProps - Enhanced props:`, {
     document: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name, type: reactiveDocument.value.documentType } : null,

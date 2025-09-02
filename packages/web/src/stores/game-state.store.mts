@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, readonly, toRaw } from 'vue';
 import { z } from 'zod';
+import deepDiffDefault from 'deep-diff';
+const deepDiff = deepDiffDefault;
 import type { 
   StateUpdate, 
   StateUpdateResponse,
@@ -22,10 +24,7 @@ import {
 } from '@dungeon-lab/shared/utils/index.mjs';
 import { useSocketStore } from './socket.store.mjs';
 import { useGameSessionStore } from './game-session.store.mjs';
-import { useAuthStore } from './auth.store.mjs';
 import { useNotificationStore } from './notification.store.mjs';
-import { transformAssetUrl } from '../utils/asset-utils.mjs';
-import { pluginTokenService } from '../services/plugin-token.service.mjs';
 
 /**
  * Unified Game State Store
@@ -47,7 +46,6 @@ export const useGameStateStore = defineStore(
   () => {
     const socketStore = useSocketStore();
     const gameSessionStore = useGameSessionStore();
-    const authStore = useAuthStore();
     const notificationStore = useNotificationStore();
 
     // ============================================================================
@@ -64,6 +62,9 @@ export const useGameStateStore = defineStore(
     const selectedCharacter = ref<ICharacter | null>(null);
     const loading = ref<boolean>(false);
     const error = ref<string | null>(null);
+    
+    // Debug state for hash mismatch analysis
+    const corruptedStateSnapshot = ref<ServerGameStateWithVirtuals | null>(null);
 
     // Update management (GM only)
     const isUpdating = ref<boolean>(false);
@@ -209,9 +210,87 @@ export const useGameStateStore = defineStore(
                 hash: gameStateHash.value,
                 hasDocuments: Object.keys(gameState.value?.documents || {}).length,
                 hasCurrentEncounter: !!gameState.value?.currentEncounter,
-                encounterTokenCount: gameState.value?.currentEncounter?.tokens?.length || 0,
-                encounterTokenIds: gameState.value?.currentEncounter?.tokens?.map(t => t.id) || []
+                encounterTokenCount: Object.keys(gameState.value?.currentEncounter?.tokens || {}).length,
+                encounterTokenIds: Object.keys(gameState.value?.currentEncounter?.tokens || {})
               });
+
+              // Perform hash mismatch debugging if we have a corrupted state snapshot
+              if (corruptedStateSnapshot.value) {
+                try {
+                  console.log('[GameState] 🔍 Starting deep diff analysis between corrupted and fresh state...');
+                  
+                  const freshState = toRaw(gameState.value);
+                  const differences = deepDiff.diff(corruptedStateSnapshot.value, freshState);
+                  
+                  if (differences && differences.length > 0) {
+                    console.group('[GameState] 📊 HASH MISMATCH DIFF ANALYSIS');
+                    console.log(`Found ${differences.length} differences between corrupted and fresh state:`);
+                    
+                    // Group differences by type for better analysis
+                    const diffsByType = {
+                      edited: differences.filter(d => d.kind === 'E'),
+                      added: differences.filter(d => d.kind === 'N'), 
+                      deleted: differences.filter(d => d.kind === 'D'),
+                      array: differences.filter(d => d.kind === 'A')
+                    };
+                    
+                    console.log('📈 Summary:', {
+                      totalDifferences: differences.length,
+                      edited: diffsByType.edited.length,
+                      added: diffsByType.added.length, 
+                      deleted: diffsByType.deleted.length,
+                      arrayChanges: diffsByType.array.length
+                    });
+                    
+                    // Log document-specific differences (most likely culprits)
+                    const documentDiffs = differences.filter(d => 
+                      Array.isArray(d.path) && d.path[0] === 'documents'
+                    );
+                    if (documentDiffs.length > 0) {
+                      console.log('📄 Document-related differences:', documentDiffs.length);
+                      documentDiffs.forEach((diff, i) => {
+                        console.log(`  ${i+1}. [${diff.kind}] ${diff.path?.join('.')}:`, {
+                          kind: diff.kind,
+                          path: diff.path,
+                          oldValue: diff.lhs,
+                          newValue: diff.rhs,
+                          item: diff.item
+                        });
+                      });
+                    }
+                    
+                    // Log all differences for complete picture (but limit to prevent spam)
+                    const maxDiffsToShow = 20;
+                    const diffsToShow = differences.slice(0, maxDiffsToShow);
+                    
+                    console.log('🔍 Detailed differences (first 20):');
+                    diffsToShow.forEach((diff, i) => {
+                      const pathStr = Array.isArray(diff.path) ? diff.path.join('.') : 'root';
+                      console.log(`  ${i+1}. [${diff.kind}] ${pathStr}:`, {
+                        kind: diff.kind,
+                        path: diff.path,
+                        oldValue: diff.lhs,
+                        newValue: diff.rhs,
+                        item: diff.item
+                      });
+                    });
+                    
+                    if (differences.length > maxDiffsToShow) {
+                      console.log(`  ... and ${differences.length - maxDiffsToShow} more differences`);
+                    }
+                    
+                    console.groupEnd();
+                  } else {
+                    console.log('[GameState] 🤔 No differences found between corrupted and fresh state - this suggests the corruption may be in hash calculation rather than actual data');
+                  }
+                } catch (diffError) {
+                  console.error('[GameState] ❌ Failed to perform diff analysis:', diffError);
+                } finally {
+                  // Clear the snapshot to prevent memory leaks
+                  corruptedStateSnapshot.value = null;
+                  console.log('[GameState] 🧹 Cleared corrupted state snapshot');
+                }
+              }
 
               resolve();
             } else {
@@ -565,6 +644,20 @@ export const useGameStateStore = defineStore(
         const isValid = calculatedHash === expectedHash;
         
         if (!isValid) {
+          // Capture corrupted state snapshot for debugging before requesting refresh
+          try {
+            corruptedStateSnapshot.value = structuredClone(rawGameState);
+            console.log('[GameState] 🔍 Captured corrupted state snapshot for diff analysis');
+          } catch (cloneError) {
+            console.warn('[GameState] Failed to clone corrupted state, trying JSON fallback:', cloneError);
+            try {
+              corruptedStateSnapshot.value = JSON.parse(JSON.stringify(rawGameState));
+            } catch (jsonError) {
+              console.error('[GameState] Failed to capture corrupted state snapshot:', jsonError);
+              corruptedStateSnapshot.value = null;
+            }
+          }
+          
           console.error('Client-side hash mismatch after applying operations', {
             expected: expectedHash.substring(0, 16) + '...',
             calculated: calculatedHash.substring(0, 16) + '...',
@@ -573,7 +666,8 @@ export const useGameStateStore = defineStore(
             documentTypes: Object.values(gameState.value.documents || {}).reduce((types, doc) => {
               types[doc.documentType] = (types[doc.documentType] || 0) + 1;
               return types;
-            }, {} as Record<string, number>)
+            }, {} as Record<string, number>),
+            snapshotCaptured: !!corruptedStateSnapshot.value
           });
           
           // Show user notification about hash validation failure
@@ -722,167 +816,7 @@ export const useGameStateStore = defineStore(
     // TOKEN MANAGEMENT
     // ============================================================================
 
-    /**
-     * Create a token from any BaseDocument at a specific position
-     * This is the primary method for drag-and-drop token creation
-     */
-    const createTokenFromDocument = async (
-      document: BaseDocument, 
-      position: { x: number; y: number; elevation?: number },
-      options: {
-        name?: string;
-        isHidden?: boolean;
-        scale?: number;
-        isPlayerControlled?: boolean;
-      } = {}
-    ) => {
-      if (!gameState.value?.currentEncounter) {
-        throw new Error('No active encounter to create token in');
-      }
-
-      // Validate GM permissions
-      if (!canUpdate.value) {
-        throw new Error('Only the GM can create tokens');
-      }
-
-      // Generate unique token ID
-      const tokenId = `token_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-
-      // Get token image URL from document, with preference for token over avatar
-      // Token images are specifically for map/encounter display
-      let tokenImage: string | undefined;
-      
-      // Documents with virtuals include tokenImage, avatar, and image asset objects
-      const documentWithAssets = document as {
-        tokenImage?: { url: string };
-        avatar?: { url: string };
-        image?: { url: string };
-      };
-      
-      if (documentWithAssets.tokenImage?.url) {
-        tokenImage = transformAssetUrl(documentWithAssets.tokenImage.url);
-      } else if (documentWithAssets.avatar?.url) {
-        tokenImage = transformAssetUrl(documentWithAssets.avatar.url);
-      } else if (documentWithAssets.image?.url) {
-        tokenImage = transformAssetUrl(documentWithAssets.image.url);
-      }
-
-      if (!tokenImage) {
-        throw new Error('Document must have a token image URL (tokenImage.url, avatar.url, or image.url)');
-      }
-
-      // Get token grid size from plugin
-      const tokenGridSize = await pluginTokenService.getTokenGridSize(document);
-      
-      // Helper function to create bounds from center position and grid size
-      const createBoundsFromGridSize = (centerX: number, centerY: number, gridSize: number, elevation: number = 0) => {
-        // Convert grid size multiplier to actual grid cell count
-        const gridCells = Math.max(1, Math.round(gridSize));
-        
-        // Calculate bounds - for odd sizes, center aligns naturally
-        // For even sizes, we offset slightly to align with grid
-        const halfSize = Math.floor(gridCells / 2);
-        const isEven = gridCells % 2 === 0;
-        
-        // Get the actual grid size from current map data
-        const currentMap = gameState.value?.currentEncounter?.currentMap;
-        const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
-        
-        console.log('[GameState] createBoundsFromGridSize:', {
-          worldPosition: { centerX, centerY },
-          pixelsPerGrid,
-          gridSizeMultiplier: gridSize,
-          gridCells
-        });
-        
-        const centerGridX = Math.round(centerX / pixelsPerGrid);
-        const centerGridY = Math.round(centerY / pixelsPerGrid);
-        
-        console.log('[GameState] Grid conversion:', {
-          centerGridX,
-          centerGridY,
-          calculation: `${centerX} / ${pixelsPerGrid} = ${centerX / pixelsPerGrid} -> ${centerGridX}`
-        });
-        
-        // For even-sized tokens, adjust center to align with grid intersection
-        const adjustedCenterX = isEven ? centerGridX - 0.5 : centerGridX;
-        const adjustedCenterY = isEven ? centerGridY - 0.5 : centerGridY;
-        
-        const bounds = {
-          topLeft: {
-            x: Math.floor(adjustedCenterX - halfSize),
-            y: Math.floor(adjustedCenterY - halfSize)
-          },
-          bottomRight: {
-            x: Math.floor(adjustedCenterX - halfSize) + gridCells - 1,
-            y: Math.floor(adjustedCenterY - halfSize) + gridCells - 1
-          },
-          elevation
-        };
-        
-        console.log('[GameState] Final bounds:', bounds);
-        return bounds;
-      };
-
-      const tokenData = {
-        id: tokenId,
-        name: options.name || document.name,
-        imageUrl: tokenImage,
-        encounterId: gameState.value.currentEncounter.id,
-        bounds: createBoundsFromGridSize(
-          position.x,
-          position.y,
-          tokenGridSize,
-          position.elevation || 0
-        ),
-        documentId: document.id,
-        documentType: document.documentType,
-        notes: '',
-        isVisible: !options.isHidden,
-        isPlayerControlled: options.isPlayerControlled ?? (document.documentType === 'character'),
-        data: document.pluginData || {},
-        conditions: [],
-        version: 1,
-        createdBy: authStore.user?.id || '',
-        updatedBy: authStore.user?.id || '',
-        ownerId: document.ownerId || authStore.user?.id || ''
-      };
-
-      const operations: JsonPatchOperation[] = [{
-        op: 'add',
-        path: '/currentEncounter/tokens/-',
-        value: tokenData
-      }];
-
-      // If turn order is active, add new token as participant
-      if (gameState.value.turnManager?.isActive) {
-        const newParticipant = {
-          id: tokenId,
-          name: tokenData.name,
-          actorId: tokenData.documentId,
-          tokenId: tokenId,
-          hasActed: false,
-          turnOrder: 0 // Start with 0 initiative
-        };
-        
-        operations.push({
-          op: 'add',
-          path: '/turnManager/participants/-',
-          value: newParticipant
-        });
-        
-        console.log(`Adding token to active turn order: ${tokenData.name}`);
-      }
-
-      const response = await updateGameState(operations);
-
-      if (response.success) {
-        console.log(`Created token for document: ${document.name} at position:`, position);
-        return tokenId;
-      } else {
-        throw new Error(response.error?.message || 'Failed to create token');
-      }
-    };
+    // Token creation is now handled by the add-token action handler system
 
     // ============================================================================
     // PUBLIC API
@@ -925,8 +859,6 @@ export const useGameStateStore = defineStore(
       // State updates (GM only)
       updateGameState,
 
-      // Token management
-      createTokenFromDocument,
 
       // Utilities
       clearState

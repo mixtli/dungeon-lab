@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { IUser } from '@dungeon-lab/shared/types/index.mjs';
+import type { IUser, IUserPreferences } from '@dungeon-lab/shared/types/index.mjs';
 import { AuthClient } from '@dungeon-lab/client/auth.client.mjs';
 import { LoginRequest, RegisterRequest } from '@dungeon-lab/shared/types/api/authentication.mjs';
 // Import the game session store
@@ -94,6 +94,11 @@ export const useAuthStore = defineStore(
         console.error('Logout error:', err);
       } finally {
         user.value = undefined;
+        // Use window location to redirect to home page after clearing authentication
+        // We can't use useRouter() in a store, so we'll use the window location directly
+        if (typeof window !== 'undefined') {
+          window.location.replace('/');
+        }
       }
     }
 
@@ -118,6 +123,27 @@ export const useAuthStore = defineStore(
       }
     }
 
+    async function updateUserPreferences(preferences: Partial<IUserPreferences>) {
+      if (!user.value) {
+        console.error('Cannot update preferences: user not authenticated');
+        return false;
+      }
+
+      try {
+        const updatedUser = await authClient.updateUser({
+          preferences: {
+            ...user.value.preferences,
+            ...preferences
+          }
+        });
+        user.value = updatedUser;
+        return true;
+      } catch (err: unknown) {
+        console.error('Error updating user preferences:', err);
+        return false;
+      }
+    }
+
     return {
       user,
       error,
@@ -129,7 +155,8 @@ export const useAuthStore = defineStore(
       handleGoogleCallback,
       logout,
       fetchUser,
-      updateUser
+      updateUser,
+      updateUserPreferences
     };
   },
   { persist: { storage: localStorage } }

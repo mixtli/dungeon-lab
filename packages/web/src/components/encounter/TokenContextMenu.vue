@@ -93,6 +93,21 @@
           Cast Spell
         </button>
       </div>
+      
+      <!-- Plugin Actions -->
+      <div v-if="simplePluginActions && simplePluginActions.length > 0" class="action-group">
+        <h4>Combat Actions</h4>
+        <button 
+          v-for="action in simplePluginActions" 
+          :key="action.id"
+          @click="handlePluginAction(action)" 
+          class="menu-item"
+        >
+          <i v-if="action.icon" :class="action.icon"></i>
+          <i v-else class="icon-plugin"></i>
+          {{ action.label }}
+        </button>
+      </div>
     </div>
     
     <!-- Token Stats Display -->
@@ -135,9 +150,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toRaw } from 'vue';
 import { useGameSessionStore } from '@/stores/game-session.store.mjs';
+import { useGameStateStore } from '@/stores/game-state.store.mjs';
+import { tokenActionRegistry } from '@/services/token-action-registry.mjs';
+import { PlayerActionService } from '@/services/player-action.service.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import type { 
+  TokenActionContext, // Execution context passed TO plugin handlers when action runs
+  PluginContext
+} from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 interface Props {
   visible: boolean;
@@ -153,6 +176,7 @@ const emit = defineEmits<{
 }>();
 
 const gameSessionStore = useGameSessionStore();
+const gameStateStore = useGameStateStore();
 
 // Computed
 const isGM = computed(() => {
@@ -206,11 +230,125 @@ const menuStyle = computed(() => {
   };
 });
 
+// Plugin Actions
+const availablePluginActions = computed(() => {
+  try {
+    if (!props.token) return [];
+    
+    const allActions = tokenActionRegistry?.getAllActions?.() || [];
+    const gameState = gameStateStore?.gameState;
+    
+    if (!Array.isArray(allActions)) return [];
+    
+    // Filter actions based on their condition function
+    return allActions.filter(action => {
+      if (!action || typeof action !== 'object') return false;
+      
+      if (!action.condition) return true;
+      
+      try {
+        // The gameState from store is deeply readonly, but condition functions are read-only operations
+        // so this type assertion is safe for runtime behavior
+        return action.condition(props.token!, gameState! as Readonly<ServerGameStateWithVirtuals>);
+      } catch (error) {
+        console.warn(`[TokenContextMenu] Error evaluating condition for action ${action.id}:`, error);
+        return false;
+      }
+    });
+  } catch (error) {
+    console.warn('[TokenContextMenu] Error in availablePluginActions:', error);
+    return [];
+  }
+});
+
+// Simple flat array of plugin actions for template rendering
+const simplePluginActions = computed(() => {
+  try {
+    const actions = availablePluginActions.value;
+    console.log('[TokenContextMenu] Available plugin actions:', actions);
+    
+    if (!Array.isArray(actions) || actions.length === 0) {
+      console.log('[TokenContextMenu] No plugin actions available');
+      return [];
+    }
+    
+    // Create simple flat array with all needed properties
+    const simpleActions = actions.map(action => ({
+      id: action.id,
+      label: action.label,
+      icon: action.icon,
+      groupLabel: action.groupLabel || 'Plugin Actions',
+      handler: action.handler
+    }));
+    
+    console.log('[TokenContextMenu] Simple plugin actions for template:', simpleActions);
+    return simpleActions;
+  } catch (error) {
+    console.warn('[TokenContextMenu] Error in simplePluginActions:', error);
+    return [];
+  }
+});
+
 // Methods
 const handleAction = (action: string) => {
   if (!props.token) return;
   
   emit('action', action, props.token);
+  emit('close');
+};
+
+const handlePluginAction = async (action: { id: string; label: string; icon?: string; groupLabel: string }) => {
+  if (!props.token) return;
+  
+  try {
+    // We need to get the original action from the registry to access the full handler
+    const allActions = tokenActionRegistry?.getAllActions?.() || [];
+    const originalAction = allActions.find(a => a.id === action.id);
+    
+    if (!originalAction || !originalAction.handler) {
+      console.error(`[TokenContextMenu] No handler found for action: ${action.id}`);
+      return;
+    }
+    
+    // Create a simplified context that delegates action requests to PlayerActionService
+    const playerActionService = new PlayerActionService();
+    const context: TokenActionContext = {
+      selectedToken: props.token,
+      // The gameState from store is deeply readonly, but for the handler execution context
+      // we need to provide the mutable interface expected by the TokenActionContext
+      gameState: toRaw(gameStateStore.gameState!) as ServerGameStateWithVirtuals,
+      pluginContext: ({
+        requestAction: async (
+          actionType: string, 
+          actorId: string | undefined, 
+          parameters: Record<string, unknown>,
+          actorTokenId?: string,
+          targetTokenIds?: string[],
+          options?: { description?: string }
+        ) => {
+          // For token context menu actions, we have the token so pass both actorId and actorTokenId
+          if (!props.token) {
+            throw new Error('No token selected for action');
+          }
+          return await playerActionService.requestAction(
+            actionType, // Plugin actions are now supported as strings
+            actorId || props.token.documentId,  // Use provided actorId or fall back to token's document
+            parameters, 
+            actorTokenId || props.token.id,     // Use provided token or fall back to current token
+            targetTokenIds,                     // Pass through target tokens
+            options
+          );
+        }
+      }) as PluginContext // Simplified plugin context for token actions
+    };
+    
+    await originalAction.handler(context);
+    
+    console.log(`[TokenContextMenu] Executed plugin action: ${action.id}`);
+  } catch (error) {
+    console.error(`[TokenContextMenu] Error executing plugin action ${action.id}:`, error);
+  }
+  
   emit('close');
 };
 </script>
@@ -282,6 +420,15 @@ const handleAction = (action: string) => {
 .icon-delete::before { content: '🗑️'; }
 .icon-attack::before { content: '⚡'; }
 .icon-spell::before { content: '✨'; }
+.icon-plugin::before { content: '🔧'; }
+
+/* D&D Combat Action Icons */
+.icon-dodge::before { content: '🛡️'; }
+.icon-hide::before { content: '🫥'; }
+.icon-disengage::before { content: '🏃'; }
+.icon-search::before { content: '🔍'; }
+.icon-help::before { content: '🤝'; }
+.icon-ready::before { content: '⏰'; }
 
 .token-stats {
   @apply p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800;

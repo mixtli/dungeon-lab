@@ -28,6 +28,9 @@
         </div>
       </div>
       <div class="header-actions">
+        <button @click="copyCharacterId" class="copy-btn" title="Copy Character ID">
+          📋
+        </button>
         <button 
           v-if="!readonly"
           @click="toggleEditMode" 
@@ -67,7 +70,26 @@
     <main class="tab-content">
       <!-- Overview Tab -->
       <div v-if="activeTab === 'overview'" class="tab-pane overview-tab">
-        <div class="stats-grid">
+        <div class="overview-layout">
+          <!-- Character Portrait -->
+          <div class="character-portrait-section">
+            <div class="prominent-portrait">
+              <img 
+                v-if="prominentAvatarUrl" 
+                :src="prominentAvatarUrl" 
+                :alt="character?.name"
+                class="portrait-image"
+              />
+              <div v-else class="portrait-placeholder">
+                <div class="placeholder-icon">👤</div>
+                <div class="placeholder-text">No Image</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Stats Section -->
+          <div class="stats-section">
+            <div class="stats-grid">
           <div class="stat-card" @click="rollInitiative" :title="editMode && !readonly ? 'Initiative Bonus' : 'Click to roll initiative'">
             <div class="stat-label">Initiative</div>
             <div v-if="!editMode || readonly" class="stat-value">{{ initiativeBonus }}</div>
@@ -83,7 +105,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-label">Armor Class</div>
-            <div v-if="!editMode || readonly" class="stat-value">{{ armorClassDisplay }}</div>
+            <div v-if="!editMode || readonly" class="stat-value">{{ calculatedAC }}</div>
             <input 
               v-else-if="characterCopy?.pluginData && (characterCopy.pluginData as any)?.attributes?.armorClass"
               v-model.number="(characterCopy.pluginData as any).attributes.armorClass.value"
@@ -98,7 +120,7 @@
             <div v-if="!editMode || readonly" class="stat-value">{{ hitPointsDisplay }}</div>
             <div v-else class="hit-points-edit">
               <input 
-                v-model.number="hitPointsCurrent"
+                v-model.number="(characterCopy!.pluginData as DndCharacterData).attributes.hitPoints.current"
                 class="stat-input hp-current"
                 type="number"
                 min="0"
@@ -106,7 +128,7 @@
               />
               <span class="hp-separator">/</span>
               <input 
-                v-model.number="hitPointsMax"
+                v-model.number="(characterCopy!.pluginData as DndCharacterData).attributes.hitPoints.maximum"
                 class="stat-input hp-max"
                 type="number"
                 min="1"
@@ -141,6 +163,105 @@
         <div v-if="(character.pluginData?.attributes as any)?.inspiration || (character.pluginData as any)?.inspiration" class="inspiration-section">
           <div class="inspiration-indicator">
             ⭐ Inspiration
+          </div>
+        </div>
+        
+        <!-- Proficiencies Section -->
+        <div class="proficiencies-section">
+          <h3 class="section-title">Proficiencies</h3>
+          <div class="proficiencies-grid">
+            <div class="proficiency-card">
+              <div class="prof-label">Armor</div>
+              <div class="prof-list">
+                <span v-if="armorProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="armor in armorProficiencies" :key="armor" class="prof-item">{{ armor }}</span>
+              </div>
+            </div>
+            <div class="proficiency-card">
+              <div class="prof-label">Weapons</div>
+              <div class="prof-list">
+                <span v-if="weaponProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="weapon in weaponProficiencies" :key="weapon" class="prof-item">{{ weapon }}</span>
+              </div>
+            </div>
+            <div class="proficiency-card">
+              <div class="prof-label">Tools</div>
+              <div class="prof-list">
+                <span v-if="toolProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="tool in toolProficiencies" :key="tool.name" class="prof-item">
+                  {{ tool.name }}
+                  <span v-if="tool.expert" class="prof-indicator expert" title="Expert">◆</span>
+                  <span v-else-if="tool.proficient" class="prof-indicator proficient" title="Proficient">●</span>
+                </span>
+              </div>
+            </div>
+            <div class="proficiency-card">
+              <div class="prof-label">Languages</div>
+              <div class="prof-list">
+                <span v-if="languageProficiencies.length === 0" class="prof-none">None</span>
+                <span v-for="language in languageProficiencies" :key="language" class="prof-item">{{ language }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Conditions Tab -->
+      <div v-if="activeTab === 'conditions'" class="tab-pane conditions-tab">
+        <div 
+          class="conditions-container"
+          :class="{ 'drag-over': isConditionDragOver }"
+          @dragenter="handleConditionDragEnter"
+          @dragover="handleConditionDragOver"
+          @dragleave="handleConditionDragLeave"
+          @drop="handleConditionDrop"
+        >
+          <div class="conditions-header">
+            <h3>Active Conditions</h3>
+            <span class="condition-count">{{ activeConditions.length }}</span>
+          </div>
+          
+          <div class="conditions-list">
+            <div 
+              v-for="condition in activeConditions" 
+              :key="`${condition.conditionId}-${condition.addedAt}`"
+              class="condition-card"
+            >
+              <div class="condition-icon">
+                <img 
+                  v-if="getConditionImageUrl(condition.conditionId)" 
+                  :src="getConditionImageUrl(condition.conditionId)" 
+                  :alt="getConditionName(condition.conditionId)"
+                  class="condition-image"
+                  @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                />
+                <span v-else class="condition-emoji">🎯</span>
+              </div>
+              
+              <div class="condition-info">
+                <div class="condition-name">{{ getConditionName(condition.conditionId) }}</div>
+                <div class="condition-details">
+                  <span v-if="condition.level && condition.level > 1" class="condition-level">Level {{ condition.level }}</span>
+                  <span v-if="condition.source" class="condition-source">from {{ condition.source }}</span>
+                </div>
+              </div>
+              
+              <button 
+                class="remove-condition-btn"
+                @click="removeCondition(condition.conditionId)"
+                title="Remove condition"
+                :disabled="readonly"
+              >
+                <i class="mdi mdi-close"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div v-if="activeConditions.length === 0" class="no-conditions">
+            <p>No active conditions</p>
+            <p class="no-conditions-hint">Drag conditions from the Documents tab to add them</p>
+          </div>
+            </div>
           </div>
         </div>
       </div>
@@ -257,7 +378,7 @@
           <div class="spells-header">
             <h3 class="section-title">Spellcasting</h3>
             <div class="spell-count">
-              {{ characterSpells.length }} spell{{ characterSpells.length !== 1 ? 's' : '' }}
+              {{ characterSpells.length + characterCantrips.length }} spell{{ (characterSpells.length + characterCantrips.length) !== 1 ? 's' : '' }}
             </div>
           </div>
 
@@ -281,7 +402,7 @@
           </div>
 
           <!-- Spells List -->
-          <div v-if="characterSpells.length" class="spells-list">
+          <div v-if="characterSpells.length || characterCantrips.length" class="spells-list">
             <div 
               v-for="spellLevel in sortedSpellLevels" 
               :key="spellLevel"
@@ -359,9 +480,25 @@
           @dragleave="handleDragLeave"
           @drop="handleDrop"
         >
+          <!-- AC Display Header -->
+          <div class="ac-display-header">
+            <div class="ac-main">
+              <span class="ac-label">Armor Class</span>
+              <span class="ac-value">{{ calculatedAC }}</span>
+            </div>
+            <div class="ac-breakdown">
+              <span v-if="equippedItems.armor" class="ac-source">
+                {{ equippedItems.armor.name }}: {{ getArmorAC(equippedItems.armor) }}
+              </span>
+              <span v-else class="ac-source">Base: 10 + Dex</span>
+              <span v-if="equippedItems.shield" class="ac-source">Shield: +2</span>
+              <span class="ac-source">Dex: {{ getDexModifier() >= 0 ? '+' : '' }}{{ getDexModifier() }}</span>
+            </div>
+          </div>
+
           <!-- Equipment Header -->
           <div class="equipment-header">
-            <h3 class="section-title">Equipment</h3>
+            <h3 class="section-title">Equipment & Gear</h3>
             <div class="item-count">
               {{ props.items?.value?.length || 0 }} item{{ (props.items?.value?.length || 0) !== 1 ? 's' : '' }}
             </div>
@@ -370,29 +507,100 @@
           <!-- Grouped Equipment Lists -->
           <div v-if="props.items?.value?.length" class="equipment-groups">
             
+            <!-- Armor Section -->
+            <div v-if="groupedItems.armor.length" class="item-group">
+              <div class="group-header">
+                <h4 class="group-title">🛡️ Armor</h4>
+                <span class="group-count">{{ groupedItems.armor.length }}</span>
+              </div>
+              <div class="item-list" :class="{ 'scrollable': groupedItems.armor.length > 3 }">
+                <div 
+                  v-for="item in groupedItems.armor" 
+                  :key="item.id"
+                  class="item-row equipment-item"
+                  :class="{ 'equipped': isItemEquipped(item) }"
+                  @dblclick="openArmorSheet(item)"
+                >
+                  <div class="item-content">
+                    <div class="item-equipment-checkbox">
+                      <input
+                        type="checkbox"
+                        :checked="isItemEquipped(item)"
+                        @change="toggleItemEquipped(item, $event)"
+                        :disabled="editMode || readonly"
+                        class="equipment-checkbox"
+                      />
+                    </div>
+                    <div class="item-icon">
+                      <img 
+                        v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                        :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                        :alt="item.name"
+                        class="item-image"
+                        @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                      />
+                      <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                    </div>
+                    <div class="item-details">
+                      <div class="item-name-row">
+                        <span class="item-name">{{ item.name }}</span>
+                        <span v-if="isItemEquipped(item)" class="equipped-badge">EQUIPPED</span>
+                      </div>
+                      <div class="item-stats">
+                        <span v-if="getArmorAC(item)" class="stat">AC {{ getArmorAC(item) }}</span>
+                        <span v-if="getItemType(item) === 'shield'" class="stat">+2 AC</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <!-- Weapons Section -->
             <div v-if="groupedItems.weapons.length" class="item-group">
               <div class="group-header">
                 <h4 class="group-title">⚔️ Weapons</h4>
                 <span class="group-count">{{ groupedItems.weapons.length }}</span>
               </div>
-              <div class="item-list">
+              <div class="item-list" :class="{ 'scrollable': groupedItems.weapons.length > 3 }">
                 <div 
                   v-for="item in groupedItems.weapons" 
                   :key="item.id"
-                  class="item-row"
+                  class="item-row equipment-item"
+                  :class="{ 'equipped': isItemEquipped(item) }"
+                  @dblclick="openWeaponSheet(item)"
                 >
-                  <div class="item-icon">
-                    <img 
-                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
-                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
-                      :alt="item.name"
-                      class="item-image"
-                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-                    />
-                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  <div class="item-content">
+                    <div class="item-equipment-checkbox">
+                      <input
+                        type="checkbox"
+                        :checked="isItemEquipped(item)"
+                        @change="toggleItemEquipped(item, $event)"
+                        :disabled="editMode || readonly || (!canEquipWeapon(item) && !isItemEquipped(item))"
+                        class="equipment-checkbox"
+                      />
+                    </div>
+                    <div class="item-icon">
+                      <img 
+                        v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                        :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                        :alt="item.name"
+                        class="item-image"
+                        @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                      />
+                      <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                    </div>
+                    <div class="item-details">
+                      <div class="item-name-row">
+                        <span class="item-name">{{ item.name }}</span>
+                        <span v-if="isItemEquipped(item)" class="equipped-badge">{{ getEquippedSlotName(item) }}</span>
+                      </div>
+                      <div class="item-stats">
+                        <span v-if="getWeaponDamage(item)" class="stat">{{ getWeaponDamage(item) }}</span>
+                        <span v-if="isWeaponTwoHanded(item)" class="stat">Two-handed</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="item-name">{{ item.name }}</div>
                   <div class="item-actions">
                     <button 
                       @click="initiateWeaponAttack(item)" 
@@ -401,43 +609,6 @@
                     >
                       ⚔️
                     </button>
-                    <button 
-                      @click="initiateWeaponDamage(item)" 
-                      class="compact-action-btn damage-btn"
-                      title="Damage"
-                    >
-                      🗡️
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Armor Section -->
-            <div v-if="groupedItems.armor.length" class="item-group">
-              <div class="group-header">
-                <h4 class="group-title">🛡️ Armor</h4>
-                <span class="group-count">{{ groupedItems.armor.length }}</span>
-              </div>
-              <div class="item-list">
-                <div 
-                  v-for="item in groupedItems.armor" 
-                  :key="item.id"
-                  class="item-row"
-                >
-                  <div class="item-icon">
-                    <img 
-                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
-                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
-                      :alt="item.name"
-                      class="item-image"
-                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-                    />
-                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
-                  </div>
-                  <div class="item-name">{{ item.name }}</div>
-                  <div class="item-actions">
-                    <!-- Armor doesn't have action buttons -->
                   </div>
                 </div>
               </div>
@@ -449,23 +620,26 @@
                 <h4 class="group-title">🎒 Gear</h4>
                 <span class="group-count">{{ groupedItems.gear.length }}</span>
               </div>
-              <div class="item-list">
+              <div class="item-list" :class="{ 'scrollable': groupedItems.gear.length > 3 }">
                 <div 
                   v-for="item in groupedItems.gear" 
                   :key="item.id"
                   class="item-row"
+                  @dblclick="openGearSheet(item)"
                 >
-                  <div class="item-icon">
-                    <img 
-                      v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
-                      :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
-                      :alt="item.name"
-                      class="item-image"
-                      @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
-                    />
-                    <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                  <div class="item-content">
+                    <div class="item-icon">
+                      <img 
+                        v-if="(item as any).image?.url || (item.imageId && itemImageUrls[item.imageId])" 
+                        :src="(item as any).image?.url || (item.imageId ? itemImageUrls[item.imageId] : '')" 
+                        :alt="item.name"
+                        class="item-image"
+                        @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
+                      />
+                      <span v-else class="item-emoji">{{ getItemIcon(item) }}</span>
+                    </div>
+                    <div class="item-name">{{ item.name }}</div>
                   </div>
-                  <div class="item-name">{{ item.name }}</div>
                   <div class="item-actions">
                     <!-- General gear doesn't have action buttons -->
                   </div>
@@ -486,7 +660,97 @@
       </div>
       
       <div v-if="activeTab === 'background'" class="tab-pane background-tab">
-        <div class="empty-state">Background features coming soon...</div>
+        <div class="character-basics-section">
+          <h3 class="section-title">Character Basics</h3>
+          
+          <!-- Class Selection -->
+          <div class="basic-field">
+            <label class="field-label">Class</label>
+            <div v-if="!editMode || readonly" class="field-display">
+              {{ classDisplayName }}
+            </div>
+            <select 
+              v-else-if="characterCopy"
+              :value="(characterCopy.pluginData as any)?.classes?.[0]?.class || ''"
+              @change="updateCharacterClass(($event.target as HTMLSelectElement).value)"
+              class="field-select"
+            >
+              <option value="">Select a class...</option>
+              <option 
+                v-for="cls in availableClasses" 
+                :key="cls.id" 
+                :value="cls.id"
+              >
+                {{ cls.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Species Selection -->
+          <div class="basic-field">
+            <label class="field-label">Species</label>
+            <div v-if="!editMode || readonly" class="field-display">
+              {{ speciesDisplayName }}
+            </div>
+            <select 
+              v-else-if="characterCopy"
+              :value="characterCopy.pluginData?.species || ''"
+              @change="updateCharacterSpecies(($event.target as HTMLSelectElement).value)"
+              class="field-select"
+            >
+              <option value="">Select a species...</option>
+              <option 
+                v-for="species in availableSpecies" 
+                :key="species.id" 
+                :value="species.id"
+              >
+                {{ species.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Background Selection -->
+          <div class="basic-field">
+            <label class="field-label">Background</label>
+            <div v-if="!editMode || readonly" class="field-display">
+              {{ backgroundDocument?.name || 'No background selected' }}
+            </div>
+            <select 
+              v-else-if="characterCopy"
+              :value="characterCopy.pluginData?.background || ''"
+              @change="updateCharacterBackground(($event.target as HTMLSelectElement).value)"
+              class="field-select"
+            >
+              <option value="">Select a background...</option>
+              <option 
+                v-for="background in availableBackgrounds" 
+                :key="background.id" 
+                :value="background.id"
+              >
+                {{ background.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Background Details (Read-only display) -->
+        <div v-if="backgroundDocument" class="background-details-section">
+          <h3 class="section-title">Background Details</h3>
+          <div class="background-description">
+            <p>{{ backgroundDocument.pluginData?.description || 'No description available.' }}</p>
+          </div>
+          
+          <div v-if="(backgroundDocument.pluginData as any)?.features" class="background-features">
+            <h4>Features</h4>
+            <div 
+              v-for="feature in (backgroundDocument.pluginData as any).features" 
+              :key="feature.name"
+              class="feature-item"
+            >
+              <strong>{{ feature.name }}:</strong> {{ feature.description }}
+            </div>
+          </div>
+        </div>
       </div>
       
       <div v-if="activeTab === 'features'" class="tab-pane features-tab">
@@ -530,40 +794,38 @@
     @roll="handleSavingThrowSubmission"
   />
 
-  <!-- Dialogs -->
-  <WeaponAttackDialog
-    v-model="showWeaponAttackDialog"
-    :weapon="currentRollWeapon"
-    :character="character"
-    @roll="handleWeaponAttackRollSubmission"
+  <!-- Initiative Roll Dialog -->
+  <AdvantageRollDialog
+    v-model="showInitiativeDialog"
+    :ability="currentRollAbility"
+    :base-modifier="initiativeBonus ? parseInt(initiativeBonus.replace('+', '')) : 0"
+    :character-name="character?.name"
+    @roll="handleInitiativeSubmission"
   />
 
-  <!-- Weapon Damage Dialog -->
-  <WeaponDamageDialog
-    v-model="showWeaponDamageDialog"
-    :weapon="currentRollWeapon"
-    :character="character"
-    @roll="handleWeaponDamageRollSubmission"
-  />
+  <!-- Weapon dialogs removed - now using unified action handlers -->
 </template>
 
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
-import type { ICharacter, IItem, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IItem, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
+import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { EquipItemParameters, UnequipItemParameters } from '../../shared/types/equipment-actions.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
-import WeaponAttackDialog, { type WeaponAttackRollData } from '../internal/common/WeaponAttackDialog.vue';
-import WeaponDamageDialog, { type WeaponDamageRollData } from '../internal/common/WeaponDamageDialog.vue';
+// Weapon dialogs removed - now using unified action handlers
 
-// Note: This import works because plugin components run in the web context
-// @ts-ignore - Import from web package for document sheet functionality
-import { useDocumentSheetStore } from '../../../../../web/src/stores/document-sheet.store.mjs';
-// @ts-ignore - Import from web package for asset utilities
-import { getAssetUrl } from '../../../../../web/src/utils/asset-utils.mjs';
+// All web package functionality is now accessed through PluginContext
+// This maintains proper plugin architecture and prevents build issues
+
+// Utility function to generate unique roll IDs
+function generateUniqueId(): string {
+  return `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 // Props - enhanced interface with container-provided document copy
 interface Props {
@@ -582,6 +844,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
+
+// Get plugin context once for use throughout the component
+const pluginContext = getPluginContext();
+if (!pluginContext) {
+  throw new Error('[CharacterSheet] Plugin context not available - this should never happen');
+}
 
 // Type-safe character accessor with validation
 const character = computed(() => {
@@ -615,11 +883,18 @@ const backgroundDocument = ref<DndBackgroundDocument | null>(null);
 const compendiumLoading = ref(false);
 const compendiumError = ref<string | null>(null);
 
+// Available options for character creation/editing
+const availableClasses = ref<DndCharacterClassDocument[]>([]);
+const availableSpecies = ref<DndSpeciesDocument[]>([]);
+const availableBackgrounds = ref<DndBackgroundDocument[]>([]);
+
 // Spell resolution storage
 const resolvedSpells = ref<Map<string, any>>(new Map());
 
-// Document sheet store for opening spell sheets
-const documentSheetStore = useDocumentSheetStore();
+// Language resolution storage
+const resolvedLanguages = ref<Map<string, any>>(new Map());
+
+// All store functionality is now handled through PluginContext methods
 
 // Emits - unified event interface
 const emit = defineEmits<{
@@ -637,14 +912,13 @@ const activeTab = ref('overview');
 // Roll dialog state
 const showRollDialog = ref(false);
 const showSavingThrowDialog = ref(false);
+const showInitiativeDialog = ref(false);
 const currentRollAbility = ref<string>('');
 const currentRollSkill = ref<string>('');
 const currentSavingThrow = ref<string>('');
-const currentRollWeapon = ref<IItem | null>(null);
 
 // Weapon dialog state
-const showWeaponAttackDialog = ref(false);
-const showWeaponDamageDialog = ref(false);
+// Weapon dialog refs removed - now using unified action handlers
 
 // Drag and drop state
 const isDragOver = ref(false);
@@ -653,15 +927,18 @@ const dragCounter = ref(0);
 // Spell drag and drop state
 const isSpellDragOver = ref(false);
 const spellDragCounter = ref(0);
+// Condition drag and drop state
+const isConditionDragOver = ref(false);
+const conditionDragCounter = ref(0);
 
 // Item image URL cache (for dynamic loading from imageId)
 const itemImageUrls = ref<Record<string, string>>({});
 
-// Get plugin context for action requests
-const pluginContext = getPluginContext();
-
 // Inject target context from encounter (with fallbacks)
-const encounterTargetTokenIds = inject('encounterTargetTokenIds', () => ref([]), true);
+const encounterTargetTokenIds = inject<Ref<string[]>>('encounterTargetTokenIds', () => ref([]), true);
+
+// Inject selected token context from encounter (with fallbacks)
+const encounterSelectedToken = inject<Ref<IToken | null>>('encounterSelectedToken', () => ref(null), true);
 
 // Use container-provided document copy - no local state management needed!
 // The container handles copy creation, change detection, and save/cancel logic
@@ -692,88 +969,40 @@ if (characterCopy.value) {
 // Direct v-model computed properties for character editing
 
 // Hit points current - prioritize state.currentHitPoints for runtime HP, fallback to pluginData
-const hitPointsCurrent = computed({
-  get() {
-    // First check state for runtime current HP
-    if (typeof character.value!.state?.currentHitPoints === 'number') {
-      return character.value!.state.currentHitPoints;
-    }
-    
-    // Fallback to pluginData (baseline HP)
-    const attributes = character.value!.pluginData?.attributes as any;
-    const baselineHp = attributes?.hitPoints?.current || (character.value!.pluginData as any)?.hitPoints?.current || 8;
-    
-    // Initialize state if missing
-    if (!character.value!.state) character.value!.state = {};
-    character.value!.state.currentHitPoints = baselineHp;
-    
-    return baselineHp;
-  },
-  set(value: number) {
-    // Always update state for runtime HP
-    if (!character.value!.state) character.value!.state = {};
-    character.value!.state.currentHitPoints = value;
-    
-    // Also update pluginData for persistence
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.hitPoints) (character.value!.pluginData as any).attributes.hitPoints = {};
-    (character.value!.pluginData as any).attributes.hitPoints.current = value;
-    // Also update legacy format
-    if (!(character.value!.pluginData as any).hitPoints) (character.value!.pluginData as any).hitPoints = {};
-    (character.value!.pluginData as any).hitPoints.current = value;
+const hitPointsCurrent = computed(() => {
+  // First check state for runtime current HP
+  if (typeof character.value!.state?.currentHitPoints === 'number') {
+    return character.value!.state.currentHitPoints;
   }
+  
+  // Fallback to pluginData (baseline HP)
+  const attributes = character.value!.pluginData?.attributes as any;
+  return attributes?.hitPoints?.current || (character.value!.pluginData as any)?.hitPoints?.current || 8;
 });
 
-// Hit points max - direct binding to character.pluginData.attributes.hitPoints.maximum
-const hitPointsMax = computed({
-  get() {
-    const attributes = character.value!.pluginData?.attributes as any;
-    return attributes?.hitPoints?.maximum || (character.value!.pluginData as any)?.hitPoints?.maximum || 8;
-  },
-  set(value: number) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.hitPoints) (character.value!.pluginData as any).attributes.hitPoints = {};
-    (character.value!.pluginData as any).attributes.hitPoints.maximum = value;
-    // Also update legacy format
-    if (!(character.value!.pluginData as any).hitPoints) (character.value!.pluginData as any).hitPoints = {};
-    (character.value!.pluginData as any).hitPoints.maximum = value;
-  }
+// Hit points max - read-only computed from character.pluginData.attributes.hitPoints.maximum
+const hitPointsMax = computed(() => {
+  const attributes = character.value!.pluginData?.attributes as any;
+  return attributes?.hitPoints?.maximum || (character.value!.pluginData as any)?.hitPoints?.maximum || 8;
 });
 
-// Speed - direct binding to character.pluginData.attributes.movement.walk
-const speedValue = computed({
-  get() {
-    const attributes = character.value!.pluginData?.attributes as any;
-    return attributes?.movement?.walk || (character.value!.pluginData as any)?.speed || 30;
-  },
-  set(value: number) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).attributes) (character.value!.pluginData as any).attributes = {};
-    if (!(character.value!.pluginData as any).attributes.movement) (character.value!.pluginData as any).attributes.movement = {};
-    (character.value!.pluginData as any).attributes.movement.walk = value;
-    // Also update legacy format
-    (character.value!.pluginData as any).speed = value;
-  }
+// Speed - read-only computed from character.pluginData.attributes.movement.walk
+const speedValue = computed(() => {
+  const attributes = character.value!.pluginData?.attributes as any;
+  return attributes?.movement?.walk || (character.value!.pluginData as any)?.speed || 30;
 });
 
-// Automate attacks checkbox - direct binding to character.pluginData.automateAttacks
-const automateAttacksValue = computed({
-  get() {
-    return character.value!.pluginData?.automateAttacks || false;
-  },
-  set(value: boolean) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    (character.value!.pluginData as any).automateAttacks = value;
-  }
+// Automate attacks checkbox - read-only computed from character.pluginData.automateAttacks
+const automateAttacksValue = computed(() => {
+  return character.value!.pluginData?.automateAttacks || false;
 });
 
 // Tab definitions
 const tabs = [
   { id: 'overview', name: 'Main', icon: '📋' },
+  { id: 'conditions', name: 'Conditions', icon: '🎯' },
   { id: 'abilities', name: 'Abilities', icon: '💪' },
-  { id: 'skills', name: 'Skills', icon: '🎯' },
+  { id: 'skills', name: 'Skills', icon: '🏹' },
   { id: 'spells', name: 'Spells', icon: '✨' },
   { id: 'gear', name: 'Equipment', icon: '🎒' },
   { id: 'background', name: 'Background', icon: '📜' },
@@ -808,17 +1037,31 @@ const finalAbilities = computed(() => {
   return finalScores;
 });
 
-// Ability score update method - directly updates character.pluginData.abilities[ability].override
+// Ability score update method - updates characterCopy.pluginData.abilities[ability].override for proper change detection
 const updateAbilityScore = (abilityName: string, newScore: number) => {
   if (isNaN(newScore) || newScore < 1 || newScore > 30) return;
   
-  // Ensure abilities structure exists
-  if (!character.value!.pluginData) character.value!.pluginData = {};
-  if (!(character.value!.pluginData as any).abilities) (character.value!.pluginData as any).abilities = {};
-  if (!(character.value!.pluginData as any).abilities[abilityName]) (character.value!.pluginData as any).abilities[abilityName] = {};
+  // Only allow updates in edit mode
+  if (!props.editMode || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update ability scores outside of edit mode');
+    return;
+  }
   
-  // Set the override value directly
-  (character.value!.pluginData as any).abilities[abilityName].override = newScore;
+  // Must have a character copy to edit
+  if (!characterCopy.value) {
+    console.warn('[CharacterSheet] No character copy available for editing');
+    return;
+  }
+  
+  // Ensure abilities structure exists in the character COPY (not original)
+  if (!characterCopy.value.pluginData) characterCopy.value.pluginData = {};
+  if (!(characterCopy.value.pluginData as any).abilities) (characterCopy.value.pluginData as any).abilities = {};
+  if (!(characterCopy.value.pluginData as any).abilities[abilityName]) (characterCopy.value.pluginData as any).abilities[abilityName] = {};
+  
+  // Set the override value in the copy (this will be detected by patch generation)
+  (characterCopy.value.pluginData as any).abilities[abilityName].override = newScore;
+  
+  console.log('[CharacterSheet] Updated ability score in copy:', { abilityName, newScore, copyId: characterCopy.value.id });
 };
 
 // Computed properties for D&D 5e mechanics
@@ -913,7 +1156,7 @@ const characterSkills = computed(() => {
   if (Object.keys(skills).length > 0) {
     for (const [skillName, skillData] of Object.entries(skills)) {
       if (typeof skillData === 'object' && skillData !== null) {
-        const skill = skillData as any; // Type assertion for plugin data
+        const skill = skillData as { ability?: string; proficient?: boolean; expert?: boolean }; // Type assertion for plugin data
         result[skillName] = {
           ability: skill.ability || standardSkills[skillName as keyof typeof standardSkills] || 'wisdom',
           proficiency: skill.expert ? 'expert' : 
@@ -956,6 +1199,163 @@ const skillBonuses = computed(() => {
 const passivePerception = computed(() => {
   const perceptionBonus = skillBonuses.value.perception || 0;
   return 10 + perceptionBonus;
+});
+
+// Character proficiencies computed properties
+const armorProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.armor || [];
+  return proficiencies.map((armor: string) => {
+    // Capitalize first letter for display
+    return armor.charAt(0).toUpperCase() + armor.slice(1);
+  });
+});
+
+const weaponProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.weapons || [];
+  return proficiencies.map((weapon: any) => {
+    // Handle different proficiency entry types
+    if (typeof weapon === 'string') {
+      // Direct ObjectId reference - just show the ID (would need resolution in practice)
+      return weapon;
+    } else if (weapon._ref) {
+      // Document reference object
+      return weapon._ref.slug?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown Weapon';
+    } else if (weapon.type === 'filter' && weapon.constraint) {
+      // Filter-based proficiency
+      return weapon.constraint.displayText || 'Special Weapons';
+    } else if (weapon.type === 'group-choice') {
+      // Group choice (shouldn't appear in character documents, but handle gracefully)
+      return weapon.displayText || 'Weapon Group';
+    }
+    return 'Unknown';
+  });
+});
+
+const toolProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.tools || [];
+  return proficiencies.map((toolProf: any) => {
+    const tool = toolProf.tool;
+    let toolName = 'Unknown Tool';
+    
+    // Handle different tool reference types
+    if (typeof tool === 'string') {
+      toolName = tool;
+    } else if (tool._ref) {
+      toolName = tool._ref.slug?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Unknown Tool';
+    } else if (tool.type === 'filter' && tool.constraint) {
+      toolName = tool.constraint.displayText || 'Special Tools';
+    }
+    
+    return {
+      name: toolName,
+      proficient: toolProf.proficient !== false,
+      expert: toolProf.expert === true
+    };
+  });
+});
+
+const languageProficiencies = computed(() => {
+  const proficiencies = (character.value?.pluginData as any)?.proficiencies?.languages || [];
+  return proficiencies.map((language: any) => {
+    let languageId: string | null = null;
+    
+    // Extract the language ID
+    if (typeof language === 'string') {
+      languageId = language;
+    } else if (language._ref && language._ref.slug) {
+      languageId = language._ref.slug;
+    }
+    
+    // Try to get the resolved language name
+    if (languageId && resolvedLanguages.value.has(languageId)) {
+      const resolvedLanguage = resolvedLanguages.value.get(languageId);
+      return resolvedLanguage?.name || 'Unknown Language';
+    }
+    
+    // Fallback to formatting the ID/slug
+    if (languageId) {
+      return languageId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    }
+    
+    return 'Unknown Language';
+  });
+});
+
+// Equipment-related computed properties
+const characterItems = computed(() => {
+  return props.items.value.filter(item => item.carrierId === character.value.id);
+});
+
+const equippedItems = computed(() => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  return {
+    armor: characterItems.value.find(item => item.id === equipment.armor),
+    shield: characterItems.value.find(item => item.id === equipment.shield),
+    mainHand: characterItems.value.find(item => item.id === equipment.mainHand),
+    offHand: characterItems.value.find(item => item.id === equipment.offHand),
+    twoHanded: characterItems.value.find(item => item.id === equipment.twoHanded)
+  };
+});
+
+const armorItems = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'armor' &&
+    (item.pluginData as any)?.type !== 'shield'
+  );
+});
+
+const shieldItems = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'armor' &&
+    (item.pluginData as any)?.type === 'shield'
+  );
+});
+
+const oneHandedWeapons = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'weapon' &&
+    !(item.pluginData as any)?.properties?.includes('two-handed')
+  );
+});
+
+const twoHandedWeapons = computed(() => {
+  return characterItems.value.filter(item => 
+    item.documentType === 'item' && 
+    (item.pluginData as any)?.itemType === 'weapon' &&
+    (item.pluginData as any)?.properties?.includes('two-handed')
+  );
+});
+
+const calculatedAC = computed(() => {
+  let baseAC = 10; // Natural AC
+  let dexMod = abilityModifiers.value.dexterity || 0; // Use consistent calculation
+  
+  const equippedArmor = equippedItems.value.armor;
+  const equippedShield = equippedItems.value.shield;
+  
+  // Apply armor AC (only if it's actual armor, not shields)
+  if (equippedArmor && equippedArmor.pluginData) {
+    const armorData = equippedArmor.pluginData as any;
+    // Only apply armor AC if it's not a shield
+    if (armorData.type !== 'shield') {
+      baseAC = armorData.armorClass || 10;
+      
+      // Apply dex modifier limits based on armor type
+      if (armorData.maxDexBonus !== undefined) {
+        dexMod = Math.min(dexMod, armorData.maxDexBonus);
+      }
+    }
+  }
+  
+  // Apply shield bonus (+2)
+  if (equippedShield) {
+    baseAC += 2;
+  }
+  
+  return baseAC + Math.max(0, dexMod);
 });
 
 const armorClassDisplay = computed(() => {
@@ -1012,6 +1412,14 @@ const classDisplayName = computed(() => {
   return classDocument.value?.name || 'Unknown Class';
 });
 
+const prominentAvatarUrl = computed(() => {
+  // Fallback hierarchy: avatar -> image -> tokenImage
+  return character.value?.avatar?.url || 
+         character.value?.image?.url || 
+         character.value?.tokenImage?.url || 
+         null;
+});
+
 // Spell-related computed properties (context-aware for edit mode)
 const characterSpells = computed(() => {
   // In edit mode, use characterCopy (editable); in view mode, use character (read-only)
@@ -1020,8 +1428,35 @@ const characterSpells = computed(() => {
     : character.value;
     
   const spellcastingData = (sourceCharacter?.pluginData as any)?.spellcasting;
-  if (!spellcastingData?.spells) return [];
+  if (!spellcastingData?.spells) {
+    console.log('[CharacterSheet] No spells found in spellcasting data:', spellcastingData);
+    return [];
+  }
+  console.log('[CharacterSheet] Found spells:', spellcastingData.spells);
   return spellcastingData.spells;
+});
+
+const characterCantrips = computed(() => {
+  // In edit mode, use characterCopy (editable); in view mode, use character (read-only)
+  const sourceCharacter = props.editMode && !props.readonly && characterCopy.value 
+    ? characterCopy.value 
+    : character.value;
+    
+  const spellcastingData = (sourceCharacter?.pluginData as any)?.spellcasting;
+  if (!spellcastingData?.cantrips) {
+    console.log('[CharacterSheet] No cantrips found in spellcasting data:', spellcastingData);
+    return [];
+  }
+  
+  console.log('[CharacterSheet] Found cantrips:', spellcastingData.cantrips);
+  
+  // Transform cantrip data to match spell data structure for UI compatibility
+  return spellcastingData.cantrips.map((cantrip: any) => ({
+    ...cantrip,
+    level: 0,
+    prepared: true, // Cantrips are always "prepared"
+    alwaysPrepared: true
+  }));
 });
 
 const hasSpellcasting = computed(() => {
@@ -1037,10 +1472,21 @@ const spellSlots = computed(() => {
 
 const sortedSpellLevels = computed(() => {
   const levels = new Set<number>();
+  
+  // Add levels from regular spells
   characterSpells.value.forEach((spell: any) => {
     levels.add(spell.level || 0);
   });
-  return Array.from(levels).sort((a, b) => a - b);
+  
+  // Add level 0 if character has cantrips
+  if (characterCantrips.value.length > 0) {
+    levels.add(0);
+  }
+  
+  const sortedLevels = Array.from(levels).sort((a, b) => a - b);
+  console.log('[CharacterSheet] Sorted spell levels:', sortedLevels, 'spells:', characterSpells.value.length, 'cantrips:', characterCantrips.value.length);
+  
+  return sortedLevels;
 });
 
 // Equipment grouping for compact display
@@ -1051,20 +1497,18 @@ const groupedItems = computed(() => {
   return groupItemsByType(props.items.value);
 });
 
-// Notes - direct binding to character.pluginData.roleplay.backstory
-const characterNotes = computed({
-  get() {
-    // Try D&D schema format first, then fallback to legacy
-    return (character.value!.pluginData as any)?.roleplay?.backstory || 
-           (character.value!.pluginData as any)?.notes || '';
-  },
-  set(value: string) {
-    if (!character.value!.pluginData) character.value!.pluginData = {};
-    if (!(character.value!.pluginData as any).roleplay) (character.value!.pluginData as any).roleplay = {};
-    (character.value!.pluginData as any).roleplay.backstory = value;
-    // Also update legacy format
-    (character.value!.pluginData as any).notes = value;
-  }
+// Conditions - accessing character state conditions
+const activeConditions = computed(() => {
+  const conditions = character.value?.state?.conditions;
+  if (!Array.isArray(conditions)) return [];
+  return conditions;
+});
+
+// Notes - read-only computed from character.pluginData.roleplay.backstory
+const characterNotes = computed(() => {
+  // Try D&D schema format first, then fallback to legacy
+  return (character.value!.pluginData as any)?.roleplay?.backstory || 
+         (character.value!.pluginData as any)?.notes || '';
 });
 
 
@@ -1140,58 +1584,44 @@ const getItemIcon = (item: IItem): string => {
   return '🎒';
 };
 
-const initiateWeaponAttack = (weapon: IItem) => {
+const initiateWeaponAttack = async (weapon: IItem) => {
   console.log('[CharacterSheet] Initiating weapon attack:', weapon.name);
-  currentRollWeapon.value = weapon;
-  showWeaponAttackDialog.value = true;
-};
 
-const initiateWeaponDamage = (weapon: IItem) => {
-  console.log('[CharacterSheet] Initiating weapon damage:', weapon.name);
-  currentRollWeapon.value = weapon;
-  showWeaponDamageDialog.value = true;
-};
-
-// Helper functions for weapon calculations (shared between dialogs and roll submission)
-const getWeaponAttackAbility = (weapon: IItem): string => {
-  const properties = (weapon.pluginData as any)?.properties || [];
-  const weaponType = (weapon.pluginData as any)?.weaponType || (weapon.pluginData as any)?.category;
-  
-  if (properties.includes('finesse')) {
-    return 'dexterity';
+  if (!character.value) {
+    console.error('Character not available');
+    return;
   }
-  
-  if (weaponType === 'ranged' || weaponType === 'ranged-weapon') {
-    return 'dexterity';
+
+  try {
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:weapon-attack',
+      character.value.id,                    // actorId
+      { weaponId: weapon.id },               // parameters
+      encounterSelectedToken.value?.id,      // actorTokenId
+      encounterTargetTokenIds.value || [],   // targetTokenIds
+      { description: `Attack with ${weapon.name}` }
+    );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Weapon attack request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Weapon attack request failed:', result.error);
+      pluginContext.showNotification(`Failed to attack with ${weapon.name}: ${result.error || 'Unknown error'}`, 'error', 5000);
+    }
+  } catch (error) {
+    console.error('Weapon attack failed:', error);
+    pluginContext.showNotification(`Failed to attack with ${weapon.name}: Unable to process attack at this time`, 'error', 5000);
   }
-  
-  return 'strength';
 };
 
-const getAbilityModifier = (character: any, ability: string): number => {
-  const abilityScore = character.pluginData?.abilities?.[ability]?.value || 10;
-  return Math.floor((abilityScore - 10) / 2);
-};
+// Weapon damage now handled automatically by unified weapon attack action
 
-const isProficientWithWeapon = (weapon: IItem, character: any): boolean => {
-  const weaponProficiencies = character.pluginData?.proficiencies?.weapons || [];
-  const weaponCategory = (weapon.pluginData as any)?.category || (weapon.pluginData as any)?.weaponType;
-  
-  return weaponProficiencies.includes(weapon.name) || 
-         weaponProficiencies.includes(weaponCategory) ||
-         weaponProficiencies.includes('simple-weapons') ||
-         weaponProficiencies.includes('martial-weapons');
-};
-
-const getProficiencyBonus = (character: any): number => {
-  const level = character.pluginData?.progression?.level || character.pluginData?.level || 1;
-  return Math.ceil(level / 4) + 1;
-};
 
 // Methods
 const formatModifier = (value: number): string => {
   return value >= 0 ? `+${value}` : `${value}`;
 };
+
 
 // Updated roll handling - opens dialog instead of direct rolling
 const rollAbilityCheck = (ability: string) => {
@@ -1201,21 +1631,16 @@ const rollAbilityCheck = (ability: string) => {
 
 // Handle roll submission from dialog
 const handleRollSubmission = (rollData: RollDialogData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
 
   // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const rollId = generateUniqueId();
   
   // Determine if this is a skill check or ability check
   const isSkillCheck = !!rollData.skill;
   
   // Create roll object following the established schema
   const roll = {
-    id: rollId,
+    rollId: rollId,
     rollType: 'ability-check',
     pluginId: 'dnd-5e-2024',
     dice: [{ 
@@ -1256,18 +1681,13 @@ const handleRollSubmission = (rollData: RollDialogData) => {
 
 // Handle saving throw roll submission
 const handleSavingThrowSubmission = (rollData: RollDialogData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
 
   // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const rollId = generateUniqueId();
   
   // Create roll object following the established schema
   const roll = {
-    id: rollId,
+    rollId: rollId,
     rollType: 'saving-throw',
     pluginId: 'dnd-5e-2024',
     dice: [{ 
@@ -1301,57 +1721,16 @@ const handleSavingThrowSubmission = (rollData: RollDialogData) => {
   showSavingThrowDialog.value = false;
 };
 
-// Handle weapon attack roll submission
-const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
+// Handle initiative roll submission
+const handleInitiativeSubmission = (rollData: RollDialogData) => {
 
   // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const rollId = generateUniqueId();
   
-  // Calculate weapon attack modifiers
-  const weapon = rollData.weapon;
-  const char = character.value!;
-  const modifiers = [];
-
-  // Add ability modifier
-  const ability = getWeaponAttackAbility(weapon);
-  const abilityMod = getAbilityModifier(char, ability);
-  if (abilityMod !== 0) {
-    modifiers.push({
-      type: 'ability',
-      value: abilityMod,
-      source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`
-    });
-  }
-
-  // Add proficiency bonus if proficient
-  if (isProficientWithWeapon(weapon, char)) {
-    const profBonus = getProficiencyBonus(char);
-    modifiers.push({
-      type: 'proficiency',
-      value: profBonus,
-      source: 'Proficiency bonus'
-    });
-  }
-
-  // Add enhancement bonus if any
-  const enhancement = (weapon.pluginData as any)?.enhancement || 0;
-  if (enhancement !== 0) {
-    modifiers.push({
-      type: 'enhancement',
-      value: enhancement,
-      source: 'Magic weapon'
-    });
-  }
-
-  // Create weapon attack roll
+  // Create roll object following the established schema
   const roll = {
-    id: rollId,
-    rollType: 'weapon-attack',
+    rollId: rollId,
+    rollType: 'initiative',
     pluginId: 'dnd-5e-2024',
     dice: [{ 
       sides: 20, 
@@ -1360,107 +1739,32 @@ const handleWeaponAttackRollSubmission = (rollData: WeaponAttackRollData) => {
     recipients: rollData.recipients,
     arguments: { 
       customModifier: rollData.customModifier,
-      pluginArgs: { 
+      pluginArgs: {
         advantageMode: rollData.advantageMode
       }
     },
-    modifiers: modifiers,
+    modifiers: [
+      { 
+        type: 'initiative', 
+        value: rollData.baseModifier, 
+        source: 'dexterity + initiative bonus' 
+      }
+    ],
     metadata: {
-      title: `${rollData.weapon.name} Attack`,
-      characterName: character.value!.name,
-      weaponId: rollData.weapon.id,
-      characterId: character.value!.id,
-      // Add automation metadata
-      autoMode: character.value!.pluginData?.automateAttacks || false,
-      targetTokenIds: (character.value!.pluginData?.automateAttacks && encounterTargetTokenIds?.value) 
-        ? encounterTargetTokenIds.value 
-        : []
+      title: 'Initiative',
+      characterName: character.value?.name
     }
   };
 
+  // Submit roll via plugin context
   pluginContext.submitRoll(roll);
-  console.log(`[CharacterSheet] Submitted weapon attack roll:`, roll);
+  console.log('[CharacterSheet] Submitted initiative roll:', roll);
+  showInitiativeDialog.value = false;
 };
 
-// Handle weapon damage roll submission
-const handleWeaponDamageRollSubmission = (rollData: WeaponDamageRollData) => {
-  const pluginContext = getPluginContext();
-  if (!pluginContext) {
-    console.error('Plugin context not available');
-    return;
-  }
+// Weapon attack roll submission removed - now using unified action handler
 
-  // Generate unique roll ID
-  const rollId = `roll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Parse weapon damage dice
-  const weaponData = rollData.weapon.pluginData as any;
-  const damageDice = weaponData?.damage?.dice || '1d4';
-  
-  // Parse dice notation (e.g., "1d6", "2d4")
-  const diceMatch = damageDice.match(/(\d+)d(\d+)/);
-  if (!diceMatch) {
-    console.error('Invalid damage dice notation:', damageDice);
-    return;
-  }
-  
-  const quantity = parseInt(diceMatch[1]);
-  const sides = parseInt(diceMatch[2]);
-  
-  // Double dice for critical hits
-  const finalQuantity = rollData.isCritical ? quantity * 2 : quantity;
-
-  // Calculate weapon damage modifiers
-  const weapon = rollData.weapon;
-  const char = character.value!;
-  const modifiers = [];
-
-  // Add ability modifier (same as attack ability for damage)
-  const ability = getWeaponAttackAbility(weapon);
-  const abilityMod = getAbilityModifier(char, ability);
-  if (abilityMod !== 0) {
-    modifiers.push({
-      type: 'ability',
-      value: abilityMod,
-      source: `${ability.charAt(0).toUpperCase()}${ability.slice(1)} modifier`
-    });
-  }
-
-  // Add enhancement bonus if any
-  const enhancement = (weapon.pluginData as any)?.enhancement || 0;
-  if (enhancement !== 0) {
-    modifiers.push({
-      type: 'enhancement',
-      value: enhancement,
-      source: 'Magic weapon'
-    });
-  }
-  
-  const roll = {
-    id: rollId,
-    rollType: 'weapon-damage',
-    pluginId: 'dnd-5e-2024',
-    dice: [{ 
-      sides: sides, 
-      quantity: finalQuantity
-    }],
-    recipients: rollData.recipients,
-    arguments: { 
-      customModifier: rollData.customModifier
-    },
-    modifiers: modifiers,
-    metadata: {
-      title: `${rollData.weapon.name} Damage`,
-      characterName: character.value!.name,
-      weapon: rollData.weapon,
-      character: character.value!,
-      critical: rollData.isCritical
-    }
-  };
-
-  pluginContext.submitRoll(roll);
-  console.log(`[CharacterSheet] Submitted weapon damage roll:`, roll);
-};
+// Weapon damage roll submission removed - now handled automatically by unified action handler
 
 const rollSavingThrow = (ability: string) => {
   currentSavingThrow.value = ability;
@@ -1490,7 +1794,7 @@ const toggleSkillProficiency = (skillName: string) => {
     characterCopy.value.pluginData.skills = {};
   }
 
-  const skills = characterCopy.value.pluginData.skills;
+  const skills = characterCopy.value.pluginData.skills as Record<string, { proficient?: boolean; expert?: boolean }>;
   const currentSkill = skills[skillName] || { proficient: false, expert: false };
   
   console.log('[Skills] Current skill state:', currentSkill);
@@ -1514,15 +1818,8 @@ const toggleSkillProficiency = (skillName: string) => {
 };
 
 const rollInitiative = () => {
-  const dexModifier = abilityModifiers.value.dexterity || 0;
-  const initBonus = (character.value!.pluginData as any)?.initiative || 0;
-  const totalBonus = dexModifier + initBonus;
-  emit('roll', 'initiative', {
-    type: 'initiative',
-    modifier: totalBonus,
-    expression: `1d20${formatModifier(totalBonus)}`,
-    title: 'Initiative'
-  });
+  currentRollAbility.value = 'dexterity'; // Initiative is based on dexterity
+  showInitiativeDialog.value = true;
 };
 
 const switchTab = (tabId: string) => {
@@ -1537,6 +1834,17 @@ const saveCharacter = () => {
 
 const toggleEditMode = () => {
   emit('toggle-edit-mode');
+};
+
+// Copy character ID to clipboard
+const copyCharacterId = async () => {
+  try {
+    await navigator.clipboard.writeText(character.value.id);
+    console.log(`[CharacterSheet] Copied character ID to clipboard: ${character.value.id}`);
+    // Could add a toast notification here if desired
+  } catch (err) {
+    console.error('[CharacterSheet] Failed to copy character ID:', err);
+  }
 };
 
 const closeSheet = () => {
@@ -1577,18 +1885,13 @@ const loadCompendiumDocuments = async () => {
     
     const promises = [];
     
-    // Get plugin context using shared utility
-    const context = getPluginContext();
-    if (!context) {
-      console.warn('[CharacterSheet] Plugin context not available for compendium loading');
-      return;
-    }
+    // Use shared plugin context
     
     // Fetch species document if we have a species ObjectId
     const speciesId = character.value!.pluginData?.species;
     if (speciesId && typeof speciesId === 'string') {
       promises.push(
-        context.getDocument(speciesId)
+        pluginContext.getDocument(speciesId)
           .then(doc => { speciesDocument.value = markRaw(doc as DndSpeciesDocument); })
           .catch(err => { console.warn('Failed to load species:', err); })
       );
@@ -1599,7 +1902,7 @@ const loadCompendiumDocuments = async () => {
     const classId = classes?.[0]?.class;
     if (classId && typeof classId === 'string') {
       promises.push(
-        context.getDocument(classId)
+        pluginContext.getDocument(classId)
           .then(doc => { classDocument.value = markRaw(doc as DndCharacterClassDocument); })
           .catch(err => { console.warn('Failed to load class:', err); })
       );
@@ -1609,7 +1912,7 @@ const loadCompendiumDocuments = async () => {
     const backgroundId = character.value!.pluginData?.background;
     if (backgroundId && typeof backgroundId === 'string') {
       promises.push(
-        context.getDocument(backgroundId)
+        pluginContext.getDocument(backgroundId)
           .then(doc => { backgroundDocument.value = markRaw(doc as DndBackgroundDocument); })
           .catch(err => { console.warn('Failed to load background:', err); })
       );
@@ -1622,7 +1925,7 @@ const loadCompendiumDocuments = async () => {
         const spellId = spellData.spell;
         if (spellId && typeof spellId === 'string') {
           promises.push(
-            context.getDocument(spellId)
+            pluginContext.getDocument(spellId)
               .then(doc => { 
                 resolvedSpells.value.set(spellId, markRaw(doc)); 
                 console.log('[CharacterSheet] Resolved spell:', doc.name);
@@ -1635,8 +1938,60 @@ const loadCompendiumDocuments = async () => {
       });
     }
     
+    // Fetch spell documents for all character cantrips
+    const cantrips = characterCantrips.value;
+    if (cantrips && cantrips.length > 0) {
+      cantrips.forEach((cantripData: any) => {
+        const spellId = cantripData.spell;
+        if (spellId && typeof spellId === 'string') {
+          promises.push(
+            pluginContext.getDocument(spellId)
+              .then(doc => { 
+                resolvedSpells.value.set(spellId, markRaw(doc)); 
+                console.log('[CharacterSheet] Resolved cantrip:', doc.name);
+              })
+              .catch(err => { 
+                console.warn('Failed to load cantrip:', spellId, err); 
+              })
+          );
+        }
+      });
+    }
+    
+    // Fetch language documents for all character languages
+    const languages = (character.value?.pluginData as any)?.proficiencies?.languages || [];
+    if (languages && languages.length > 0) {
+      languages.forEach((language: any) => {
+        let languageId: string | null = null;
+        
+        // Handle different language reference types
+        if (typeof language === 'string') {
+          languageId = language;
+        } else if (language._ref && language._ref.slug) {
+          // For reference objects, we might need to resolve by slug, but for now try using as ID
+          languageId = language._ref.slug;
+        }
+        
+        if (languageId) {
+          promises.push(
+            pluginContext.getDocument(languageId)
+              .then(doc => { 
+                resolvedLanguages.value.set(languageId!, markRaw(doc)); 
+                console.log('[CharacterSheet] Resolved language:', doc.name);
+              })
+              .catch(err => { 
+                console.warn('Failed to load language:', languageId, err); 
+              })
+          );
+        }
+      });
+    }
+    
     // Wait for all requests to complete
     await Promise.all(promises);
+    
+    console.log('[CharacterSheet] Document resolution complete. Resolved spells:', Array.from(resolvedSpells.value.keys()));
+    console.log('[CharacterSheet] Document resolution complete. Resolved languages:', Array.from(resolvedLanguages.value.keys()));
     
   } catch (error) {
     console.error('Failed to load compendium documents:', error);
@@ -1646,24 +2001,201 @@ const loadCompendiumDocuments = async () => {
   }
 };
 
+// Load available options for character editing
+const loadAvailableOptions = async () => {
+  
+  console.log('[CharacterSheet] Loading available character creation options');
+  
+  try {
+    // Search for classes
+    const classes = await pluginContext.searchDocuments({
+      pluginId: 'dnd-5e-2024',
+      documentType: 'vtt-document',
+      pluginDocumentType: 'character-class',
+      limit: 50
+    });
+    availableClasses.value = classes as DndCharacterClassDocument[];
+    console.log(`[CharacterSheet] Loaded ${classes.length} available classes`);
+    
+    // Search for species
+    const species = await pluginContext.searchDocuments({
+      pluginId: 'dnd-5e-2024',
+      documentType: 'vtt-document',
+      pluginDocumentType: 'species',
+      limit: 50
+    });
+    availableSpecies.value = species as DndSpeciesDocument[];
+    console.log(`[CharacterSheet] Loaded ${species.length} available species`);
+    
+    // Search for backgrounds
+    const backgrounds = await pluginContext.searchDocuments({
+      pluginId: 'dnd-5e-2024',
+      documentType: 'vtt-document',
+      pluginDocumentType: 'background',
+      limit: 50
+    });
+    availableBackgrounds.value = backgrounds as DndBackgroundDocument[];
+    console.log(`[CharacterSheet] Loaded ${backgrounds.length} available backgrounds`);
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Failed to load available options:', error);
+    pluginContext.showNotification('Failed to load character creation options', 'error', 4000);
+  }
+};
+
 // ============================================================================
 // DRAG AND DROP FUNCTIONALITY  
 // ============================================================================
 
 // Spell utility functions
 const getSpellsAtLevel = (level: number) => {
+  if (level === 0) {
+    return characterCantrips.value;
+  }
   return characterSpells.value.filter((spell: any) => (spell.level || 0) === level);
 };
 
 const getResolvedSpell = (spellId: string) => {
-  return resolvedSpells.value.get(spellId);
+  const spell = resolvedSpells.value.get(spellId);
+  console.log('[CharacterSheet] Looking up spell:', spellId, 'Found:', !!spell, spell?.name || 'N/A');
+  return spell;
 };
 
 
-const castSpell = (spellData: any) => {
+const castSpell = async (spellData: any) => {
   const spell = getResolvedSpell(spellData.spell);
-  console.log('[CharacterSheet] Casting spell:', spell?.name || 'Unknown Spell', spellData);
-  // TODO: Implement spell casting mechanics
+  if (!spell) {
+    console.error('[CharacterSheet] Cannot cast unknown spell:', spellData);
+    pluginContext.showNotification('Cannot cast spell: Spell data not found', 'error', 4000);
+    return;
+  }
+  
+  console.log('[CharacterSheet] Casting spell:', spell.name, spellData);
+  
+
+  if (!character.value) {
+    console.error('[CharacterSheet] No character available for spell casting');
+    return;
+  }
+
+  // Check if a token is selected (required for spell casting)
+  if (!encounterSelectedToken.value?.id) {
+    console.error('[CharacterSheet] No token selected for spell casting');
+    pluginContext.showNotification('Cannot cast spell: Please select a token on the map to cast spells', 'error', 4000);
+    return;
+  }
+
+  try {
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:cast-spell',
+      character.value.id,                    // actorId
+      {
+        spellId: spell.id,
+        spellSlotLevel: spellData.level,     // Required: 0 for cantrips, 1-9 for leveled spells
+        castingTime: 'action'                // Default casting time
+      },                                     // parameters
+      encounterSelectedToken.value.id,      // actorTokenId
+      encounterTargetTokenIds.value,        // targetTokenIds
+      { description: `Cast ${spell.name}` }
+    );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Spell casting request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Spell casting request failed:', result.error);
+      pluginContext.showNotification(`Failed to cast ${spell.name}: ${result.error || 'Unknown error'}`, 'error', 5000);
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error casting spell:', error);
+    pluginContext.showNotification(`Failed to cast ${spell.name}: Unable to process spell casting at this time`, 'error', 5000);
+  }
+};
+
+// Character class/species/background change handlers
+const updateCharacterClass = async (classId: string) => {
+  if (!characterCopy.value || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update class: no character copy or readonly mode');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Updating character class to:', classId);
+  
+  // Update the character data
+  if (!characterCopy.value.pluginData.classes) {
+    (characterCopy.value.pluginData as any).classes = [];
+  }
+  
+  // Ensure the first class entry exists
+  if (!(characterCopy.value.pluginData as any).classes[0]) {
+    (characterCopy.value.pluginData as any).classes[0] = {};
+  }
+  
+  (characterCopy.value.pluginData as any).classes[0].class = classId;
+  
+  // Reload class document for display
+  if (classId) {
+    try {
+      const doc = await pluginContext.getDocument(classId);
+      classDocument.value = markRaw(doc as DndCharacterClassDocument);
+      console.log('[CharacterSheet] Loaded new class document:', doc.name);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load new class document:', error);
+      pluginContext.showNotification('Failed to load class information', 'error', 4000);
+    }
+  } else {
+    classDocument.value = null;
+  }
+};
+
+const updateCharacterSpecies = async (speciesId: string) => {
+  if (!characterCopy.value || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update species: no character copy or readonly mode');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Updating character species to:', speciesId);
+  
+  (characterCopy.value.pluginData as any).species = speciesId;
+  
+  // Reload species document for display
+  if (speciesId) {
+    try {
+      const doc = await pluginContext.getDocument(speciesId);
+      speciesDocument.value = markRaw(doc as DndSpeciesDocument);
+      console.log('[CharacterSheet] Loaded new species document:', doc.name);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load new species document:', error);
+      pluginContext.showNotification('Failed to load species information', 'error', 4000);
+    }
+  } else {
+    speciesDocument.value = null;
+  }
+};
+
+const updateCharacterBackground = async (backgroundId: string) => {
+  if (!characterCopy.value || props.readonly) {
+    console.warn('[CharacterSheet] Cannot update background: no character copy or readonly mode');
+    return;
+  }
+  
+  console.log('[CharacterSheet] Updating character background to:', backgroundId);
+  
+  (characterCopy.value.pluginData as any).background = backgroundId;
+  
+  // Reload background document for display
+  if (backgroundId) {
+    try {
+      const doc = await pluginContext.getDocument(backgroundId);
+      backgroundDocument.value = markRaw(doc as DndBackgroundDocument);
+      console.log('[CharacterSheet] Loaded new background document:', doc.name);
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load new background document:', error);
+      pluginContext.showNotification('Failed to load background information', 'error', 4000);
+    }
+  } else {
+    backgroundDocument.value = null;
+  }
 };
 
 // Update spell prepared status
@@ -1692,27 +2224,37 @@ const updateSpellPrepared = (spellData: any) => {
   }
 };
 
+
 // Open spell sheet on double-click
 const openSpellSheet = (spellData: any) => {
   console.log('[CharacterSheet] Opening spell sheet for:', spellData.name);
   
-  // Create a minimal document object that DocumentSheetContainer can use
-  const mockSpellDocument: BaseDocument = {
-    id: spellData.spell,           // ObjectId of the spell document
-    name: spellData.name,          // Spell name from character data
-    documentType: 'vtt-document', // Required for VTT document handling
-    pluginDocumentType: 'spell',  // Required for component resolution
-    pluginId: 'dnd-5e-2024',     // Required for plugin system
-    // Minimal required fields for BaseDocument interface
-    slug: '',
-    pluginData: {},
-    itemState: {},
-    state: {},
-    userData: {}
-  };
+  // Use PluginContext to open the spell sheet
+  pluginContext.openDocumentSheet(spellData.spell, 'spell');
+};
+
+// Open weapon sheet on double-click
+const openWeaponSheet = (item: IItem) => {
+  console.log('[CharacterSheet] Opening weapon sheet for:', item.name);
   
-  // Open the spell sheet using the document sheet store
-  documentSheetStore.openDocumentSheet(mockSpellDocument);
+  // Use PluginContext to open the weapon sheet (pass item ID and sheet type)
+  pluginContext.openDocumentSheet(item.id, 'weapon');
+};
+
+// Open armor sheet on double-click
+const openArmorSheet = (item: IItem) => {
+  console.log('[CharacterSheet] Opening armor sheet for:', item.name);
+  
+  // Use PluginContext to open the armor sheet (pass item ID and sheet type)
+  pluginContext.openDocumentSheet(item.id, 'armor');
+};
+
+// Open gear sheet on double-click
+const openGearSheet = (item: IItem) => {
+  console.log('[CharacterSheet] Opening gear sheet for:', item.name);
+  
+  // Use PluginContext to open the gear sheet (pass item ID and sheet type)
+  pluginContext.openDocumentSheet(item.id, 'gear');
 };
 
 // Load item image URLs dynamically from imageId (for game state items)
@@ -1721,7 +2263,7 @@ const loadItemImageUrls = async () => {
   for (const item of currentItems) {
     if (item.imageId && !itemImageUrls.value[item.imageId]) {
       try {
-        const url = await getAssetUrl(item.imageId);
+        const url = await pluginContext.getAssetUrl(item.imageId);
         itemImageUrls.value[item.imageId] = url;
         console.log(`[CharacterSheet] Loaded image URL for item ${item.name} (${item.imageId}):`, url);
       } catch (error) {
@@ -1827,7 +2369,10 @@ const handleSpellDrop = async (event: DragEvent) => {
     // Request the spell assignment action through the plugin context
     const result = await pluginContext.requestAction(
       'dnd5e-2024:assign-spell',
+      actionParams.targetCharacterId, // actorId - the character receiving the spell
       actionParams,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: `Assign ${actionParams.spellName} to ${actionParams.targetCharacterName}`
       }
@@ -1841,6 +2386,143 @@ const handleSpellDrop = async (event: DragEvent) => {
     
   } catch (error) {
     console.error('[CharacterSheet] Error processing spell drop:', error);
+  }
+};
+
+// Condition drag and drop handlers
+const handleConditionDragEnter = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  conditionDragCounter.value++;
+  if (conditionDragCounter.value === 1) {
+    isConditionDragOver.value = true;
+  }
+};
+
+const handleConditionDragOver = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+};
+
+const handleConditionDragLeave = (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  conditionDragCounter.value--;
+  if (conditionDragCounter.value === 0) {
+    isConditionDragOver.value = false;
+  }
+};
+
+const handleConditionDrop = async (event: DragEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Reset drag state
+  isConditionDragOver.value = false;
+  conditionDragCounter.value = 0;
+  
+  if (!event.dataTransfer) {
+    console.warn('[CharacterSheet] No drag data available');
+    return;
+  }
+  
+  if (!character.value) {
+    console.warn('[CharacterSheet] No character available for condition assignment');
+    return;
+  }
+  
+  try {
+    const dragDataStr = event.dataTransfer.getData('application/json');
+    if (!dragDataStr) {
+      console.warn('[CharacterSheet] No drag data found');
+      return;
+    }
+    
+    const dragData = JSON.parse(dragDataStr);
+    console.log('[CharacterSheet] Processing condition drop data:', dragData);
+    
+    // Validate drag data format for conditions
+    if (dragData.type !== 'document-token' || dragData.documentType !== 'vtt-document' || dragData.pluginDocumentType !== 'condition') {
+      console.warn('[CharacterSheet] Invalid condition drag data:', dragData);
+      return;
+    }
+    
+    if (!pluginContext) {
+      console.error('[CharacterSheet] Plugin context not available for condition assignment');
+      return;
+    }
+    
+    // Prepare condition assignment parameters
+    const actionParams = {
+      conditionId: dragData.documentId,
+      targetId: character.value.id, // Use targetId instead of targetCharacterId to match handler expectations
+      source: 'Manual Assignment',
+      level: 1 // Default level for manually assigned conditions
+    };
+    
+    console.log('[CharacterSheet] Requesting condition assignment:', actionParams);
+    
+    // Request the condition assignment action through the plugin context
+    const result = await pluginContext.requestAction(
+      'dnd5e-2024:add-condition',
+      actionParams.targetId, // actorId - the character receiving the condition
+      actionParams,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Add condition ${dragData.name || 'Unknown Condition'} to ${character.value.name || 'Unknown Character'}`
+      }
+    );
+    
+    if (result.success) {
+      console.log('[CharacterSheet] Condition assignment request submitted successfully:', result);
+    } else {
+      console.error('[CharacterSheet] Condition assignment request failed:', result.error);
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error processing condition drop:', error);
+  }
+};
+
+// Condition helper methods
+const conditionImageUrls = ref<Record<string, string>>({});
+const conditionNames = ref<Record<string, string>>({});
+
+// Get condition image URL
+const getConditionImageUrl = (conditionId: string): string | undefined => {
+  return conditionImageUrls.value[conditionId];
+};
+
+// Get condition name
+const getConditionName = (conditionId: string): string => {
+  return conditionNames.value[conditionId] || 'Unknown Condition';
+};
+
+// Remove condition action
+const removeCondition = async (conditionId: string) => {
+
+  try {
+    await pluginContext.requestAction(
+      'dnd5e-2024:remove-condition',
+      character.value.id, // actorId - the character losing the condition
+      { 
+        conditionId,
+        targetId: character.value.id
+      },
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      { description: `Remove condition: ${getConditionName(conditionId)}` }
+    );
+  } catch (error) {
+    console.error('Failed to remove condition:', error);
+    pluginContext.showNotification('Failed to remove condition: Unable to remove condition at this time', 'error', 4000);
   }
 };
 
@@ -1890,34 +2572,57 @@ const handleDrop = async (event: DragEvent) => {
   event.preventDefault();
   event.stopPropagation();
   
+  console.log('[CharacterSheet] 🎯 DROP EVENT STARTED');
+  console.log('[CharacterSheet] Event details:', {
+    type: event.type,
+    dataTransfer: !!event.dataTransfer,
+    characterId: character.value?.id,
+    characterName: character.value?.name
+  });
+  
   // Reset drag state
   isDragOver.value = false;
   dragCounter.value = 0;
   
   if (!event.dataTransfer) {
-    console.warn('[CharacterSheet] No drag data available');
+    console.warn('[CharacterSheet] ❌ No drag data available');
     return;
   }
   
   if (!character.value!) {
-    console.warn('[CharacterSheet] No character available for item assignment');
+    console.warn('[CharacterSheet] ❌ No character available for item assignment');
     return;
   }
   
   try {
     // Parse drag data
     const dragDataStr = event.dataTransfer.getData('application/json');
+    console.log('[CharacterSheet] 📄 Raw drag data string:', dragDataStr);
+    
     if (!dragDataStr) {
-      console.warn('[CharacterSheet] No drag data found');
+      console.warn('[CharacterSheet] ❌ No drag data found in dataTransfer');
+      console.log('[CharacterSheet] Available data types:', event.dataTransfer.types);
       return;
     }
     
     const dragData = JSON.parse(dragDataStr);
-    console.log('[CharacterSheet] Processing drop data:', dragData);
+    console.log('[CharacterSheet] 📦 Parsed drag data:', {
+      type: dragData.type,
+      documentType: dragData.documentType,
+      documentId: dragData.documentId,
+      name: dragData.name,
+      pluginId: dragData.pluginId,
+      fullData: dragData
+    });
     
     // Validate drag data format
     if (dragData.type !== 'document-token' || dragData.documentType !== 'item') {
-      console.warn('[CharacterSheet] Invalid drag data type:', dragData.type, dragData.documentType);
+      console.warn('[CharacterSheet] ❌ Invalid drag data format:', {
+        expectedType: 'document-token',
+        actualType: dragData.type,
+        expectedDocType: 'item',
+        actualDocType: dragData.documentType
+      });
       return;
     }
     
@@ -1929,24 +2634,41 @@ const handleDrop = async (event: DragEvent) => {
       targetCharacterName: character.value!.name || 'Unknown Character'
     };
     
-    console.log('[CharacterSheet] Requesting item assignment:', actionParams);
+    console.log('[CharacterSheet] 🎬 Requesting item assignment action:', actionParams);
+    console.log('[CharacterSheet] 🎬 Action will require GM approval (requiresManualApproval: true)');
     
     // Check if plugin context is available
     if (!pluginContext) {
-      console.error('[CharacterSheet] Plugin context not available for action request');
+      console.error('[CharacterSheet] ❌ Plugin context not available for action request');
       return;
     }
     
     // Request the action through the plugin context
+    console.log('[CharacterSheet] 🚀 Calling pluginContext.requestAction...');
     const result = await pluginContext.requestAction(
       'assign-item',
+      actionParams.targetCharacterId, // actorId - the character receiving the item
       actionParams,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
       {
         description: `Assign ${actionParams.itemName} to ${actionParams.targetCharacterName}`
       }
     );
     
-    console.log('[CharacterSheet] Action request result:', result);
+    console.log('[CharacterSheet] ✅ Action request completed with result:', result);
+    
+    // Provide user feedback based on result
+    if (result && result.success) {
+      console.log('[CharacterSheet] 🎉 Item assignment successful');
+      pluginContext.showNotification(`✅ Successfully assigned ${actionParams.itemName} to ${actionParams.targetCharacterName}`, 'success', 3000);
+    } else if (result && result.requiresApproval) {
+      console.log('[CharacterSheet] ⏳ Item assignment pending GM approval');
+      pluginContext.showNotification(`⏳ Item assignment pending GM approval: ${actionParams.itemName} → ${actionParams.targetCharacterName}`, 'info', 5000);
+    } else {
+      console.warn('[CharacterSheet] ⚠️ Unexpected action result:', result);
+      pluginContext.showNotification(`⚠️ Item assignment status unclear for ${actionParams.itemName}`, 'warning', 4000);
+    }
     
     // Handle result with console feedback
     if (result.success && result.approved) {
@@ -1958,23 +2680,327 @@ const handleDrop = async (event: DragEvent) => {
     }
     
   } catch (error) {
-    console.error('[CharacterSheet] Failed to process drop:', error);
+    console.error('[CharacterSheet] 💥 CRITICAL: Failed to process drop event:', {
+      error: error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      characterId: character.value?.id,
+      characterName: character.value?.name
+    });
+    
+    if (pluginContext) {
+      pluginContext.showNotification(`❌ Failed to assign item: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error', 5000);
+    }
+  }
+};
+
+// Load condition data for display - fetching actual condition documents
+const loadConditions = async () => {
+  try {
+    console.log('[CharacterSheet] Loading condition documents from document collection');
+    
+    // Try to load condition documents from the document collection
+    try {
+      const conditions = await pluginContext.searchDocuments({
+        pluginId: 'dnd-5e-2024',
+        documentType: 'vtt-document',
+        pluginDocumentType: 'condition',
+        limit: 50 // Add reasonable limit
+      });
+      
+      console.log(`[CharacterSheet] Loaded ${conditions.length} condition documents:`, conditions);
+      
+      // Populate condition names and image URLs from actual documents
+      for (const condition of conditions) {
+        conditionNames.value[condition.id] = condition.name || 'Unknown Condition';
+        
+        // Load image URL if the condition has an imageId
+        if (condition.imageId) {
+          try {
+            const imageUrl = await pluginContext.getAssetUrl(condition.imageId);
+            conditionImageUrls.value[condition.id] = imageUrl;
+          } catch (error) {
+            console.warn(`[CharacterSheet] Failed to load image for condition ${condition.name}:`, error);
+          }
+        }
+      }
+      
+      console.log('[CharacterSheet] Condition names loaded:', conditionNames.value);
+      console.log('[CharacterSheet] Condition images loaded:', conditionImageUrls.value);
+      
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to load condition documents:', error);
+      
+      // Fallback to hard-coded names if loading fails
+      conditionNames.value = {
+        'blinded': 'Blinded',
+        'charmed': 'Charmed', 
+        'deafened': 'Deafened',
+        'exhaustion': 'Exhaustion',
+        'frightened': 'Frightened',
+        'grappled': 'Grappled',
+        'incapacitated': 'Incapacitated',
+        'invisible': 'Invisible',
+        'paralyzed': 'Paralyzed',
+        'petrified': 'Petrified',
+        'poisoned': 'Poisoned',
+        'prone': 'Prone',
+        'restrained': 'Restrained',
+        'stunned': 'Stunned',
+        'unconscious': 'Unconscious'
+      };
+    }
+    
+  } catch (error) {
+    console.error('[CharacterSheet] Error in loadConditions:', error);
   }
 };
 
 // No longer using inline style injection - styles now imported from shared stylesheet
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown);
   console.log('D&D 5e Character Sheet mounted for character:', character.value!?.name || 'unknown');
   
+  // Log items loaded from gameState documents
+  console.log('[CharacterSheet] Items from gameState documents:');
+  console.log('props.items?.value:', props.items?.value);
+  
+  if (props.items?.value) {
+    const itemsArray = Array.isArray(props.items.value) ? props.items.value : Object.values(props.items.value);
+    console.log(`[CharacterSheet] Found ${itemsArray.length} total items in gameState`);
+    
+    // Log items by character ownership
+    const characterItems = itemsArray.filter(item => item.carrierId === character.value?.id);
+    console.log(`[CharacterSheet] Character ${character.value?.name} owns ${characterItems.length} items:`);
+    
+    characterItems.forEach((item, index) => {
+      console.log(`[CharacterSheet] Item ${index + 1}:`, {
+        id: item.id,
+        name: item.name,
+        itemType: item.pluginData?.itemType,
+        carrierId: item.carrierId,
+        documentType: item.documentType,
+        pluginData: item.pluginData
+      });
+    });
+    
+    // Log grouped items as they would appear in the UI
+    console.log('[CharacterSheet] Grouped items for UI:');
+    const grouped = groupItemsByType(characterItems);
+    Object.entries(grouped).forEach(([type, items]) => {
+      console.log(`[CharacterSheet] ${type}: ${items.length} items`, items.map(item => item.name));
+    });
+  } else {
+    console.log('[CharacterSheet] No items found in props.items?.value');
+  }
+  
   // Load compendium documents
   loadCompendiumDocuments();
+  
+  // Load available options for character editing
+  await loadAvailableOptions();
+  
+  // Load condition data for display
+  await loadConditions();
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
 });
+
+// Equipment methods
+const equipItem = async (itemId: string, slot: string) => {
+  try {
+    console.log('[Equipment] Equipping item:', { itemId, slot });
+    
+    const item = characterItems.value.find(i => i.id === itemId);
+    if (!item) {
+      console.error('[Equipment] Item not found:', itemId);
+      return;
+    }
+
+    await pluginContext.requestAction(
+      'equip-item',
+      character.value.id,
+      {
+        characterId: character.value.id,
+        itemId,
+        slot,
+        itemName: item.name
+      } as EquipItemParameters
+    );
+
+    console.log('[Equipment] Item equipped successfully');
+  } catch (error) {
+    console.error('[Equipment] Error equipping item:', error);
+  }
+};
+
+const unequipSlot = async (slot: string) => {
+  try {
+    console.log('[Equipment] Unequipping slot:', slot);
+    
+    const currentItem = equippedItems.value[slot as keyof typeof equippedItems.value];
+    
+    await pluginContext.requestAction(
+      'unequip-item',
+      character.value.id,
+      {
+        characterId: character.value.id,
+        slot,
+        itemName: currentItem?.name
+      } as UnequipItemParameters
+    );
+
+    console.log('[Equipment] Slot unequipped successfully');
+  } catch (error) {
+    console.error('[Equipment] Error unequipping slot:', error);
+  }
+};
+
+// Equipment checkbox interaction methods for items tab
+const toggleItemEquipped = async (item: any, event?: Event) => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  
+  // Check if item is currently equipped
+  const currentSlot = getItemEquippedSlot(item, equipment);
+  
+  if (currentSlot) {
+    // Item is equipped - unequip it
+    await unequipSlot(currentSlot);
+  } else {
+    // Item is not equipped - equip it in appropriate slot
+    const slot = determineEquipmentSlot(item);
+    if (slot) {
+      await equipItem(item.id, slot);
+    }
+  }
+};
+
+const isItemEquipped = (item: any): boolean => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  return !!getItemEquippedSlot(item, equipment);
+};
+
+const getItemEquippedSlot = (item: any, equipment: any): string | null => {
+  if (equipment.armor === item.id) return 'armor';
+  if (equipment.shield === item.id) return 'shield';
+  if (equipment.mainHand === item.id) return 'main-hand';
+  if (equipment.offHand === item.id) return 'off-hand';
+  if (equipment.twoHanded === item.id) return 'two-hand';
+  return null;
+};
+
+const determineEquipmentSlot = (item: any): string | null => {
+  // Use itemType from pluginData for equipment slot logic
+  const itemData = item.pluginData;
+  if (!itemData) return null;
+  
+  if (itemData.itemType === 'shield') {
+    return 'shield';
+  } else if (itemData.itemType === 'armor') {
+    return 'armor';
+  } else if (itemData.itemType === 'weapon') {
+    if (itemData.properties?.includes('two-handed')) {
+      return 'two-hand';
+    } else {
+      // Default to main hand for one-handed weapons
+      return 'main-hand';
+    }
+  }
+  
+  return null;
+};
+
+const canEquipWeapon = (item: any): boolean => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  const itemData = item.pluginData;
+  
+  if (itemData.itemType !== 'weapon' && itemData.itemType !== 'armor') return true;
+  
+  // Two-handed weapon conflicts with shield
+  if (itemData.properties?.includes('two-handed') && equipment.shield) {
+    return false;
+  }
+  
+  // Shield conflicts with two-handed weapon
+  if (itemData.type === 'shield' && equipment.twoHanded) {
+    return false;
+  }
+  
+  return true;
+};
+
+const getEquippedSlotName = (item: any): string => {
+  const equipment = (character.value.pluginData as any)?.equipment || {};
+  const slot = getItemEquippedSlot(item, equipment);
+  
+  switch (slot) {
+    case 'armor': return 'Armor';
+    case 'shield': return 'Shield';
+    case 'main-hand': return 'Main Hand';
+    case 'off-hand': return 'Off Hand';
+    case 'two-hand': return 'Two Handed';
+    default: return '';
+  }
+};
+
+// Equipment helper functions for AC display
+const getDexModifier = (): number => {
+  return abilityModifiers.value.dexterity || 0;
+};
+
+const getArmorAC = (item: any): number => {
+  if (!item || !item.pluginData) return 0;
+  
+  const itemData = item.pluginData;
+  if (itemData.itemType !== 'armor' || itemData.type === 'shield') return 0;
+  
+  // Return the AC value from armor data
+  return itemData.ac || itemData.armorClass || 0;
+};
+
+const getItemType = (item: any): string => {
+  if (!item) return '';
+  return item.pluginDocumentType || '';
+};
+
+const getWeaponDamage = (item: any): string => {
+  if (!item || !item.pluginData || item.pluginData.itemType !== 'weapon') return '';
+  
+  const weaponData = item.pluginData;
+  
+  // Handle damage as an object with dice and type properties
+  if (weaponData.damage && typeof weaponData.damage === 'object') {
+    const dice = weaponData.damage.dice || weaponData.damage.roll;
+    const type = weaponData.damage.type || weaponData.damage.damageType;
+    
+    if (dice && type) {
+      return `${dice} ${type}`;
+    } else if (dice) {
+      return dice;
+    }
+  }
+  
+  // Handle damage as separate dice and damageType properties
+  if (weaponData.dice && weaponData.damageType) {
+    return `${weaponData.dice} ${weaponData.damageType}`;
+  }
+  
+  // Handle damage as a simple string
+  if (typeof weaponData.damage === 'string') {
+    return weaponData.damage;
+  }
+  
+  return '';
+};
+
+const isWeaponTwoHanded = (item: any): boolean => {
+  if (!item || !item.pluginData || item.pluginData.itemType !== 'weapon') return false;
+  
+  return item.pluginData.properties?.includes('two-handed') || false;
+};
 
 // Watch for character changes and reload compendium data
 watch(() => {
@@ -2089,6 +3115,63 @@ watch(() => props.items?.value, () => {
 }
 
 /* Overview Tab */
+.overview-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.character-portrait-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.prominent-portrait {
+  width: 200px;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--dnd-brown-light);
+  background: var(--dnd-parchment);
+  box-shadow: 0 4px 12px var(--dnd-shadow);
+}
+
+.portrait-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--dnd-brown);
+  background: linear-gradient(135deg, #f8f6f0 0%, #ede5d3 100%);
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  margin-bottom: 8px;
+  opacity: 0.6;
+}
+
+.placeholder-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2178,6 +3261,79 @@ watch(() => props.items?.value, () => {
   font-size: 12px;
   font-weight: bold;
   box-shadow: 0 2px 4px var(--dnd-shadow-light);
+}
+
+/* Proficiencies Section */
+.proficiencies-section {
+  margin-top: 24px;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--dnd-brown-dark);
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--dnd-brown-light);
+  padding-bottom: 4px;
+}
+
+.proficiencies-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.proficiency-card {
+  background: var(--dnd-white);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 80px;
+}
+
+.prof-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--dnd-brown-dark);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prof-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.prof-item {
+  color: var(--dnd-brown-darker);
+  position: relative;
+}
+
+.prof-item:not(:last-child)::after {
+  content: ',';
+  margin-right: 4px;
+}
+
+.prof-none {
+  color: var(--dnd-brown-light);
+  font-style: italic;
+}
+
+.prof-indicator {
+  font-size: 0.75rem;
+  margin-left: 2px;
+}
+
+.prof-indicator.expert {
+  color: #8B4513; /* Dark brown for expert */
+}
+
+.prof-indicator.proficient {
+  color: #D2691E; /* Medium brown for proficient */
 }
 
 /* Abilities Tab - Character Sheet Specific Layout */
@@ -2409,6 +3565,20 @@ watch(() => props.items?.value, () => {
   .abilities-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+  
+  .proficiencies-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .proficiency-card {
+    padding: 8px;
+    min-height: 60px;
+  }
+  
+  .section-title {
+    font-size: 1rem;
+  }
 }
 
 /* Accessibility */
@@ -2550,13 +3720,45 @@ watch(() => props.items?.value, () => {
   flex-direction: column;
 }
 
+.item-list.scrollable {
+  max-height: 200px; /* Roughly 3.5 items at ~55px each */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.item-list.scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.item-list.scrollable::-webkit-scrollbar-track {
+  background: var(--dnd-parchment-light);
+  border-radius: 3px;
+}
+
+.item-list.scrollable::-webkit-scrollbar-thumb {
+  background: var(--dnd-brown-light);
+  border-radius: 3px;
+}
+
+.item-list.scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--dnd-brown);
+}
+
 .item-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   padding: 6px 12px;
   border-bottom: 1px solid rgba(139, 87, 42, 0.1);
   transition: background-color 0.2s ease;
+}
+
+.item-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0; /* Allow content to shrink */
 }
 
 .item-row:last-child {
@@ -2604,6 +3806,7 @@ watch(() => props.items?.value, () => {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto; /* Ensure right alignment */
 }
 
 .compact-action-btn {
@@ -2632,13 +3835,6 @@ watch(() => props.items?.value, () => {
   transform: translateY(0);
 }
 
-.compact-action-btn.damage-btn {
-  background: var(--dnd-brown);
-}
-
-.compact-action-btn.damage-btn:hover {
-  background: var(--dnd-brown-dark);
-}
 
 .compact-action-btn:focus {
   outline: 2px solid var(--dnd-yellow);
@@ -3136,5 +4332,365 @@ watch(() => props.items?.value, () => {
 .setting-toggle .checkbox-label {
   font-size: 14px;
   color: var(--dnd-black);
+}
+
+/* Conditions Tab */
+.conditions-tab {
+  padding: 16px;
+}
+
+.conditions-container {
+  max-width: 100%;
+}
+
+.conditions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dnd-brown-light);
+}
+
+.conditions-header h3 {
+  margin: 0;
+  color: var(--dnd-black);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.condition-count {
+  background: var(--dnd-brown-light);
+  color: var(--dnd-white);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.condition-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--dnd-parchment-light);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.condition-card:hover {
+  background: var(--dnd-parchment);
+  border-color: var(--dnd-brown);
+  box-shadow: 0 2px 4px rgba(101, 67, 33, 0.1);
+}
+
+.condition-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dnd-brown-light);
+  border-radius: 50%;
+}
+
+.condition-image {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.condition-emoji {
+  font-size: 16px;
+  color: var(--dnd-white);
+}
+
+.condition-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.condition-name {
+  font-weight: 600;
+  color: var(--dnd-black);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.condition-details {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dnd-brown);
+}
+
+.condition-level {
+  font-weight: 500;
+}
+
+.condition-source {
+  font-style: italic;
+}
+
+.remove-condition-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--dnd-brown);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-condition-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.remove-condition-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-conditions {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--dnd-brown);
+}
+
+.no-conditions p {
+  margin: 0 0 8px 0;
+}
+
+.no-conditions-hint {
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* Condition drag and drop styling */
+.conditions-container {
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  position: relative;
+}
+
+.conditions-container.drag-over {
+  background: rgba(34, 197, 94, 0.1);
+  border: 2px dashed rgba(34, 197, 94, 0.5);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.conditions-container.drag-over::before {
+  content: "Drop condition here to add to character";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(34, 197, 94, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Character Basics Section */
+.character-basics-section {
+  padding: 16px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  background: var(--dnd-parchment-light);
+}
+
+.basic-field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: var(--dnd-black);
+  font-size: 14px;
+}
+
+.field-display {
+  padding: 8px 12px;
+  background: var(--dnd-parchment);
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  color: var(--dnd-black);
+}
+
+.field-select {
+  padding: 8px 12px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 4px;
+  background: white;
+  color: var(--dnd-black);
+  font-size: 14px;
+}
+
+.field-select:focus {
+  outline: none;
+  border-color: var(--dnd-brown);
+  box-shadow: 0 0 0 2px rgba(139, 87, 42, 0.1);
+}
+
+.background-details-section {
+  padding: 16px;
+  border: 1px solid var(--dnd-brown-light);
+  border-radius: 6px;
+  background: var(--dnd-parchment-light);
+}
+
+.background-description {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.background-features {
+  margin-top: 16px;
+}
+
+.feature-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--dnd-parchment);
+  border-radius: 4px;
+  border: 1px solid var(--dnd-brown-light);
+}
+
+/* Equipment Styles for Items Tab */
+.ac-display-header {
+  background: var(--dnd-parchment-dark);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--dnd-brown-light);
+  margin-bottom: 16px;
+}
+
+.ac-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ac-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red);
+}
+
+.ac-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--dnd-red-dark);
+  background: var(--dnd-parchment-light);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--dnd-brown-light);
+  min-width: 40px;
+  text-align: center;
+}
+
+.ac-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dnd-gray-dark);
+  line-height: 1.4;
+}
+
+.ac-source {
+  background: var(--dnd-parchment);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--dnd-brown-light);
+  font-weight: 500;
+}
+
+.ac-display-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dnd-red);
+  margin-bottom: 6px;
+}
+
+.equipment-item {
+  position: relative;
+  padding-left: 50px; /* Make room for checkbox */
+}
+
+.equipment-item.equipped {
+  background: var(--dnd-parchment-light);
+  border-left: 3px solid var(--dnd-gold);
+}
+
+.item-equipment-checkbox {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.equipment-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--dnd-red);
+  cursor: pointer;
+}
+
+.equipment-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.equipped-badge {
+  background: var(--dnd-gold);
+  color: var(--dnd-black);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.item-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--dnd-gray-dark);
+  margin-top: 2px;
+}
+
+.item-stats .stat {
+  background: var(--dnd-parchment-dark);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--dnd-brown-light);
 }
 </style>

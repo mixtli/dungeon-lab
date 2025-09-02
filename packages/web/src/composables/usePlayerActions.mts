@@ -13,14 +13,6 @@ import {
 import { playerActionService } from '../services/player-action.service.mjs';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
 
-/**
- * Helper function to calculate distance between positions
- */
-function calculateDistance(pos1: { x: number; y: number }, pos2: { x: number; y: number }): number {
-  const dx = pos2.x - pos1.x;
-  const dy = pos2.y - pos1.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
 
 /**
  * Player actions composable
@@ -33,37 +25,21 @@ export function usePlayerActions() {
    */
   const requestTokenMove = async (
     tokenId: string, 
-    newPosition: { x: number; y: number; elevation?: number }
+    newPosition: { gridX: number; gridY: number; elevation?: number }
   ): Promise<ActionRequestResult> => {
-    const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    const token = gameStateStore.currentEncounter?.tokens ? Object.values(gameStateStore.currentEncounter.tokens).find(t => t.id === tokenId) : undefined;
     
     if (!token) {
       throw new Error('Token not found');
     }
 
-    // Calculate center position from bounds for distance calculation
-    // Get the actual grid size from the current map
-    const currentMap = gameStateStore.currentEncounter?.currentMap;
-    const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
-    
-    // Calculate center using same formula as PixiMapViewer for consistency
-    const currentCenterX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2 * pixelsPerGrid;
-    const currentCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2 * pixelsPerGrid;
-    const currentPosition = { x: currentCenterX, y: currentCenterY, elevation: token.bounds.elevation };
-    const distance = calculateDistance(currentPosition, newPosition);
-    
-    // TODO: Implement proper movement range calculation based on combat state
-    const remainingMovement = 30; // Default 30ft movement for now
-
     const params: MoveTokenParameters = {
       tokenId,
-      newPosition,
-      distance,
-      remainingMovement
+      newPosition
     };
 
-    return playerActionService.requestAction('move-token', params, {
-      description: `Move ${token.name} ${Math.round(distance)}ft`
+    return playerActionService.requestAction('move-token', token.documentId, params, tokenId, undefined, {
+      description: `Move ${token.name}`
     });
   };
 
@@ -72,7 +48,7 @@ export function usePlayerActions() {
    * Request token removal
    */
   const requestTokenRemove = async (tokenId: string): Promise<ActionRequestResult> => {
-    const token = gameStateStore.currentEncounter?.tokens?.find(t => t.id === tokenId);
+    const token = gameStateStore.currentEncounter?.tokens ? Object.values(gameStateStore.currentEncounter.tokens).find(t => t.id === tokenId) : undefined;
     
     if (!token) {
       throw new Error('Token not found');
@@ -83,7 +59,7 @@ export function usePlayerActions() {
       tokenName: token.name
     };
 
-    return playerActionService.requestAction('remove-token', params, {
+    return playerActionService.requestAction('remove-token', token.documentId, params, tokenId, undefined, {
       description: `Remove token "${token.name}"`
     });
   };

@@ -56,7 +56,7 @@ export interface DocumentStateReturn {
 
 export function useDocumentState(
   documentId: string,
-  documentType: 'character' | 'actor' | 'vtt-document',
+  documentType: 'character' | 'actor' | 'vtt-document' | 'item',
   options: DocumentStateOptions = {}
 ): DocumentStateReturn {
   const { readonly = false } = options;

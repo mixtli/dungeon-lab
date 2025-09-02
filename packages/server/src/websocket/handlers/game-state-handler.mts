@@ -15,7 +15,6 @@ import type {
   ClientToServerEvents,
   StateUpdate,
   StateUpdateResponse,
-  StateUpdateBroadcast,
   IGameSessionPopulated,
   IGameSessionPopulatedDocument,
   IUser
@@ -43,17 +42,6 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
   const campaignService = new CampaignService();
 
 
-  // Helper function to check if user is GM of the campaign
-  const isUserCampaignGameMaster = async (campaignId: string): Promise<boolean> => {
-    try {
-      const campaign = await CampaignModel.findById(campaignId).exec();
-      if (!campaign) return false;
-      return isAdmin || campaign.gameMasterId === userId;
-    } catch (error) {
-      logger.error('Error checking GM status:', error);
-      return false;
-    }
-  };
   
   // Helper function to check if user is GM of the session (for backwards compatibility)
   const isUserGameMaster = async (sessionId: string): Promise<boolean> => {
@@ -92,9 +80,8 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
 
   socket.on('gameState:update', async (stateUpdate: StateUpdate, callback?: (response: StateUpdateResponse) => void) => {
     try {
-      const { gameStateId, source = 'gm' } = stateUpdate;
-      logger.info('Game state update received:', { gameStateId, version: stateUpdate.version, operationCount: stateUpdate.operations.length, source, userId });
-
+      const { gameStateId } = stateUpdate;
+      
       // Get the GameState document to find the associated campaign
       const gameStateDoc = await GameStateModel.findById(gameStateId).exec();
       if (!gameStateDoc) {
@@ -109,54 +96,17 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
         return;
       }
 
-      // Only GM can update game state (unless it's a system update)
-      if (source !== 'system' && !(await isUserCampaignGameMaster(gameStateDoc.campaignId))) {
-        const response: StateUpdateResponse = {
-          success: false,
-          error: {
-            code: 'PERMISSION_DENIED',
-            message: 'Only the game master can update game state'
-          }
-        };
-        callback?.(response);
-        return;
-      }
-
-      // Use service to apply state update - defaults to full validation for safety
-      const response = await gameStateService.applyStateUpdate(stateUpdate, { 
-        enableMetrics: true
-        // Note: Defaults to full validation (skipHashCheck: false) for predictable behavior
-      });
-
-      // Broadcast update to all session participants if successful
-      if (response.success && response.newVersion) {
-        const broadcast: StateUpdateBroadcast = {
-          gameStateId,
-          operations: stateUpdate.operations,
-          newVersion: response.newVersion,
-          expectedHash: response.newHash || '',
-          timestamp: Date.now(),
-          source: stateUpdate.source || 'gm'
-        };
-
-        // Find active sessions that use this campaign's GameState
-        const activeSessions = await GameSessionModel.find({ 
-          campaignId: gameStateDoc.campaignId, 
-          status: 'active' 
-        }).exec();
-
-        // Broadcast to ALL clients in all active session rooms for this campaign
-        // This ensures consistent state updates for all participants
-        const io = SocketServer.getInstance().socketIo;
-        for (const session of activeSessions) {
-          io.to(`session:${session.id}`).emit('gameState:updated', broadcast);
-        }
-      }
+      // Delegate to service method
+      const response = await gameStateService.updateGameState(
+        gameStateDoc.campaignId,
+        stateUpdate,
+        userId
+      );
 
       callback?.(response);
 
     } catch (error) {
-      logger.error('Error updating game state:', error);
+      logger.error('Error in gameState:update handler:', error);
       const response: StateUpdateResponse = {
         success: false,
         error: {
@@ -271,6 +221,29 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       
       // Set gameSessionId on socket for other handlers to use
       socket.gameSessionId = sessionId;
+      
+      // Debug: Verify room membership immediately after joining
+      const roomsAfterJoin = Array.from(socket.rooms);
+      const expectedRoom = `session:${sessionId}`;
+      const isInRoom = roomsAfterJoin.includes(expectedRoom);
+      
+      console.log('[GameStateHandler] 🔍 Session room join verification:', {
+        userId,
+        sessionId,
+        expectedRoom,
+        roomsAfterJoin,
+        isInRoom,
+        socketId: socket.id.substring(0, 8) + '...'
+      });
+      
+      if (!isInRoom) {
+        console.error('[GameStateHandler] ❌ CRITICAL: Socket failed to join session room!', {
+          userId,
+          sessionId,
+          expectedRoom,
+          actualRooms: roomsAfterJoin
+        });
+      }
       
       logger.info('User joined socket room:', { sessionId, userId });
 
@@ -485,6 +458,16 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
     // Check what rooms this socket was actually in before disconnecting
     const roomsSocketWasIn = Array.from(socket.rooms);
     const gameSessionRooms = roomsSocketWasIn.filter(room => room.startsWith('session:'));
+    
+    // Enhanced debugging for socket disconnect
+    console.log('[GameStateHandler] 🔍 Socket disconnect analysis:', {
+      userId,
+      socketId: socket.id.substring(0, 8) + '...',
+      roomsSocketWasIn,
+      gameSessionRooms,
+      gameSessionId: socket.gameSessionId,
+      disconnectTime: new Date().toISOString()
+    });
     
     logger.info('Socket was in rooms:', { rooms: roomsSocketWasIn, gameSessionRooms, userId });
     
@@ -782,6 +765,59 @@ function gameStateHandler(socket: Socket<ClientToServerEvents, ServerToClientEve
       callback?.({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to check game state status'
+      });
+    }
+  });
+
+  // ============================================================================
+  // SYNC GAME STATE TO BACKING MODELS (GM ONLY)
+  // ============================================================================
+
+  socket.on('gameState:sync', async (sessionId: string, callback?: (response: { success: boolean; error?: string; entitiesUpdated?: { campaigns: number; characters: number; actors: number; items: number; encounters: number } }) => void) => {
+    try {
+      logger.info('Game state sync to backing models requested:', { sessionId, userId });
+
+      // Only GM can sync game state
+      if (!(await isUserGameMaster(sessionId))) {
+        const response = {
+          success: false,
+          error: 'Only the game master can sync the game state'
+        };
+        callback?.(response);
+        return;
+      }
+
+      // Sync game state to backing models
+      const syncResult = await syncService.syncGameStateToBackingModels(
+        sessionId,
+        'manual', // reason
+        {} // default options
+      );
+
+      if (syncResult.success) {
+        logger.info('Game state synced successfully:', { 
+          sessionId, 
+          entitiesUpdated: syncResult.entitiesUpdated,
+          duration: syncResult.duration
+        });
+        
+        callback?.({
+          success: true,
+          entitiesUpdated: syncResult.entitiesUpdated
+        });
+      } else {
+        logger.error('Game state sync failed:', { sessionId, errors: syncResult.errors });
+        callback?.({
+          success: false,
+          error: syncResult.errors.join('; ') || 'Failed to sync game state'
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error syncing game state:', error);
+      callback?.({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sync game state'
       });
     }
   });

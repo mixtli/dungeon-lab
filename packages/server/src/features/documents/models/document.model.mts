@@ -46,6 +46,7 @@ const serverBaseDocumentSchema = baseSchema.extend({
 const zodSchemaDefinition = zodSchema(serverBaseDocumentSchema.merge(baseMongooseZodSchema).omit({ id: true }));
 const baseMongooseSchema = new mongoose.Schema<BaseDocument>(zodSchemaDefinition as mongoose.SchemaDefinition<BaseDocument>, {
   timestamps: true,
+  minimize: false, // Prevent Mongoose from removing empty objects
   toObject: {
     virtuals: true,
     getters: true,

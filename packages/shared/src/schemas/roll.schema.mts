@@ -1,9 +1,27 @@
 import { z } from 'zod';
 import { baseSocketCallbackSchema } from './socket/base-callback.schema.mjs';
 
+// Dice styling options schema for per-roll customization
+export const diceStyleSchema = z.object({
+  theme_colorset: z.string().optional(),
+  theme_material: z.enum(['none', 'metal', 'wood', 'glass', 'plastic']).optional(),
+  theme_texture: z.string().optional(),
+  theme_customColorset: z.object({
+    background: z.string(),
+    foreground: z.string(),
+    texture: z.string(),
+    material: z.string()
+  }).optional(),
+  light_intensity: z.number().optional(),
+  gravity_multiplier: z.number().optional(),
+  sounds: z.boolean().optional(),
+  baseScale: z.number().optional(),
+  strength: z.number().optional()
+}).optional();
+
 // Roll (Client → Server) - What client sends to initiate a roll
 export const rollSchema = z.object({
-  id: z.string(),
+  rollId: z.string(),
   rollType: z.string(),
   pluginId: z.string(),
   
@@ -32,7 +50,10 @@ export const rollSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
     characterName: z.string().optional(),
-  }).passthrough()
+  }).passthrough(),
+  
+  // Dice styling preferences for 3D visualization
+  diceStyle: diceStyleSchema
 });
 
 // RollServerResult (Server → Client) - What server sends back with dice results
@@ -63,7 +84,7 @@ export const rollArgsSchema = z.tuple([
 // Roll Request (GM → Player) - Damage roll request from GM to specific player
 export const rollRequestSchema = z.object({
   /** Unique identifier for this roll request */
-  requestId: z.string(),
+  rollId: z.string(),
   /** Message to display to the player */
   message: z.string(),
   /** Type of roll being requested */
@@ -76,9 +97,12 @@ export const rollRequestSchema = z.object({
   /** Additional metadata to include with the roll */
   metadata: z.record(z.unknown()).optional(),
   /** Target player ID who should make this roll */
-  playerId: z.string().optional()
+  playerId: z.string().optional(),
+  /** Optional plugin component type for custom chat UI (e.g., 'roll-request-d20') */
+  chatComponentType: z.string().optional()
 });
 
+export type DiceStyle = z.infer<typeof diceStyleSchema>;
 export type Roll = z.infer<typeof rollSchema>;
 export type RollServerResult = z.infer<typeof rollServerResultSchema>;
 export type RollFinalResult = z.infer<typeof rollFinalResultSchema>;

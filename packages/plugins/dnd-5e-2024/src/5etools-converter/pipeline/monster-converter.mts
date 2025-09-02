@@ -27,6 +27,7 @@ import {
 } from '../../types/dnd/creature.mjs';
 import { safeEtoolsCast } from '../../5etools-types/type-utils.mjs';
 import { damageTypeSchema, type DamageType, type SpellReferenceObject } from '../../types/dnd/common.mjs';
+import { parseActionMarkup } from '../utils/markup-parser.mjs';
 
 /**
  * Monster fluff data interface
@@ -365,17 +366,20 @@ export class TypedMonsterConverter extends TypedConverter<
     return { value: 10 };
   }
 
-  private parseHitPoints(hp?: { average?: number; formula?: string; special?: string } | number): { average: number; formula?: string } {
+  private parseHitPoints(hp?: { average?: number; formula?: string; special?: string } | number): { average: number; current: number; formula?: string } {
     if (typeof hp === 'number') {
-      return { average: hp };
+      return { average: hp, current: hp };
     }
     if (typeof hp === 'object') {
+      const average = hp.average || 1;
       return {
-        average: hp.average || 1,
+        average,
+        current: average,
         formula: hp.formula
       };
     }
-    return { average: 1 };
+    const defaultValue = 1;
+    return { average: defaultValue, current: defaultValue };
   }
 
   private parseSpeed(speed?: number | Record<string, number | boolean | { number: number; condition?: string }>): Record<string, number> {
@@ -584,15 +588,57 @@ export class TypedMonsterConverter extends TypedConverter<
     }));
   }
 
-  private parseActions(actions?: Array<{ name: string; entries: unknown[] }>): Array<{ name: string; description: string }> | undefined {
+  private parseActions(actions?: Array<{ name: string; entries: unknown[] }>): Array<{
+    name: string;
+    description: string;
+    attackType?: 'melee' | 'ranged' | 'both';
+    attackBonus?: number;
+    reach?: number;
+    range?: { normal: number; long?: number };
+    averageDamage?: number;
+    damage?: string;
+    damageType?: string;
+    additionalDamage?: Array<{ damage: string; type: string; average?: number }>;
+    effectsOnMiss?: string;
+    savingThrow?: { ability: string; dc: number };
+    areaOfEffect?: { shape: string; size: string };
+    recharge?: string;
+  }> | undefined {
     if (!actions || !Array.isArray(actions) || actions.length === 0) return undefined;
     
-    return actions.map(action => ({
-      name: action?.name || 'Unnamed Action',
-      description: Array.isArray(action?.entries) ? 
+    return actions.map(action => {
+      const name = action?.name || 'Unnamed Action';
+      const description = Array.isArray(action?.entries) ? 
         processEntries(action.entries as EtoolsEntry[], this.options.textProcessing).text : 
-        (typeof action?.entries === 'string' ? action.entries : '')
-    }));
+        (typeof action?.entries === 'string' ? action.entries : '');
+      
+      // Parse markup from the raw description text to extract structured data
+      const rawText = Array.isArray(action?.entries) && action.entries.length > 0 ? 
+        String(action.entries[0]) : '';
+      
+      const parsedData = parseActionMarkup(rawText);
+      
+      return {
+        name,
+        description,
+        // Map parsed data to schema fields
+        attackType: parsedData.attackType,
+        attackBonus: parsedData.attackBonus,
+        reach: parsedData.reach,
+        range: parsedData.range,
+        averageDamage: parsedData.averageDamage,
+        damage: parsedData.damage,
+        damageType: parsedData.damageType,
+        additionalDamage: parsedData.additionalDamage,
+        effectsOnMiss: parsedData.effectsOnMiss,
+        savingThrow: parsedData.ability && parsedData.dc ? {
+          ability: parsedData.ability,
+          dc: parsedData.dc
+        } : undefined,
+        areaOfEffect: parsedData.areaOfEffect,
+        recharge: parsedData.recharge
+      };
+    });
   }
 
   private parseLegendaryActions(legendary?: Array<{ name: string; entries: unknown[]; cost?: number }>): Array<{ name: string; description: string; cost?: number }> | undefined {

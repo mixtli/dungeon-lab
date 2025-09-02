@@ -32,10 +32,10 @@
         "close": "Emitted when character sheet should be closed"
       }
     },
-    "actor-sheet": {
-      "id": "dnd-5e-2024-actor-sheet",
-      "name": "D&D 5e Actor Sheet",
-      "description": "Interactive stat block sheet for D&D 5e actors/creatures",
+    "creature-sheet": {
+      "id": "dnd-5e-2024-creature-sheet",
+      "name": "D&D 5e Creature Sheet",
+      "description": "Interactive stat block sheet for D&D 5e creatures",
       "category": "actor",
       "props": {
         "actor": { "type": "object", "required": true },
@@ -75,6 +75,48 @@
       "events": {
         "close": "Emitted when spell sheet should be closed",
         "drag-start": "Emitted when spell sheet is being dragged"
+      }
+    },
+    "weapon-sheet": {
+      "id": "dnd-5e-2024-weapon-sheet",
+      "name": "D&D 5e Weapon Sheet",
+      "description": "Read-only weapon information display",
+      "category": "document-viewer",
+      "props": {
+        "document": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": true }
+      },
+      "events": {
+        "close": "Emitted when weapon sheet should be closed",
+        "drag-start": "Emitted when weapon sheet is being dragged"
+      }
+    },
+    "armor-sheet": {
+      "id": "dnd-5e-2024-armor-sheet",
+      "name": "D&D 5e Armor Sheet",
+      "description": "Read-only armor information display",
+      "category": "document-viewer",
+      "props": {
+        "document": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": true }
+      },
+      "events": {
+        "close": "Emitted when armor sheet should be closed",
+        "drag-start": "Emitted when armor sheet is being dragged"
+      }
+    },
+    "gear-sheet": {
+      "id": "dnd-5e-2024-gear-sheet",
+      "name": "D&D 5e Gear Sheet",
+      "description": "Read-only gear and tool information display",
+      "category": "document-viewer",
+      "props": {
+        "document": { "type": "object", "required": true },
+        "readonly": { "type": "boolean", "default": true }
+      },
+      "events": {
+        "close": "Emitted when gear sheet should be closed",
+        "drag-start": "Emitted when gear sheet is being dragged"
       }
     }
   },

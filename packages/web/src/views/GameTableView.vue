@@ -330,7 +330,4 @@ onMounted(async () => {
   background-color: rgb(243 244 246); /* bg-gray-100 */
 }
 
-.token-dragging {
-  background-color: rgb(243 244 246); /* bg-gray-100 */
-}
 </style>

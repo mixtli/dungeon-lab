@@ -10,11 +10,12 @@ import type {
   DocumentSearchQuery,
   CompendiumSearchQuery,
   GameStateContext,
-  ActionHandler
+  ActionHandler,
+  TokenContextAction
 } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry, ActionRequestResult, GameActionType } from '@dungeon-lab/shared/types/index.mjs';
-import type { Roll, RollCallback, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { Roll, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
 import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
@@ -22,6 +23,9 @@ import { createPluginGameStateService } from '../plugin-game-state.service.mjs';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
 import { useSocketStore } from '../../stores/socket.store.mjs';
+import { useNotificationStore } from '../../stores/notification.store.mjs';
+import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
+import { getAssetUrl } from '../../utils/asset-utils.mjs';
 import { rollHandlerService } from '../roll-handler.service.mjs';
 import { PlayerActionService } from '../player-action.service.mjs';
 import { 
@@ -29,6 +33,8 @@ import {
   unregisterPluginActionHandler,
   unregisterAllPluginActionHandlers
 } from '../multi-handler-registry.mjs';
+import { tokenActionRegistry } from '../token-action-registry.mjs';
+import { rollService } from '../roll.service.mjs';
 
 export interface PluginContextOptions {
   includeGameState?: boolean;
@@ -44,6 +50,7 @@ export class PluginContextImpl implements PluginContext {
   private compendiumsClient: CompendiumsClient;
   private documentsClient: DocumentsClient;
   private _playerActionService?: PlayerActionService;
+  private tokenActions: Map<string, TokenContextAction> = new Map();
   
   constructor(private pluginId: string, options: PluginContextOptions = {}) {
     // Initialize plugin-scoped store
@@ -142,24 +149,22 @@ export class PluginContextImpl implements PluginContext {
   /**
    * Submit a roll to the server
    * Plugins use this instead of direct socket access
+   * User dice preferences are automatically applied by the RollService
    */
-  submitRoll(roll: Roll): void {
-    const socketStore = useSocketStore();
-    const socket = socketStore.socket;
+  async submitRoll(roll: Roll): Promise<void> {
+    console.log(`[PluginContext] Submitting roll for plugin '${this.pluginId}':`, {
+      rollId: roll.rollId,
+      rollType: roll.rollType
+    });
     
-    if (!socket) {
-      console.error('No socket connection available for roll submission');
-      return;
+    const result = await rollService.submitRoll(roll);
+    
+    if (!result.success) {
+      console.error(`[PluginContext] Roll submission failed for plugin '${this.pluginId}':`, result.error);
+      throw new Error(result.error || 'Roll submission failed');
     }
     
-    socket.emit('roll', roll, (response: RollCallback) => {
-      if (!response.success) {
-        console.error(`[PluginContext] Roll submission failed:`, response.error);
-      } else {
-        console.log(`[PluginContext] Roll submitted successfully for plugin '${this.pluginId}'`);
-      }
-    });
-    console.log(`[PluginContext] Submitted roll for plugin '${this.pluginId}':`, roll);
+    console.log(`[PluginContext] Roll submitted successfully for plugin '${this.pluginId}'`);
   }
   
   /**
@@ -249,20 +254,29 @@ export class PluginContextImpl implements PluginContext {
    */
   async requestAction(
     actionType: string,
+    actorId: string | undefined,
     parameters: Record<string, unknown>,
-    options: { description?: string } = {}
+    actorTokenId?: string,
+    targetTokenIds?: string[],
+    options?: { description?: string }
   ): Promise<ActionRequestResult> {
     try {
       console.log(`[PluginContext] Requesting action '${actionType}' from plugin '${this.pluginId}':`, {
         actionType,
+        actorId,
         parameters,
-        description: options.description
+        actorTokenId,
+        targetTokenIds,
+        description: options?.description
       });
 
       const result = await this.playerActionService.requestAction(
         actionType as GameActionType, // Cast to GameActionType - the service will validate
+        actorId,
         parameters,
-        options
+        actorTokenId,
+        targetTokenIds,
+        options || {}
       );
 
       console.log(`[PluginContext] Action request '${actionType}' result for plugin '${this.pluginId}':`, {
@@ -310,12 +324,89 @@ export class PluginContextImpl implements PluginContext {
         ...rollRequest,
         playerId
       });
-      console.log(`[PluginContext] Sent roll request to player '${playerId}' from plugin '${this.pluginId}':`, rollRequest.requestId);
+      console.log(`[PluginContext] Sent roll request to player '${playerId}' from plugin '${this.pluginId}':`, rollRequest.rollId);
     } catch (error) {
       console.error(`[PluginContext] Failed to send roll request from plugin '${this.pluginId}':`, error);
     }
   }
   
+  /**
+   * Register a token context menu action
+   */
+  registerTokenAction(action: TokenContextAction): void {
+    this.tokenActions.set(action.id, action);
+    tokenActionRegistry.registerAction(action);
+    console.log(`[PluginContext] Registered token action for plugin '${this.pluginId}':`, action.id);
+  }
+
+  /**
+   * Unregister a token context menu action
+   */
+  unregisterTokenAction(actionId: string): void {
+    const existed = this.tokenActions.delete(actionId);
+    tokenActionRegistry.unregisterAction(actionId);
+    if (existed) {
+      console.log(`[PluginContext] Unregistered token action for plugin '${this.pluginId}':`, actionId);
+    }
+  }
+
+  /**
+   * Get all registered token actions
+   */
+  getTokenActions(): TokenContextAction[] {
+    return Array.from(this.tokenActions.values());
+  }
+
+  /**
+   * Show notification toast to user
+   * Plugins use this instead of directly accessing notification stores
+   */
+  showNotification(message: string, type: 'success' | 'error' | 'warning' | 'info', duration = 4000): void {
+    const notificationStore = useNotificationStore();
+    notificationStore.addNotification({ message, type, duration });
+    console.log(`[PluginContext] Showed ${type} notification from plugin '${this.pluginId}': ${message}`);
+  }
+
+  /**
+   * Open a document sheet by ID and type
+   * Plugins use this to open spell sheets, item sheets, etc.
+   */
+  openDocumentSheet(documentId: string, pluginDocumentType: string): void {
+    const documentSheetStore = useDocumentSheetStore();
+    
+    // Create minimal document for sheet opening
+    const mockDocument: BaseDocument = {
+      id: documentId,
+      name: 'Loading...', // Will be loaded by the sheet
+      documentType: 'item', // All items opened via plugin context are item documents
+      pluginDocumentType: pluginDocumentType,
+      pluginId: this.pluginId, // Use the current plugin's ID
+      slug: '',
+      pluginData: {},
+      itemState: {},
+      state: {},
+      userData: {}
+    };
+    
+    documentSheetStore.openDocumentSheet(mockDocument);
+    console.log(`[PluginContext] Opened document sheet from plugin '${this.pluginId}': ${documentId} (${pluginDocumentType})`);
+  }
+
+  /**
+   * Get asset URL for images/files
+   * Plugins use this to load images from the asset system
+   */
+  async getAssetUrl(assetId: string): Promise<string> {
+    try {
+      const url = await getAssetUrl(assetId);
+      console.log(`[PluginContext] Got asset URL from plugin '${this.pluginId}': ${assetId} -> ${url}`);
+      return url;
+    } catch (error) {
+      console.error(`[PluginContext] Failed to get asset URL from plugin '${this.pluginId}' for asset ${assetId}:`, error);
+      throw error;
+    }
+  }
+
   /**
    * Get the plugin ID this context belongs to
    */
@@ -329,6 +420,14 @@ export class PluginContextImpl implements PluginContext {
   destroy(): void {
     // Unregister all action handlers
     this.unregisterAllActionHandlers();
+    
+    // Unregister all token actions from global registry
+    for (const actionId of this.tokenActions.keys()) {
+      tokenActionRegistry.unregisterAction(actionId);
+    }
+    
+    // Clear token actions
+    this.tokenActions.clear();
     
     // Clear store
     (this.store as ReactivePluginStore).clear();

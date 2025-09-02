@@ -75,11 +75,6 @@ function formatDate(dateString: string | Date | undefined) {
                         {{ encounter.name }}
                       </router-link>
                     </p>
-                    <p
-                      class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"
-                    >
-                      {{ encounter.status }}
-                    </p>
                   </div>
                   <div class="flex-shrink-0 flex">
                     <router-link

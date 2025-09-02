@@ -9,7 +9,8 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 
 /**
  * Interface for class feature data
@@ -34,10 +35,10 @@ interface CharacterPluginData {
 /**
  * Validate class feature usage requirements
  */
-export function validateClassFeatureUsage(
+const validateClassFeatureUsage: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> => {
   console.log('[DnD5e] Validating class feature usage:', {
     playerId: request.playerId,
     parameters: request.parameters
@@ -157,10 +158,11 @@ export function validateClassFeatureUsage(
 /**
  * Execute class feature usage - consume resources and update state
  */
-export function executeClassFeatureUsage(
+const executeClassFeatureUsage: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   console.log('[DnD5e] Executing class feature usage');
 
   // Find the character for this player
@@ -226,8 +228,11 @@ export function executeClassFeatureUsage(
 export const dndUseClassFeatureHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateClassFeatureUsage,
   execute: executeClassFeatureUsage,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const featureName = request.parameters.featureName || 'class feature';
     return `wants to use ${featureName}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateClassFeatureUsage, executeClassFeatureUsage };

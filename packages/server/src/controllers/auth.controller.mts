@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import { UserModel } from '../models/user.model.mjs';
 import { logger } from '../utils/logger.mjs';
 import { IUser } from '@dungeon-lab/shared/types/index.mjs';
+import { userPreferencesSchema } from '@dungeon-lab/shared/schemas/user.schema.mjs';
 import {
   LoginRequest,
   loginRequestSchema,
@@ -253,7 +254,7 @@ export async function getCurrentUser(req: Request, res: Response<GetCurrentUserR
 }
 
 /**
- * Update current user's profile (displayName, profile fields only)
+ * Update current user's profile (displayName, profile fields, and preferences)
  */
 export async function updateCurrentUserProfile(req: Request, res: Response) {
   try {
@@ -261,16 +262,55 @@ export async function updateCurrentUserProfile(req: Request, res: Response) {
       return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
     const userId = req.session.user.id;
-    const { displayName, profile } = req.body;
-    // Only allow updating displayName and profile fields
+    const { displayName, profile, preferences } = req.body;
+    
+    // Build update object with allowed fields
     const update: Record<string, unknown> = {};
-    if (typeof displayName === 'string') update.displayName = displayName;
-    if (profile && typeof profile === 'object') update.profile = profile;
+    
+    // Handle displayName
+    if (typeof displayName === 'string') {
+      update.displayName = displayName;
+    }
+    
+    // Handle profile
+    if (profile && typeof profile === 'object') {
+      update.profile = profile;
+    }
+    
+    // Handle preferences with validation
+    if (preferences && typeof preferences === 'object') {
+      try {
+        // Validate preferences against schema
+        const validatedPreferences = userPreferencesSchema.parse(preferences);
+        update.preferences = validatedPreferences;
+        logger.info('User preferences validated successfully:', { userId, preferences: validatedPreferences });
+      } catch (validationError) {
+        logger.warn('Invalid user preferences submitted:', { 
+          userId, 
+          error: validationError instanceof ZodError ? validationError.errors : validationError 
+        });
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid preferences data',
+          details: validationError instanceof ZodError ? validationError.errors : 'Validation failed'
+        });
+      }
+    }
+    
+    // Update user in database
     const user = await UserModel.findByIdAndUpdate(userId, update, { new: true }).select('-password');
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    return res.status(200).json({ success: true, data: user });
+    
+    // Update session data to reflect new preferences
+    if (req.session.user && update.preferences) {
+      req.session.user.preferences = user.preferences;
+      logger.info('Session preferences updated for user:', { userId });
+    }
+    
+    logger.info('User profile updated successfully:', { userId, updatedFields: Object.keys(update) });
+    return res.status(200).json(user);
   } catch (error) {
     logger.error('Error updating current user profile:', error);
     return res.status(500).json({ success: false, error: 'Failed to update profile' });

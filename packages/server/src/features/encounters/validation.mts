@@ -3,8 +3,7 @@ import { logger } from '../../utils/logger.mjs';
 import { Types } from 'mongoose';
 import {
   createEncounterSchema,
-  updateEncounterSchema,
-  EncounterStatusEnum
+  updateEncounterSchema
 } from '@dungeon-lab/shared/schemas/encounters.schema.mjs';
 import {
   createTokenSchema,
@@ -83,40 +82,6 @@ export function validateUpdateToken(req: Request, res: Response, next: NextFunct
   }
 }
 
-/**
- * Validates encounter status update
- */
-export function validateEncounterStatus(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { status } = req.body;
-    
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        error: 'Status is required',
-        data: null
-      });
-    }
-
-    const validStatuses = EncounterStatusEnum.options;
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
-        data: null
-      });
-    }
-
-    next();
-  } catch (error) {
-    logger.error('Encounter status validation error:', error);
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid status data',
-      data: null
-    });
-  }
-}
 
 /**
  * Validates that the provided ID is a valid MongoDB ObjectId

@@ -87,25 +87,6 @@ export class EncountersClient extends ApiClient {
     return response.data.data;
   }
 
-  /**
-   * Update an encounter's status
-   */
-  async updateEncounterStatus(
-    encounterId: string,
-    status: 'draft' | 'ready' | 'in_progress' | 'completed' | 'stopped'
-  ): Promise<IEncounter> {
-    const response = await this.api.patch<BaseAPIResponse<IEncounter>>(
-      `/api/encounters/${encounterId}/status`,
-      { status }
-    );
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to update encounter status');
-    }
-    if (!response.data.data) {
-      throw new Error('Encounter not found');
-    }
-    return response.data.data;
-  }
 
   // NOTE: Token operations moved to game state system
 }

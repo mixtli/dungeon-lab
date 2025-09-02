@@ -10,6 +10,7 @@ const compendiumSchemaMongoose = compendiumSchema.merge(baseMongooseZodSchema);
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema<ICompendium>(compendiumSchemaMongoose);
+mongooseSchema.set('minimize', false);
 
 // Override complex fields to use Mixed type for flexibility
 mongooseSchema.path('importData', mongoose.Schema.Types.Mixed);

@@ -455,27 +455,82 @@ export class GameStateService {
       const initialGameData = await this.loadCampaignData(campaignId);
       
       // Parse with Zod schema to ensure consistent defaults and structure (same as validation)
-      console.log('initialGameData.state', initialGameData.state.documents);
+      //console.log('initialGameData.state', initialGameData.state.documents);
       const parsedInitialState = serverGameStateWithVirtualsSchema.parse(initialGameData.state);
       
       const initialVersion = '1';
-      const initialHash = generateStateHash(parsedInitialState);
+      console.log('keys', Object.keys(parsedInitialState));
+      const originalState = JSON.parse(JSON.stringify(parsedInitialState)); // Deep copy for comparison
+      console.log('originalState', Object.keys(originalState));
+      const originalHash = generateStateHash(parsedInitialState);
 
       // Create new GameState document with new metadata + state structure
-      await GameStateModel.create({
+      const savedDoc = await GameStateModel.create({
         campaignId,
         state: parsedInitialState,  // Store the Zod-parsed state with consistent structure
         version: initialVersion,
-        hash: initialHash,
+        hash: originalHash,
         lastUpdate: Date.now()
         // createdBy and updatedBy are optional, let Mongoose handle them
       });
 
+      // DEBUG: Pull it back out and compare both data and hash
+      const retrievedDoc = await GameStateModel.findById(savedDoc._id).exec();
+      if (!retrievedDoc) {
+        throw new Error('Failed to retrieve saved GameState document');
+      }
+      console.log('retrievedDoc', Object.keys(retrievedDoc.state));
+      const retrievedState = retrievedDoc.state;
+      const retrievedHash = generateStateHash(retrievedState);
+      
+      console.log('=== HASH DEBUG COMPARISON ===');
+      console.log('Original hash:', originalHash.substring(0, 16) + '...');
+      console.log('Retrieved hash:', retrievedHash.substring(0, 16) + '...');
+      console.log('Hashes match:', originalHash === retrievedHash);
+      
+      if (originalHash !== retrievedHash) {
+        console.log('🚨 HASH MISMATCH DETECTED - MongoDB transformed the data');
+        
+        // Compare the actual data structures
+        console.log('Original state keys:', Object.keys(originalState));
+        console.log('Retrieved state keys:', Object.keys(retrievedState));
+        
+        // Check if documents are the main difference
+        if (originalState.documents && retrievedState.documents) {
+          const originalDocIds = Object.keys(originalState.documents);
+          const retrievedDocIds = Object.keys(retrievedState.documents);
+          
+          console.log('Original document count:', originalDocIds.length);
+          console.log('Retrieved document count:', retrievedDocIds.length);
+          
+          if (originalDocIds.length > 0 && retrievedDocIds.length > 0) {
+            const firstOrigDoc = originalState.documents[originalDocIds[0]];
+            const firstRetrDoc = retrievedState.documents[retrievedDocIds[0]];
+            
+            console.log('First document comparison:');
+            console.log('Original doc keys:', Object.keys(firstOrigDoc));
+            console.log('Retrieved doc keys:', Object.keys(firstRetrDoc));
+            
+            // Check for ObjectId differences
+            const origDoc = firstOrigDoc as BaseDocument;
+            const retrDoc = firstRetrDoc as BaseDocument;
+            for (const key of Object.keys(firstOrigDoc)) {
+              if (JSON.stringify(origDoc[key as keyof BaseDocument]) !== JSON.stringify(retrDoc[key as keyof BaseDocument])) {
+                console.log(`Field '${key}' differs:`);
+                console.log('  Original:', typeof origDoc[key as keyof BaseDocument], origDoc[key as keyof BaseDocument]);
+                console.log('  Retrieved:', typeof retrDoc[key as keyof BaseDocument], retrDoc[key as keyof BaseDocument]);
+              }
+            }
+          }
+        }
+        
+        console.log('Data comparison available - original vs retrieved state differ');
+      }
 
       return {
         success: true,
         newVersion: initialVersion,
-        newHash: initialHash
+        newHash: originalHash  // Return original hash for now
       };
     } catch (error) {
       logger.error('Error initializing game state:', error);
@@ -864,6 +919,121 @@ export class GameStateService {
       pluginDataKeys: state.pluginData ? Object.keys(state.pluginData).length : 0,
       jsonSize: JSON.stringify(state).length
     };
+  }
+
+  /**
+   * Update game state for a campaign with proper permission checking and broadcasting
+   * @param campaignId - The campaign ID to update
+   * @param stateUpdate - The state update to apply
+   * @param userId - The user making the update
+   */
+  async updateGameState(
+    campaignId: string, 
+    stateUpdate: StateUpdate, 
+    userId: string,
+    skipPermissionCheck = false
+  ): Promise<StateUpdateResponse> {
+    try {
+      logger.info('Game state update received:', { 
+        campaignId, 
+        version: stateUpdate.version, 
+        operationCount: stateUpdate.operations.length, 
+        source: stateUpdate.source, 
+        userId 
+      });
+
+      // Get the GameState document to find the gameStateId
+      const gameStateDoc = await GameStateModel.findOne({ campaignId }).exec();
+      if (!gameStateDoc) {
+        return {
+          success: false,
+          error: {
+            code: 'GAMESTATE_NOT_FOUND',
+            message: 'Game state not found for campaign'
+          }
+        };
+      }
+
+      // Check GM permissions unless skipped (for system updates)
+      if (!skipPermissionCheck && stateUpdate.source !== 'system') {
+        const campaign = await CampaignModel.findById(campaignId).exec();
+        if (!campaign) {
+          return {
+            success: false,
+            error: {
+              code: 'GAMESTATE_NOT_FOUND',
+              message: 'Campaign not found'
+            }
+          };
+        }
+
+        const isGM = campaign.gameMasterId === userId;
+        if (!isGM) {
+          return {
+            success: false,
+            error: {
+              code: 'PERMISSION_DENIED',
+              message: 'Only the game master can update game state'
+            }
+          };
+        }
+      }
+
+      // Update the stateUpdate with the correct gameStateId
+      const fullStateUpdate: StateUpdate = {
+        ...stateUpdate,
+        gameStateId: gameStateDoc.id
+      };
+
+      // Use existing service to apply state update
+      const response = await this.applyStateUpdate(fullStateUpdate, { 
+        enableMetrics: true
+      });
+
+      // Broadcast update to all session participants if successful
+      if (response.success && response.newVersion) {
+        const broadcast = {
+          gameStateId: gameStateDoc.id,
+          operations: stateUpdate.operations,
+          newVersion: response.newVersion,
+          expectedHash: response.newHash || '',
+          timestamp: Date.now(),
+          source: stateUpdate.source || 'system'
+        };
+
+        // Find active sessions that use this campaign's GameState
+        const { GameSessionModel } = await import('../models/game-session.model.mjs');
+        const activeSessions = await GameSessionModel.find({ 
+          campaignId, 
+          status: 'active' 
+        }).exec();
+
+        // Broadcast to ALL clients in all active session rooms for this campaign
+        const { SocketServer } = await import('../../../websocket/socket-server.mjs');
+        const io = SocketServer.getInstance().socketIo;
+        for (const session of activeSessions) {
+          io.to(`session:${session.id}`).emit('gameState:updated', broadcast);
+        }
+
+        logger.info('GameState update broadcast sent', {
+          campaignId,
+          sessionCount: activeSessions.length,
+          newVersion: response.newVersion
+        });
+      }
+
+      return response;
+
+    } catch (error) {
+      logger.error('Error updating game state:', error);
+      return {
+        success: false,
+        error: {
+          code: 'TRANSACTION_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to update game state'
+        }
+      };
+    }
   }
 
   /**

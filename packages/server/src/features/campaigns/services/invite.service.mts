@@ -134,6 +134,17 @@ export class InviteService {
           await DocumentService.updateById(actorId, {
             campaignId: invite.campaignId.toString()
           });
+
+          // Also update all items carried by this character to be in the same campaign
+          await DocumentService.updateMany(
+            { 
+              carrierId: actorId,
+              documentType: 'item'
+            },
+            { 
+              campaignId: invite.campaignId.toString() 
+            }
+          );
         }
       }
     }

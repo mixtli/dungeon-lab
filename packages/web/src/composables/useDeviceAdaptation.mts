@@ -48,22 +48,32 @@ export function useDeviceAdaptation() {
     // Check for reduced motion preference
     preferReducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     
+    // Use the smaller dimension to better detect mobile phones in any orientation
+    // This prevents phones in landscape from being classified as tablets
+    const smallerDimension = Math.min(width.value, height.value);
+    const largerDimension = Math.max(width.value, height.value);
+    
     // Determine device type based on screen size and capabilities
-    if (width.value >= 1024) {
+    // Desktop: Large screens, typically with hover capability
+    if (largerDimension >= 1024 && (!isTouchDevice.value || hasHover.value)) {
+      deviceType.value = 'desktop';
+    }
+    // Phone: Touch device with small screen in any orientation
+    // Use smaller dimension to catch phones in landscape mode
+    else if (isTouchDevice.value && !hasHover.value && smallerDimension < 768) {
+      deviceType.value = 'phone';
+    }
+    // Tablet: Touch device with larger screen, or mid-range screens with touch
+    else if (isTouchDevice.value && smallerDimension >= 768) {
+      deviceType.value = 'tablet';
+    }
+    // Fallback based on current width for edge cases
+    else if (width.value >= 1024) {
       deviceType.value = 'desktop';
     } else if (width.value >= 768) {
       deviceType.value = 'tablet';
     } else {
       deviceType.value = 'phone';
-    }
-    
-    // Override device type if touch-only device (likely mobile/tablet)
-    if (isTouchDevice.value && !hasHover.value) {
-      if (width.value >= 768) {
-        deviceType.value = 'tablet';
-      } else {
-        deviceType.value = 'phone';
-      }
     }
   };
 
@@ -231,5 +241,19 @@ export function useDeviceAdaptation() {
     isTablet: computed(() => deviceType.value === 'tablet'),
     isPhone: computed(() => deviceType.value === 'phone'),
     isMobile: computed(() => deviceType.value === 'phone' || deviceType.value === 'tablet'),
+    
+    // True mobile phone detection for UI decisions (orientation-agnostic)
+    // This should be used for showing/hiding mobile-specific UI elements
+    isTrueMobile: computed(() => {
+      const smallerDimension = Math.min(width.value, height.value);
+      return isTouchDevice.value && !hasHover.value && smallerDimension < 768;
+    }),
+    
+    // Mobile phone in landscape orientation - for fullscreen encounter mode
+    isMobileLandscape: computed(() => {
+      const smallerDimension = Math.min(width.value, height.value);
+      const isMobileDevice = isTouchDevice.value && !hasHover.value && smallerDimension < 768;
+      return isMobileDevice && orientation.value === 'landscape';
+    }),
   };
 } 

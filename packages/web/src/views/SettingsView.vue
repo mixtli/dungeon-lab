@@ -1,27 +1,90 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { pluginRegistry } from '@/services/plugin-registry.mts';
-import { useGameSessionStore } from '@/stores/game-session.store.mjs';
-import { useSocketStore } from '@/stores/socket.store.mjs';
-import { useNotificationStore } from '@/stores/notification.store.mjs';
-import { useGameStateStore } from '@/stores/game-state.store.mjs';
+import { useAuthStore } from '@/stores/auth.store.mts';
+import type { DicePreferences } from '@dungeon-lab/shared/types/index.mjs';
 
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const previousGameSystem = ref<string>('');
 const loading = ref(true);
 const gameSystemPluginOptions = ref<{ id: string; name: string }[]>([]);
 
-// Debug operations state
-const hashResetLoading = ref(false);
-const reinitializeLoading = ref(false);
-const checkStatusLoading = ref(false);
-const statusResult = ref<{ isHashValid: boolean; storedHash?: string; calculatedHash?: string } | null>(null);
+// Auth store for user preferences
+const authStore = useAuthStore();
 
-// Store instances
-const gameSessionStore = useGameSessionStore();
-const socketStore = useSocketStore();
-const notificationStore = useNotificationStore();
-const gameStateStore = useGameStateStore();
+// Dice preferences - initialize with current defaults from dice-3d.service
+const dicePreferences = ref<DicePreferences>({
+  theme_customColorset: {
+    background: "#00ffcb",
+    foreground: "#ffffff", 
+    texture: "marble",
+    material: "metal"
+  },
+  theme_material: "metal",
+  light_intensity: 1,
+  gravity_multiplier: 600,
+  baseScale: 100,
+  strength: 2,
+  sounds: true
+});
+
+// Available material options
+const materialOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'metal', label: 'Metal' },
+  { value: 'wood', label: 'Wood' },
+  { value: 'glass', label: 'Glass' },
+  { value: 'plastic', label: 'Plastic' }
+];
+
+
+
+// Function to save dice preferences
+async function saveDicePreferences() {
+  try {
+    console.log('Saving dice preferences:', dicePreferences.value);
+    const success = await authStore.updateUserPreferences({
+      dicePreferences: dicePreferences.value
+    });
+    
+    if (success) {
+      console.log('Dice preferences saved successfully');
+    } else {
+      console.error('Failed to save dice preferences');
+    }
+  } catch (error) {
+    console.error('Failed to save dice preferences:', error);
+  }
+}
+
+// Watch for dice preferences changes and auto-save (debounced)
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+watch(dicePreferences, () => {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+  saveTimeout = setTimeout(() => {
+    saveDicePreferences();
+  }, 1000); // 1 second debounce
+}, { deep: true });
+
+// Function to reset dice preferences to defaults
+function resetDicePreferences() {
+  dicePreferences.value = {
+    theme_customColorset: {
+      background: "#00ffcb",
+      foreground: "#ffffff", 
+      texture: "marble",
+      material: "metal"
+    },
+    theme_material: "metal",
+    light_intensity: 1,
+    gravity_multiplier: 600,
+    baseScale: 100,
+    strength: 2,
+    sounds: true
+  };
+}
 
 onMounted(async () => {
   try {
@@ -37,6 +100,12 @@ onMounted(async () => {
     
     console.log('Available game system plugins:', gameSystemPluginOptions.value);
     previousGameSystem.value = selectedGameSystem.value;
+
+    // Load user dice preferences if available
+    if (authStore.user?.preferences?.dicePreferences) {
+      dicePreferences.value = { ...authStore.user.preferences.dicePreferences };
+      console.log('Loaded user dice preferences:', dicePreferences.value);
+    }
   } catch (error) {
     console.error('Failed to load plugin list:', error);
   } finally {
@@ -66,184 +135,15 @@ async function handleGameSystemChange(event: Event) {
   previousGameSystem.value = newGameSystemId;
 }
 
-async function resetGameStateHash() {
-  if (!gameSessionStore.currentSession?.id) {
-    notificationStore.addNotification({
-      message: 'No active game session',
-      type: 'error'
-    });
-    return;
-  }
-
-  if (!gameSessionStore.isGameMaster) {
-    notificationStore.addNotification({
-      message: 'Only the Game Master can reset the game state hash',
-      type: 'error'
-    });
-    return;
-  }
-
-  try {
-    hashResetLoading.value = true;
-    
-    return new Promise<void>((resolve, reject) => {
-      socketStore.emit('gameState:resetHash', gameSessionStore.currentSession!.id, (response: { success: boolean; error?: string }) => {
-        if (response.success) {
-          notificationStore.addNotification({
-            message: 'Game state hash reset successfully',
-            type: 'success'
-          });
-          resolve();
-        } else {
-          const error = response.error || 'Failed to reset game state hash';
-          notificationStore.addNotification({
-            message: error,
-            type: 'error'
-          });
-          reject(new Error(error));
-        }
-      });
-    });
-  } catch (error) {
-    console.error('Failed to reset game state hash:', error);
-    notificationStore.addNotification({
-      message: 'Failed to reset game state hash',
-      type: 'error'
-    });
-  } finally {
-    hashResetLoading.value = false;
-  }
-}
-
-async function reinitializeGameState() {
-  if (!gameSessionStore.currentSession?.id) {
-    notificationStore.addNotification({
-      message: 'No active game session',
-      type: 'error'
-    });
-    return;
-  }
-
-  if (!gameSessionStore.isGameMaster) {
-    notificationStore.addNotification({
-      message: 'Only the Game Master can re-initialize the game state',
-      type: 'error'
-    });
-    return;
-  }
-
-  try {
-    reinitializeLoading.value = true;
-    
-    return new Promise<void>((resolve, reject) => {
-      socketStore.emit('gameState:reinitialize', gameSessionStore.currentSession!.id, async (response: { success: boolean; error?: string }) => {
-        if (response.success) {
-          // CRITICAL: Refresh client state after server re-initializes
-          try {
-            await gameStateStore.requestFullState();
-            notificationStore.addNotification({
-              message: 'Game state re-initialized successfully',
-              type: 'success'
-            });
-            resolve();
-          } catch (refreshError) {
-            console.error('Failed to refresh game state after reinitialize:', refreshError);
-            notificationStore.addNotification({
-              message: 'Game state re-initialized but failed to refresh. Please refresh the page.',
-              type: 'warning'
-            });
-            resolve(); // Still resolve because the server operation succeeded
-          }
-        } else {
-          const error = response.error || 'Failed to re-initialize game state';
-          notificationStore.addNotification({
-            message: error,
-            type: 'error'
-          });
-          reject(new Error(error));
-        }
-      });
-    });
-  } catch (error) {
-    console.error('Failed to re-initialize game state:', error);
-    notificationStore.addNotification({
-      message: 'Failed to re-initialize game state',
-      type: 'error'
-    });
-  } finally {
-    reinitializeLoading.value = false;
-  }
-}
-
-async function checkGameStateStatus() {
-  if (!gameSessionStore.currentSession?.id) {
-    notificationStore.addNotification({
-      message: 'No active game session',
-      type: 'error'
-    });
-    return;
-  }
-
-  if (!gameSessionStore.isGameMaster) {
-    notificationStore.addNotification({
-      message: 'Only the Game Master can check the game state status',
-      type: 'error'
-    });
-    return;
-  }
-
-  try {
-    checkStatusLoading.value = true;
-    statusResult.value = null; // Clear previous result
-    
-    return new Promise<void>((resolve, reject) => {
-      socketStore.emit('gameState:checkStatus', gameSessionStore.currentSession!.id, (response: { success: boolean; error?: string; isHashValid?: boolean; storedHash?: string; calculatedHash?: string }) => {
-        if (response.success && response.isHashValid !== undefined) {
-          statusResult.value = {
-            isHashValid: response.isHashValid,
-            storedHash: response.storedHash,
-            calculatedHash: response.calculatedHash
-          };
-          
-          const statusMessage = response.isHashValid 
-            ? 'Game state hash is valid ✓'
-            : 'Game state hash is invalid ✗ - State may be corrupted';
-          
-          notificationStore.addNotification({
-            message: statusMessage,
-            type: response.isHashValid ? 'success' : 'warning'
-          });
-          
-          resolve();
-        } else {
-          const error = response.error || 'Failed to check game state status';
-          notificationStore.addNotification({
-            message: error,
-            type: 'error'
-          });
-          reject(new Error(error));
-        }
-      });
-    });
-  } catch (error) {
-    console.error('Failed to check game state status:', error);
-    notificationStore.addNotification({
-      message: 'Failed to check game state status',
-      type: 'error'
-    });
-  } finally {
-    checkStatusLoading.value = false;
-  }
-}
 </script>
 
 <template>
   <div class="max-w-3xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6 text-dragon">Settings</h1>
+    <h1 class="text-2xl font-bold mb-6 text-primary-900">Settings</h1>
 
     <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6 mb-6">
       <div class="border-b border-stone-300 dark:border-stone-600 pb-4 mb-4">
-        <h2 class="text-xl font-semibold text-dragon dark:text-gold">Game System</h2>
+        <h2 class="text-xl font-semibold text-primary-900 dark:text-accent-500">Game System</h2>
       </div>
 
       <div class="game-system-settings">
@@ -251,14 +151,14 @@ async function checkGameStateStatus() {
           Active Game System
         </label>
         <div v-if="loading" class="flex items-center justify-center py-8">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-dragon"></div>
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-900"></div>
         </div>
         <select
           v-else
           id="gameSystem"
           v-model="selectedGameSystem"
           @change="handleGameSystemChange"
-          class="block w-full px-3 py-2 bg-parchment dark:bg-stone-600 border border-stone-300 dark:border-stone-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-dragon focus:border-dragon text-onyx dark:text-parchment"
+          class="block w-full px-3 py-2 bg-parchment dark:bg-stone-600 border border-stone-300 dark:border-stone-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-900 focus:border-primary-900 text-onyx dark:text-parchment"
         >
           <option value="" disabled>Select a game system</option>
           <option
@@ -272,80 +172,181 @@ async function checkGameStateStatus() {
       </div>
     </div>
 
-    <!-- Debug Operations Section (GM only) -->
-    <div v-if="gameSessionStore.isGameMaster && gameSessionStore.currentSession" class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6 mb-6">
-      <div class="border-b border-stone-300 dark:border-stone-600 pb-4 mb-4">
-        <h2 class="text-xl font-semibold text-dragon dark:text-gold">Debug Operations</h2>
-        <p class="text-sm text-onyx dark:text-parchment mt-2">
-          Advanced debugging tools for the current game session
+    <!-- Dice Preferences Section -->
+    <div class="bg-stone dark:bg-stone-700 rounded-lg shadow-xl border border-stone-300 dark:border-stone-600 p-6 mb-6">
+      <div class="border-b border-stone-300 dark:border-stone-600 pb-4 mb-6">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-semibold text-primary-900 dark:text-accent-500">Dice Preferences</h2>
+          <button
+            @click="resetDicePreferences"
+            class="text-sm px-3 py-1 border border-stone-300 dark:border-stone-600 rounded hover:bg-stone-200 dark:hover:bg-stone-600 text-onyx dark:text-parchment transition-colors"
+          >
+            Reset to Defaults
+          </button>
+        </div>
+        <p class="text-sm text-stone-600 dark:text-stone-400 mt-2">
+          Customize how your dice appear when you roll. Other players will see your personalized dice.
         </p>
       </div>
 
-      <div class="debug-operations">
-        <div class="operation-item">
-          <div class="operation-info">
-            <h3 class="text-base font-medium text-onyx dark:text-parchment">Reset Game State Hash</h3>
-            <p class="text-sm text-onyx/70 dark:text-parchment/70 mt-1">
-              Recalculates the game state hash from current data. Use if you encounter "State integrity validation failed" errors.
-            </p>
-          </div>
-          <button 
-            @click="resetGameStateHash"
-            :disabled="hashResetLoading"
-            class="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
-          >
-            <div v-if="hashResetLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            <span>{{ hashResetLoading ? 'Resetting...' : 'Reset Hash' }}</span>
-          </button>
-        </div>
-
-        <div class="operation-item">
-          <div class="operation-info">
-            <h3 class="text-base font-medium text-onyx dark:text-parchment">Re-initialize Game State</h3>
-            <p class="text-sm text-onyx/70 dark:text-parchment/70 mt-1">
-              Completely rebuilds game state from campaign data (characters, actors, items). This is a "nuclear option" - use only when game state is corrupted.
-            </p>
-          </div>
-          <button 
-            @click="reinitializeGameState"
-            :disabled="reinitializeLoading"
-            class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
-          >
-            <div v-if="reinitializeLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            <span>{{ reinitializeLoading ? 'Re-initializing...' : 'Re-initialize Game State' }}</span>
-          </button>
-        </div>
-
-        <div class="operation-item">
-          <div class="operation-info">
-            <h3 class="text-base font-medium text-onyx dark:text-parchment">Check Game State Status</h3>
-            <p class="text-sm text-onyx/70 dark:text-parchment/70 mt-1">
-              Validates whether the current game state hash matches the stored data. Use to diagnose "State integrity validation failed" errors.
-            </p>
-            <div v-if="statusResult" class="mt-2 p-2 rounded border">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium" 
-                      :class="statusResult.isHashValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                  {{ statusResult.isHashValid ? '✓ Hash Valid' : '✗ Hash Invalid' }}
-                </span>
-              </div>
-              <div v-if="statusResult.storedHash && statusResult.calculatedHash" class="text-xs text-onyx/60 dark:text-parchment/60 mt-1">
-                <div>Stored: {{ statusResult.storedHash }}</div>
-                <div>Current: {{ statusResult.calculatedHash }}</div>
-              </div>
+      <div class="space-y-6">
+        <!-- Color Customization -->
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+              Dice Color
+            </label>
+            <div class="flex items-center space-x-3">
+              <input
+                v-model="dicePreferences.theme_customColorset.background"
+                type="color"
+                class="w-12 h-10 rounded border border-stone-300 dark:border-stone-600 cursor-pointer"
+              >
+              <input
+                v-model="dicePreferences.theme_customColorset.background"
+                type="text"
+                class="flex-1 px-3 py-2 bg-parchment dark:bg-stone-600 border border-stone-300 dark:border-stone-600 rounded-md text-onyx dark:text-parchment font-mono text-sm"
+                placeholder="#00ffcb"
+              >
             </div>
           </div>
-          <button 
-            @click="checkGameStateStatus"
-            :disabled="checkStatusLoading"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+
+          <div>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+              Text Color
+            </label>
+            <div class="flex items-center space-x-3">
+              <input
+                v-model="dicePreferences.theme_customColorset.foreground"
+                type="color"
+                class="w-12 h-10 rounded border border-stone-300 dark:border-stone-600 cursor-pointer"
+              >
+              <input
+                v-model="dicePreferences.theme_customColorset.foreground"
+                type="text"
+                class="flex-1 px-3 py-2 bg-parchment dark:bg-stone-600 border border-stone-300 dark:border-stone-600 rounded-md text-onyx dark:text-parchment font-mono text-sm"
+                placeholder="#ffffff"
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Material Selection -->
+        <div>
+          <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+            Material
+          </label>
+          <select
+            v-model="dicePreferences.theme_material"
+            class="block w-full px-3 py-2 bg-parchment dark:bg-stone-600 border border-stone-300 dark:border-stone-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-900 focus:border-primary-900 text-onyx dark:text-parchment"
           >
-            <div v-if="checkStatusLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            <span>{{ checkStatusLoading ? 'Checking...' : 'Check Status' }}</span>
-          </button>
+            <option
+              v-for="material in materialOptions"
+              :key="material.value"
+              :value="material.value"
+            >
+              {{ material.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Physics Settings -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-onyx dark:text-parchment">Physics & Effects</h3>
+          
+          <!-- Light Intensity -->
+          <div>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+              Light Intensity: {{ dicePreferences.light_intensity.toFixed(1) }}
+            </label>
+            <input
+              v-model.number="dicePreferences.light_intensity"
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              class="w-full h-2 bg-stone-200 dark:bg-stone-600 rounded-lg appearance-none cursor-pointer slider"
+            >
+            <div class="flex justify-between text-xs text-stone-500 mt-1">
+              <span>Dim</span>
+              <span>Bright</span>
+            </div>
+          </div>
+
+          <!-- Gravity -->
+          <div>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+              Gravity: {{ dicePreferences.gravity_multiplier }}
+            </label>
+            <input
+              v-model.number="dicePreferences.gravity_multiplier"
+              type="range"
+              min="100"
+              max="1000"
+              step="50"
+              class="w-full h-2 bg-stone-200 dark:bg-stone-600 rounded-lg appearance-none cursor-pointer slider"
+            >
+            <div class="flex justify-between text-xs text-stone-500 mt-1">
+              <span>Light</span>
+              <span>Heavy</span>
+            </div>
+          </div>
+
+          <!-- Dice Size -->
+          <div>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+              Dice Size: {{ dicePreferences.baseScale }}%
+            </label>
+            <input
+              v-model.number="dicePreferences.baseScale"
+              type="range"
+              min="50"
+              max="200"
+              step="10"
+              class="w-full h-2 bg-stone-200 dark:bg-stone-600 rounded-lg appearance-none cursor-pointer slider"
+            >
+            <div class="flex justify-between text-xs text-stone-500 mt-1">
+              <span>Small</span>
+              <span>Large</span>
+            </div>
+          </div>
+
+          <!-- Roll Strength -->
+          <div>
+            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">
+              Roll Strength: {{ dicePreferences.strength }}
+            </label>
+            <input
+              v-model.number="dicePreferences.strength"
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              class="w-full h-2 bg-stone-200 dark:bg-stone-600 rounded-lg appearance-none cursor-pointer slider"
+            >
+            <div class="flex justify-between text-xs text-stone-500 mt-1">
+              <span>Gentle</span>
+              <span>Strong</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sound Settings -->
+        <div>
+          <label class="flex items-center space-x-3">
+            <input
+              v-model="dicePreferences.sounds"
+              type="checkbox"
+              class="w-4 h-4 text-dragon bg-parchment border-stone-300 rounded focus:ring-dragon dark:focus:ring-dragon dark:ring-offset-stone-800 focus:ring-2 dark:bg-stone-600 dark:border-stone-500"
+            >
+            <span class="text-sm font-medium text-onyx dark:text-parchment">
+              Enable dice sound effects
+            </span>
+          </label>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -355,40 +356,45 @@ async function checkGameStateStatus() {
   margin: 0 auto;
 }
 
-.debug-operations {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+/* Range slider styling */
+.slider {
+  @apply bg-stone-200 dark:bg-stone-600 rounded-lg appearance-none cursor-pointer;
 }
 
-.operation-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid rgba(120, 113, 108, 0.2);
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.5);
+.slider::-webkit-slider-thumb {
+  @apply appearance-none w-4 h-4 bg-primary-900 rounded-full cursor-pointer;
 }
 
-.dark .operation-item {
-  background: rgba(0, 0, 0, 0.2);
-  border-color: rgba(120, 113, 108, 0.3);
+.slider::-moz-range-thumb {
+  @apply w-4 h-4 bg-primary-900 rounded-full cursor-pointer border-0;
 }
 
-.operation-info {
-  flex: 1;
+.slider::-ms-thumb {
+  @apply w-4 h-4 bg-primary-900 rounded-full cursor-pointer border-0;
 }
 
-@media (max-width: 768px) {
-  .operation-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .operation-item button {
-    align-self: flex-start;
-  }
+/* Color input styling */
+input[type="color"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
 }
 </style>

@@ -13,6 +13,7 @@ import { createMongoSchema } from '../../../models/zod-to-mongo.mjs';
  * Create Mongoose schema with base configuration
  */
 const mongooseSchema = createMongoSchema<IInvite>(inviteSchema.merge(baseMongooseZodSchema));
+mongooseSchema.set('minimize', false);
 
 // Override campaignId field to be a reference to Campaign model
 mongooseSchema.path('campaignId', mongoose.Schema.Types.ObjectId);

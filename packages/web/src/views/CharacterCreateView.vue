@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, markRaw } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
+import { useSocketStore } from '../stores/socket.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
@@ -22,6 +23,7 @@ const assetsClient = new AssetsClient();
 const charactersClient = new CharactersClient();
 const router = useRouter();
 const gameStateStore = useGameStateStore();
+const socketStore = useSocketStore();
 const activeGameSystemId = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -210,6 +212,7 @@ async function handleCharacterReady(preparedData: any) {
         try {
           const itemDocumentData = {
             ...itemData,
+            ownerId: socketStore.userId, // Set the current user as owner
             carrierId: response.id // Set the character as carrier of the item
           };
           
@@ -381,9 +384,9 @@ async function handleSubmit() {
     <div v-else-if="plugin">
       <!-- Step 1: Basic Info -->
       <div v-show="currentStep === 1" class="character-create-form">
-        <h2 class="text-3xl font-bold text-center text-dragon dark:text-dragon-400 mb-8">Basic Information</h2>
+        <h2 class="text-3xl font-heading font-bold text-center mb-8" style="color: rgb(255, 80, 80); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);">Basic Information</h2>
         <div class="form-group">
-          <label for="name">Character Name</label>
+          <label for="name" class="form-label">Character Name</label>
           <input
             type="text"
             id="name"
@@ -396,7 +399,7 @@ async function handleSubmit() {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
           <div class="form-group">
-            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">Avatar</label>
+            <label class="form-label">Avatar</label>
             <ImageUpload v-model="basicInfo.avatarImage" type="avatar" />
             <div v-if="basicInfo.avatarImage" class="mt-1 text-xs text-ash dark:text-stone-300">
               {{
@@ -409,7 +412,7 @@ async function handleSubmit() {
           </div>
 
           <div class="form-group">
-            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-2">Token</label>
+            <label class="form-label">Token</label>
             <ImageUpload v-model="basicInfo.tokenImage" type="token" />
             <div v-if="basicInfo.tokenImage" class="mt-1 text-xs text-ash dark:text-stone-300">
               {{
@@ -423,7 +426,7 @@ async function handleSubmit() {
         </div>
 
         <div class="form-group">
-          <label for="description">Description</label>
+          <label for="description" class="form-label">Description</label>
           <textarea
             id="description"
             v-model="basicInfo.description"
@@ -579,14 +582,51 @@ async function handleSubmit() {
   color: rgb(var(--text-primary));
 }
 
+.form-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-family: 'MedievalSharp', cursive;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: rgb(255 80 80) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
 .form-input,
 .form-textarea {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid rgb(var(--border-primary));
-  border-radius: 0.25rem;
-  background-color: rgb(var(--bg-primary));
+  padding: 0.75rem;
+  border: 2px solid rgb(var(--border-primary));
+  border-radius: 0.375rem;
+  background-color: white !important;
   color: rgb(var(--text-primary));
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: rgb(139 30 30);
+  box-shadow: 0 0 0 3px rgba(139 30 30, 0.1);
+}
+
+/* Nuclear option: maximum specificity for text inputs */
+.dark .character-create-form .form-group input[type="text"].form-input,
+.dark .character-create-form input[type="text"],
+.dark .form-group input[type="text"].form-input,
+.dark input[type="text"].form-input,
+.dark .form-input,
+.dark .form-textarea {
+  background-color: rgb(10, 10, 10) !important;
+  color: rgb(245 241 232) !important;
+  border-color: rgb(75 75 75) !important;
+}
+
+.dark .form-input:focus,
+.dark .form-textarea:focus {
+  border-color: rgb(139 30 30);
+  box-shadow: 0 0 0 3px rgba(139 30 30, 0.1);
 }
 
 .form-textarea {

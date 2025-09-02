@@ -35,12 +35,10 @@ export interface ActionRequestResult {
 export interface MoveTokenParameters extends Record<string, unknown> {
   tokenId: string;
   newPosition: {
-    x: number; // World coordinates
-    y: number; // World coordinates
+    gridX: number; // Grid cell X coordinate (integer) for top-left corner
+    gridY: number; // Grid cell Y coordinate (integer) for top-left corner
     elevation?: number;
   };
-  distance?: number; // Distance in world pixels
-  remainingMovement?: number; // Remaining movement in feet (temporary)
 }
 
 /**
@@ -52,12 +50,33 @@ export interface RemoveTokenParameters extends Record<string, unknown> {
 }
 
 /**
+ * Add token action parameters
+ */
+export interface AddTokenParameters extends Record<string, unknown> {
+  documentId: string;
+  gridPosition: {
+    x: number; // Grid cell X coordinate (integer) for top-left corner
+    y: number; // Grid cell Y coordinate (integer) for top-left corner
+  };
+  elevation?: number;
+}
+
+/**
  * Document addition action parameters
  */
 export interface AddDocumentParameters extends Record<string, unknown> {
   compendiumId: string;
   entryId: string;
   documentData: Record<string, unknown>;
+}
+
+/**
+ * Document removal action parameters
+ */
+export interface RemoveDocumentParameters extends Record<string, unknown> {
+  documentId: string;
+  documentName?: string; // For user-friendly messaging
+  documentType?: string; // For context in GM approval
 }
 
 /**

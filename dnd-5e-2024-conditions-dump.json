@@ -1,0 +1,842 @@
+[
+  {
+    "_id": "68a82b3b1e40b94f120d25df",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Blinded",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d25d9"
+    },
+    "content": {
+      "id": "condition-blinded",
+      "name": "Blinded",
+      "description": "While you have the Blinded condition, you experience the following effects.\n\nYou can't see and automatically fail any ability check that requires sight.\n\nAttack rolls against you have Advantage, and your attack rolls have Disadvantage.",
+      "slug": "blinded",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Blinded",
+        "description": "While you have the Blinded condition, you experience the following effects.\n\nYou can't see and automatically fail any ability check that requires sight.\n\nAttack rolls against you have Advantage, and your attack rolls have Disadvantage.",
+        "effects": {
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": true,
+            "prevented": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 361
+      },
+      "imageId": "68a82b3b1e40b94f120d25db",
+      "tokenImageId": "68a82b3b1e40b94f120d25dd",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/blinded.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.070Z",
+    "updatedAt": "2025-08-22T08:32:59.070Z",
+    "contentHash": "ea0b8ddfe7c84aa6",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d25e9",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Charmed",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d25e3"
+    },
+    "content": {
+      "id": "condition-charmed",
+      "name": "Charmed",
+      "description": "While you have the Charmed condition, you experience the following effects.\n\nYou can't attack the charmer or target the charmer with damaging abilities or Magical Effect.\n\nThe charmer has Advantage on any ability check to interact with you socially.",
+      "slug": "charmed",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Charmed",
+        "description": "While you have the Charmed condition, you experience the following effects.\n\nYou can't attack the charmer or target the charmer with damaging abilities or Magical Effect.\n\nThe charmer has Advantage on any ability check to interact with you socially.",
+        "effects": {
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": true
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 361
+      },
+      "imageId": "68a82b3b1e40b94f120d25e5",
+      "tokenImageId": "68a82b3b1e40b94f120d25e7",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/charmed.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.115Z",
+    "updatedAt": "2025-08-22T08:32:59.115Z",
+    "contentHash": "387db818d83698e9",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d25f3",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Deafened",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d25ed"
+    },
+    "content": {
+      "id": "condition-deafened",
+      "name": "Deafened",
+      "description": "While you have the Deafened condition, you experience the following effect.\n\nYou can't hear and automatically fail any ability check that requires hearing.",
+      "slug": "deafened",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Deafened",
+        "description": "While you have the Deafened condition, you experience the following effect.\n\nYou can't hear and automatically fail any ability check that requires hearing.",
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 365
+      },
+      "imageId": "68a82b3b1e40b94f120d25ef",
+      "tokenImageId": "68a82b3b1e40b94f120d25f1",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/deafened.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.158Z",
+    "updatedAt": "2025-08-22T08:32:59.158Z",
+    "contentHash": "f5de7c9e88e7d14e",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d25f7",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Exhaustion",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0
+    },
+    "content": {
+      "id": "condition-exhaustion",
+      "name": "Exhaustion",
+      "description": "While you have the Exhaustion condition, you experience the following effects.\n\nThis condition is cumulative. Each time you receive it, you gain 1 Exhaustion level. You die if your Exhaustion level is 6.\n\nWhen you make a D20 Test the roll is reduced by 2 times your Exhaustion level.\n\nYour Speed is reduced by a number of feet equal to 5 times your Exhaustion level.\n\nFinishing a Long Rest removes 1 of your Exhaustion levels. When your Exhaustion level reaches 0, the condition ends.",
+      "slug": "exhaustion",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Exhaustion",
+        "description": "While you have the Exhaustion condition, you experience the following effects.\n\nThis condition is cumulative. Each time you receive it, you gain 1 Exhaustion level. You die if your Exhaustion level is 6.\n\nWhen you make a D20 Test the roll is reduced by 2 times your Exhaustion level.\n\nYour Speed is reduced by a number of feet equal to 5 times your Exhaustion level.\n\nFinishing a Long Rest removes 1 of your Exhaustion levels. When your Exhaustion level reaches 0, the condition ends.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 365
+      },
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/exhaustion.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.169Z",
+    "updatedAt": "2025-08-22T08:32:59.169Z",
+    "contentHash": "cdc304e4eb91b4dd",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2601",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Frightened",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d25fb"
+    },
+    "content": {
+      "id": "condition-frightened",
+      "name": "Frightened",
+      "description": "While you have the Frightened condition, you experience the following effects.\n\nYou have Disadvantage on ability checks and attack rolls while the source of fear is within line of sight.\n\nYou can't willingly move closer to the source of fear.",
+      "slug": "frightened",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Frightened",
+        "description": "While you have the Frightened condition, you experience the following effects.\n\nYou have Disadvantage on ability checks and attack rolls while the source of fear is within line of sight.\n\nYou can't willingly move closer to the source of fear.",
+        "effects": {
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 367
+      },
+      "imageId": "68a82b3b1e40b94f120d25fd",
+      "tokenImageId": "68a82b3b1e40b94f120d25ff",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/frightened.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.213Z",
+    "updatedAt": "2025-08-22T08:32:59.213Z",
+    "contentHash": "5375948a2b403561",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d260b",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Grappled",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d2605"
+    },
+    "content": {
+      "id": "condition-grappled",
+      "name": "Grappled",
+      "description": "While you have the Grappled condition, you experience the following effects.\n\nYour Speed is 0 and can't increase.\n\nYou have Disadvantage on attack rolls against any target other than the grappler.\n\nThe grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it.",
+      "slug": "grappled",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Grappled",
+        "description": "While you have the Grappled condition, you experience the following effects.\n\nYour Speed is 0 and can't increase.\n\nYou have Disadvantage on attack rolls against any target other than the grappler.\n\nThe grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 367
+      },
+      "imageId": "68a82b3b1e40b94f120d2607",
+      "tokenImageId": "68a82b3b1e40b94f120d2609",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/grappled.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.253Z",
+    "updatedAt": "2025-08-22T08:32:59.253Z",
+    "contentHash": "bfd91a2d4db60754",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d260f",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Incapacitated",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0
+    },
+    "content": {
+      "id": "condition-incapacitated",
+      "name": "Incapacitated",
+      "description": "While you have the Incapacitated condition, you experience the following effects.\n\nYou can't take any Action, Bonus Action, or Reaction.\n\nYour Concentration is broken.\n\nYou can't speak.\n\nIf you're Incapacitated when you roll Initiative, you have Disadvantage on the roll.",
+      "slug": "incapacitated",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Incapacitated",
+        "description": "While you have the Incapacitated condition, you experience the following effects.\n\nYou can't take any Action, Bonus Action, or Reaction.\n\nYour Concentration is broken.\n\nYou can't speak.\n\nIf you're Incapacitated when you roll Initiative, you have Disadvantage on the roll.",
+        "effects": {
+          "actions": {
+            "prevented": false,
+            "disadvantage": true
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 369
+      },
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/incapacitated.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.264Z",
+    "updatedAt": "2025-08-22T08:32:59.264Z",
+    "contentHash": "f44a9a7a3665f6dd",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2619",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Invisible",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d2613"
+    },
+    "content": {
+      "id": "condition-invisible",
+      "name": "Invisible",
+      "description": "While you have the Invisible condition, you experience the following effects.\n\nIf you're Invisible when you roll Initiative, you have Advantage on the roll.\n\nYou aren't affected by any effect that requires its target to be seen unless the effect's creator can somehow see you. Any equipment you are wearing or carrying is also concealed.\n\nAttack rolls against you have Disadvantage, and your attack rolls have Advantage. If a creature can somehow see you, you don't gain this benefit against that creature.",
+      "slug": "invisible",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Invisible",
+        "description": "While you have the Invisible condition, you experience the following effects.\n\nIf you're Invisible when you roll Initiative, you have Advantage on the roll.\n\nYou aren't affected by any effect that requires its target to be seen unless the effect's creator can somehow see you. Any equipment you are wearing or carrying is also concealed.\n\nAttack rolls against you have Disadvantage, and your attack rolls have Advantage. If a creature can somehow see you, you don't gain this benefit against that creature.",
+        "effects": {
+          "attackRolls": {
+            "advantage": true,
+            "disadvantage": false,
+            "prevented": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 370
+      },
+      "imageId": "68a82b3b1e40b94f120d2615",
+      "tokenImageId": "68a82b3b1e40b94f120d2617",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/invisible.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.299Z",
+    "updatedAt": "2025-08-22T08:32:59.299Z",
+    "contentHash": "d6c62342c971afff",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2623",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Paralyzed",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d261d"
+    },
+    "content": {
+      "id": "condition-paralyzed",
+      "name": "Paralyzed",
+      "description": "While you have the Paralyzed condition, you experience the following effects.\n\nYou have the Incapacitated condition.\n\nYour Speed is 0 and can't increase.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nAttack rolls against you have Advantage.\n\nAny attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.",
+      "slug": "paralyzed",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Paralyzed",
+        "description": "While you have the Paralyzed condition, you experience the following effects.\n\nYou have the Incapacitated condition.\n\nYour Speed is 0 and can't increase.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nAttack rolls against you have Advantage.\n\nAny attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          },
+          "actions": {
+            "prevented": false,
+            "disadvantage": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          },
+          "savingThrows": {
+            "advantage": false,
+            "disadvantage": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 371
+      },
+      "imageId": "68a82b3b1e40b94f120d261f",
+      "tokenImageId": "68a82b3b1e40b94f120d2621",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/paralyzed.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.337Z",
+    "updatedAt": "2025-08-22T08:32:59.337Z",
+    "contentHash": "03eacf015a3409f0",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d262d",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Petrified",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d2627"
+    },
+    "content": {
+      "id": "condition-petrified",
+      "name": "Petrified",
+      "description": "While you have the Petrified condition, you experience the following effects.\n\nYou are transformed, along with any nonmagical objects you are wearing and carrying, into a solid inanimate substance (usually stone). Your weight increases by a factor of ten, and you cease aging.\n\nYou have the Incapacitated condition.\n\nYour Speed is 0 and can't increase.\n\nAttack rolls against you have Advantage.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nYou have Resistance to all damage.\n\nYou have Immunity to the Poisoned condition.",
+      "slug": "petrified",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Petrified",
+        "description": "While you have the Petrified condition, you experience the following effects.\n\nYou are transformed, along with any nonmagical objects you are wearing and carrying, into a solid inanimate substance (usually stone). Your weight increases by a factor of ten, and you cease aging.\n\nYou have the Incapacitated condition.\n\nYour Speed is 0 and can't increase.\n\nAttack rolls against you have Advantage.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nYou have Resistance to all damage.\n\nYou have Immunity to the Poisoned condition.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          },
+          "actions": {
+            "prevented": false,
+            "disadvantage": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          },
+          "savingThrows": {
+            "advantage": false,
+            "disadvantage": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 372
+      },
+      "imageId": "68a82b3b1e40b94f120d2629",
+      "tokenImageId": "68a82b3b1e40b94f120d262b",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/petrified.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.372Z",
+    "updatedAt": "2025-08-22T08:32:59.372Z",
+    "contentHash": "649b59bcf0093bc6",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2637",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Poisoned",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d2631"
+    },
+    "content": {
+      "id": "condition-poisoned",
+      "name": "Poisoned",
+      "description": "While you have the Poisoned condition, you experience the following effect.\n\nYou have Disadvantage on attack rolls and ability checks.",
+      "slug": "poisoned",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Poisoned",
+        "description": "While you have the Poisoned condition, you experience the following effect.\n\nYou have Disadvantage on attack rolls and ability checks.",
+        "effects": {
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 372
+      },
+      "imageId": "68a82b3b1e40b94f120d2633",
+      "tokenImageId": "68a82b3b1e40b94f120d2635",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/poisoned.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.407Z",
+    "updatedAt": "2025-08-22T08:32:59.407Z",
+    "contentHash": "c639c43b6c342fd7",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2641",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Prone",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d263b"
+    },
+    "content": {
+      "id": "condition-prone",
+      "name": "Prone",
+      "description": "While you have the Prone condition, you experience the following effects.\n\nYour only movement options are to Crawling or to spend an amount of movement equal to half your Speed (round down) to right yourself and thereby end the condition. If your Speed is 0, you can't right yourself.\n\nYou have Disadvantage on attack rolls. An attack roll against you has Advantage if the attacker is within 5 feet of you. Otherwise, that attack roll has Disadvantage.",
+      "slug": "prone",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Prone",
+        "description": "While you have the Prone condition, you experience the following effects.\n\nYour only movement options are to Crawling or to spend an amount of movement equal to half your Speed (round down) to right yourself and thereby end the condition. If your Speed is 0, you can't right yourself.\n\nYou have Disadvantage on attack rolls. An attack roll against you has Advantage if the attacker is within 5 feet of you. Otherwise, that attack roll has Disadvantage.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 372
+      },
+      "imageId": "68a82b3b1e40b94f120d263d",
+      "tokenImageId": "68a82b3b1e40b94f120d263f",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/prone.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.444Z",
+    "updatedAt": "2025-08-22T08:32:59.444Z",
+    "contentHash": "b5a602b2068ba68d",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d264b",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Restrained",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d2645"
+    },
+    "content": {
+      "id": "condition-restrained",
+      "name": "Restrained",
+      "description": "While you have the Restrained condition, you experience the following effects.\n\nYour Speed is 0 and can't increase.\n\nAttack rolls against you have Advantage, and your attack rolls have Disadvantage.\n\nYou have Disadvantage on Dexterity Saving Throw.",
+      "slug": "restrained",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Restrained",
+        "description": "While you have the Restrained condition, you experience the following effects.\n\nYour Speed is 0 and can't increase.\n\nAttack rolls against you have Advantage, and your attack rolls have Disadvantage.\n\nYou have Disadvantage on Dexterity Saving Throw.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": true,
+            "prevented": false
+          },
+          "savingThrows": {
+            "advantage": false,
+            "disadvantage": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 373
+      },
+      "imageId": "68a82b3b1e40b94f120d2647",
+      "tokenImageId": "68a82b3b1e40b94f120d2649",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/restrained.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.482Z",
+    "updatedAt": "2025-08-22T08:32:59.482Z",
+    "contentHash": "fb22de44b0b5c841",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2655",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Stunned",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d264f"
+    },
+    "content": {
+      "id": "condition-stunned",
+      "name": "Stunned",
+      "description": "While you have the Stunned condition, you experience the following effects.\n\nYou have the Incapacitated condition.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nAttack rolls against you have Advantage.",
+      "slug": "stunned",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Stunned",
+        "description": "While you have the Stunned condition, you experience the following effects.\n\nYou have the Incapacitated condition.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nAttack rolls against you have Advantage.",
+        "effects": {
+          "actions": {
+            "prevented": true,
+            "disadvantage": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          },
+          "savingThrows": {
+            "advantage": false,
+            "disadvantage": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 376
+      },
+      "imageId": "68a82b3b1e40b94f120d2651",
+      "tokenImageId": "68a82b3b1e40b94f120d2653",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/stunned.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.578Z",
+    "updatedAt": "2025-08-22T08:32:59.578Z",
+    "contentHash": "0169c3f8923da21c",
+    "__v": 0
+  },
+  {
+    "_id": "68a82b3b1e40b94f120d2660",
+    "compendiumId": "6891ec381f2d2649e7f058b3",
+    "entry": {
+      "name": "Unconscious",
+      "documentType": "vtt-document",
+      "category": "Conditions",
+      "tags": [
+        "condition",
+        "xphb"
+      ],
+      "sortOrder": 0,
+      "imageId": "68a82b3b1e40b94f120d2659"
+    },
+    "content": {
+      "id": "condition-unconscious",
+      "name": "Unconscious",
+      "description": "While you have the Unconscious condition, you experience the following effects.\n\nYou have the Incapacitated and Prone conditions, and you drop whatever you're holding. When this condition ends, you remain Prone.\n\nYour Speed is 0 and can't increase.\n\nAttack rolls against you have Advantage.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nAny attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.\n\nYou're unaware of your surroundings.",
+      "slug": "unconscious",
+      "pluginDocumentType": "condition",
+      "pluginId": "dnd-5e-2024",
+      "source": "XPHB",
+      "pluginData": {
+        "name": "Unconscious",
+        "description": "While you have the Unconscious condition, you experience the following effects.\n\nYou have the Incapacitated and Prone conditions, and you drop whatever you're holding. When this condition ends, you remain Prone.\n\nYour Speed is 0 and can't increase.\n\nAttack rolls against you have Advantage.\n\nYou automatically fail Strength and Dexterity Saving Throw.\n\nAny attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.\n\nYou're unaware of your surroundings.",
+        "effects": {
+          "movement": {
+            "prevented": true,
+            "reduced": false
+          },
+          "actions": {
+            "prevented": false,
+            "disadvantage": false
+          },
+          "attackRolls": {
+            "advantage": false,
+            "disadvantage": false,
+            "prevented": false
+          },
+          "savingThrows": {
+            "advantage": false,
+            "disadvantage": false
+          }
+        },
+        "duration": {
+          "type": "until_removed",
+          "specific": "Varies by source"
+        },
+        "source": "XPHB",
+        "page": 376
+      },
+      "imageId": "68a82b3b1e40b94f120d265b",
+      "tokenImageId": "68a82b3b1e40b94f120d265e",
+      "documentType": "vtt-document"
+    },
+    "isActive": true,
+    "contentVersion": "1.0.0",
+    "sourceData": {
+      "originalPath": "conditions/unconscious.json"
+    },
+    "createdAt": "2025-08-22T08:32:59.627Z",
+    "updatedAt": "2025-08-22T08:32:59.627Z",
+    "contentHash": "b27a13913887f03c",
+    "__v": 0
+  }
+]

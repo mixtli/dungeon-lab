@@ -25,6 +25,7 @@ export const tokenConditionSchema = z.object({
   source: z.string().optional()
 });
 
+
 // Base token schema with required fields
 const baseTokenSchema = z.object({
   name: z.string().min(1).max(255),

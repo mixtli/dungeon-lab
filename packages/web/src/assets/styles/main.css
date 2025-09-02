@@ -95,16 +95,25 @@
     border-color: rgb(var(--border-primary)) !important;
   }
 
+
   /* For white background inputs that might be using custom classes */
   .dark
     input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not(
       [type='reset']
-    ):not(.bg-transparent),
-  .dark textarea:not(.bg-transparent),
+    ):not(.bg-transparent):not(.form-input),
+  .dark textarea:not(.bg-transparent):not(.form-textarea),
   .dark select:not(.bg-transparent) {
     background-color: rgb(var(--bg-card)) !important;
     color: rgb(var(--text-primary)) !important;
     border-color: rgb(var(--border-primary)) !important;
+  }
+
+  /* FINAL OVERRIDE: Character creation form inputs need proper contrast */
+  .dark .character-create-form input[type='text'].form-input,
+  .dark .form-input {
+    background-color: rgb(10, 10, 10) !important;
+    color: rgb(245, 241, 232) !important;
+    border-color: rgb(75, 75, 75) !important;
   }
 
   /* Fix text contrast in modals with backgrounds */

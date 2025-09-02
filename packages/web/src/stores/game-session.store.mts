@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, onMounted } from 'vue';
-import type { IGameSession, IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { IGameSession, IActor, JsonPatchOperation } from '@dungeon-lab/shared/types/index.mjs';
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
+import { useGameStateStore } from './game-state.store.mjs';
+import { CampaignsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { gmActionHandlerService } from '../services/gm-action-handler.service.mjs';
 import type { z } from 'zod';
 import {
@@ -19,7 +20,8 @@ export const useGameSessionStore = defineStore(
     const authStore = useAuthStore();
     const socketStore = useSocketStore();
     // const _chatStore = useChatStore();
-    const actorClient = new ActorsClient();
+    const campaignClient = new CampaignsClient();
+    const documentsClient = new DocumentsClient();
 
     // State
     const currentSession = ref<IGameSession | null>(null);
@@ -63,8 +65,8 @@ export const useGameSessionStore = defineStore(
     // Helper function to attempt joining a session with the current session
     function attemptJoinSession() {
       if (currentSession.value && socketStore.connected) {
-        console.log('Attempting to join session:', currentSession.value.id, 'with character:', currentCharacter.value?.id);
-        joinSession(currentSession.value.id, currentCharacter.value?.id).catch(err => {
+        console.log('Attempting to join session:', currentSession.value.id);
+        joinSession(currentSession.value.id).catch(err => {
           console.error('Failed to join session:', err);
         });
       }
@@ -76,7 +78,7 @@ export const useGameSessionStore = defineStore(
     });
 
     // Actions
-    async function joinSession(sessionId: string, actorId?: string) {
+    async function joinSession(sessionId: string) {
       console.log('joinSession called with sessionId:', sessionId);
       loading.value = true;
       error.value = null;
@@ -128,21 +130,22 @@ export const useGameSessionStore = defineStore(
               if (response.success && response.session) {
                 currentSession.value = response.session as IGameSession;
 
-                // If joining with an actor, set it as the current character
-                if (actorId) {
-                  // Find the actor in the session's characters
-                  const session = response.session as IGameSession;
-                  const actor = session.characters?.find((c) => c.id === actorId);
-                  if (actor && actor.documentType === 'actor') {
-                    currentCharacter.value = actor;
-                    // TODO: Update game state store with selected character
-                    // const gameStateStore = useGameStateStore();
-                    // gameStateStore.selectedCharacter = actor;
-                  }
-                }
 
                 // Session joined successfully - campaign data will be available through game state
                 const session = response.session as IGameSession;
+
+                // Set the active game system for plugin context
+                if (session.campaignId) {
+                  try {
+                    const campaign = await campaignClient.getCampaign(session.campaignId);
+                    if (campaign?.pluginId) {
+                      localStorage.setItem('activeGameSystem', campaign.pluginId);
+                      console.log('[GameSession] Set activeGameSystem to:', campaign.pluginId);
+                    }
+                  } catch (error) {
+                    console.warn('[GameSession] Failed to fetch campaign for activeGameSystem:', error);
+                  }
+                }
 
                 // Initialize GM action handler if this user is the GM
                 const isGM = session.gameMasterId === authStore.user?.id;
@@ -198,27 +201,97 @@ export const useGameSessionStore = defineStore(
       socketStore.socket.off('gameSession:ended');
 
       // Listen for user joined events
-      socketStore.socket.on('gameSession:joined', async (data: { userId: string, sessionId: string, actorId?: string }) => {
+      socketStore.socket.on('gameSession:joined', async (data: { userId: string, sessionId: string, userName: string, isGM: boolean, timestamp: number }) => {
         console.log('[Socket] Received gameSession:joined event:', data);
         
-        if (data.sessionId === sessionId && data.actorId) {
-          try {
-            // Fetch the actor details
-            const actor = await actorClient.getActor(data.actorId);
-            
-            if (actor) {
-              // Add the character to the current session if not already there
-              if (currentSession.value && currentSession.value.characters) {
-                const existingIndex = currentSession.value.characters.findIndex(c => c.id === actor.id);
-                if (existingIndex === -1) {
-                  currentSession.value.characters.push(actor);
-                }
-              }
+        if (data.sessionId === sessionId) {
+          // GM-only logic: Add user's characters and items to gameState
+          console.log('[GameSession] Checking if should add user documents:', {
+            isGameMaster: isGameMaster.value,
+            joiningUserId: data.userId,
+            currentUserId: authStore.user?.id
+          });
+          
+          if (isGameMaster.value) {
+            try {
+              const gameStateStore = useGameStateStore();
               
-              // System message is now sent from server, no need to send from client
+              // Only proceed if we have gameState with campaign info
+              console.log('[GameSession] Game state check:', {
+                hasGameState: !!gameStateStore.gameState,
+                hasCampaign: !!gameStateStore.gameState?.campaign,
+                campaignId: gameStateStore.gameState?.campaign?.id
+              });
+              
+              if (gameStateStore.gameState?.campaign?.id) {
+                const campaignId = gameStateStore.gameState.campaign.id;
+                console.log('[GameSession] Querying user documents for campaign:', campaignId);
+                
+                // Query user's characters for this campaign
+                const userCharacters = await documentsClient.searchDocuments({
+                  documentType: 'character',
+                  ownerId: data.userId,
+                  campaignId: campaignId
+                });
+                
+                // Query user's items for this campaign
+                const userItems = await documentsClient.searchDocuments({
+                  documentType: 'item',
+                  ownerId: data.userId,
+                  campaignId: campaignId
+                });
+                
+                console.log('[GameSession] Found user documents:', {
+                  characters: userCharacters.length,
+                  items: userItems.length,
+                  characterIds: userCharacters.map(c => c.id),
+                  itemIds: userItems.map(i => i.id)
+                });
+                
+                const operations: JsonPatchOperation[] = [];
+                
+                // Add missing characters to encounter participants
+                if (gameStateStore.gameState.currentEncounter) {
+                  const existingParticipants = gameStateStore.gameState.currentEncounter.participants || [];
+                  
+                  for (const character of userCharacters) {
+                    if (!existingParticipants.includes(character.id)) {
+                      operations.push({
+                        op: 'add' as const,
+                        path: '/currentEncounter/participants/-',
+                        value: character.id
+                      });
+                    }
+                  }
+                }
+                
+                // Add missing documents to gameState
+                const existingDocuments = gameStateStore.gameState.documents || {};
+                const documentsToAdd = [...userCharacters, ...userItems];
+                
+                for (const document of documentsToAdd) {
+                  if (!existingDocuments[document.id]) {
+                    operations.push({
+                      op: 'add' as const,
+                      path: `/documents/${document.id}`,
+                      value: document
+                    });
+                  }
+                }
+                
+                // Apply operations if there are any
+                if (operations.length > 0) {
+                  console.log(`[GameSession] GM adding ${userCharacters.length} characters and ${userItems.length} items for user ${data.userId}`);
+                  await gameStateStore.updateGameState(operations);
+                }
+              } else {
+                console.log('[GameSession] Cannot add documents - no gameState or campaign');
+              }
+            } catch (err) {
+              console.error('[GameSession] Error adding user documents to gameState:', err);
             }
-          } catch (err) {
-            console.error('Error fetching actor for joined user:', err);
+          } else {
+            console.log('[GameSession] Not GM, skipping document sync');
           }
         }
       });

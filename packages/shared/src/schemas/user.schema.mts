@@ -3,11 +3,28 @@ import { z } from 'zod';
 // Theme type
 export const UserTheme = z.enum(['light', 'dark', 'system']);
 
+// Dice preferences schema - based on current dice-3d.service defaults
+export const dicePreferencesSchema = z.object({
+  theme_customColorset: z.object({
+    background: z.string().default("#00ffcb"),  // Current cyan default
+    foreground: z.string().default("#ffffff"),  // White text
+    texture: z.string().default("marble"),      // Current texture
+    material: z.string().default("metal")       // Current material
+  }).default({}),
+  theme_material: z.enum(['none', 'metal', 'wood', 'glass', 'plastic']).default('metal'),
+  light_intensity: z.number().min(0.1).max(3).default(1),
+  gravity_multiplier: z.number().min(100).max(1000).default(600),
+  baseScale: z.number().min(50).max(200).default(100),
+  strength: z.number().min(1).max(5).default(2),
+  sounds: z.boolean().default(true)
+}).default({});
+
 // User preferences schema
 export const userPreferencesSchema = z.object({
   theme: UserTheme.default('system'),
   language: z.string().default('en'),
-  notifications: z.boolean().default(true)
+  notifications: z.boolean().default(true),
+  dicePreferences: dicePreferencesSchema
 });
 
 // Base User schema
@@ -48,3 +65,6 @@ export const userUpdateSchema = userSchema
     password: true
   })
   .partial();
+
+// Type exports
+export type DicePreferences = z.infer<typeof dicePreferencesSchema>;

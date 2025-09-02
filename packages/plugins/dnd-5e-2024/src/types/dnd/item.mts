@@ -131,6 +131,14 @@ export const armorSchema = z.object({
 });
 
 /**
+ * Shield item schema with shield-specific properties
+ * Extends armor schema but with distinct itemType for equipment logic
+ */
+export const shieldSchema = armorSchema.extend({
+  itemType: z.literal('shield')
+});
+
+/**
  * General gear schema for other items
  */
 export const gearSchema = z.object({
@@ -200,6 +208,7 @@ export const toolSchema = z.object({
 export const dndItemDataSchema = z.discriminatedUnion('itemType', [
   weaponSchema,
   armorSchema,
+  shieldSchema,
   gearSchema,
   toolSchema
 ]);
@@ -222,6 +231,7 @@ export type DndItemDocument = z.infer<typeof dndItemDocumentSchema>;
 /** Specific item type exports */
 export type DndWeaponData = z.infer<typeof weaponSchema>;
 export type DndArmorData = z.infer<typeof armorSchema>;
+export type DndShieldData = z.infer<typeof shieldSchema>;
 export type DndGearData = z.infer<typeof gearSchema>;
 export type DndToolData = z.infer<typeof toolSchema>;
 
@@ -229,7 +239,7 @@ export type DndToolData = z.infer<typeof toolSchema>;
  * Item type identifiers
  */
 export const itemTypeIdentifiers = [
-  'weapon', 'armor', 'gear', 'tool'
+  'weapon', 'armor', 'shield', 'gear', 'tool'
 ] as const;
 
 export type ItemTypeIdentifier = typeof itemTypeIdentifiers[number];

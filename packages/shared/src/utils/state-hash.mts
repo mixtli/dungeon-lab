@@ -1,35 +1,10 @@
 import CryptoJS from 'crypto-js';
+import stringify from 'json-stable-stringify';
 import type { ServerGameStateWithVirtuals, BaseDocument } from '../types/index.mjs';
 
 /**
- * Sort object keys recursively to ensure consistent JSON serialization
- * This ensures the same object always produces the same hash
- */
-function sortObjectKeys(obj: unknown): unknown {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-  
-  if (Array.isArray(obj)) {
-    return obj.map(sortObjectKeys);
-  }
-  
-  if (typeof obj === 'object') {
-    const sorted: Record<string, unknown> = {};
-    const keys = Object.keys(obj as Record<string, unknown>).sort();
-    
-    for (const key of keys) {
-      sorted[key] = sortObjectKeys((obj as Record<string, unknown>)[key]);
-    }
-    
-    return sorted;
-  }
-  
-  return obj;
-}
-
-/**
  * Generate a hash of the game state for integrity verification
+ * Uses json-stable-stringify for deterministic serialization across all environments
  * Uses SHA-256 to create a consistent hash of the pure game state data
  * Compatible with both Node.js and browser environments
  * 
@@ -38,11 +13,14 @@ function sortObjectKeys(obj: unknown): unknown {
  */
 export function generateStateHash(gameState: ServerGameStateWithVirtuals): string {
   try {
-    // Sort keys to ensure consistent serialization
-    const sortedState = sortObjectKeys(gameState);
+    // Use json-stable-stringify for deterministic serialization
+    // This ensures the same logical state always produces the same JSON string
+    // regardless of property enumeration order or JavaScript environment
+    const stateJson = stringify(gameState);
     
-    // Serialize to JSON
-    const stateJson = JSON.stringify(sortedState);
+    if (!stateJson) {
+      throw new Error('Failed to serialize game state to JSON');
+    }
     
     // Generate SHA-256 hash using crypto-js (works in both Node.js and browser)
     const hash = CryptoJS.SHA256(stateJson);

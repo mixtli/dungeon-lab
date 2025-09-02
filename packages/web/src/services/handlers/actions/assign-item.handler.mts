@@ -7,15 +7,16 @@
 
 import type { GameActionRequest, AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals, IItem } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 /**
  * Validate item assignment request
  */
-function validateAssignItem(
+const validateAssignItem: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as AssignItemParameters;
 
   console.log('[AssignItemHandler] Validating item assignment:', {
@@ -100,10 +101,12 @@ function validateAssignItem(
 /**
  * Execute item assignment using direct state mutation
  */
-function executeAssignItem(
+const executeAssignItem: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as AssignItemParameters;
 
   console.log('[AssignItemHandler] Executing item assignment:', {
@@ -115,10 +118,8 @@ function executeAssignItem(
   });
 
   // Get the item from the draft
+  // Validation ensures item exists
   const item = draft.documents[params.itemId] as IItem;
-  if (!item) {
-    throw new Error('Item not found during execution');
-  }
 
   // Update the carrierId field
   item.carrierId = params.targetCharacterId;
@@ -135,13 +136,13 @@ function executeAssignItem(
 /**
  * Core assign-item action handler
  */
-export const assignItemActionHandler: ActionHandler = {
+export const assignItemActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   requiresManualApproval: true, // GM approval required for item distribution
   gmOnly: false, // Players can request item assignments
   validate: validateAssignItem,
   execute: executeAssignItem,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as AssignItemParameters;
     return `wants to give "${params.itemName || 'an item'}" to ${params.targetCharacterName || 'a character'}`;
   }

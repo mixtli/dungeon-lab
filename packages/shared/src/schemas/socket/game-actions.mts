@@ -9,6 +9,7 @@ export const gameActionTypeSchema = z.enum([
   'move-token',
   'remove-token',
   'add-document',
+  'remove-document',
   'update-document',
   'assign-item',
   'end-turn',
@@ -23,8 +24,11 @@ export const gameActionRequestSchema = z.object({
   playerId: z.string(),
   sessionId: z.string(),
   timestamp: z.number(),
-  action: gameActionTypeSchema,
-  parameters: z.record(z.unknown()),
+  action: z.string(),
+  actorId: z.string().optional(), // Optional: The document ID of the acting character/actor (required by some actions)
+  actorTokenId: z.string().optional(), // Optional: Token ID for positioning/range calculations
+  targetTokenIds: z.array(z.string()).optional(), // Optional: Target token IDs for targeted actions
+  parameters: z.record(z.unknown()), // Action-specific parameters only
   description: z.string().optional()
 });
 

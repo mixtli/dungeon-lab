@@ -11,6 +11,7 @@ const campaignSchemaMongoose = campaignSchema.merge(baseMongooseZodSchema).exten
 });
 
 const mongooseSchema = createMongoSchema<ICampaign>(campaignSchemaMongoose);
+mongooseSchema.set('minimize', false);
 
 // Override pluginData to use Mixed type for flexible plugin data
 mongooseSchema.path('pluginData', mongoose.Schema.Types.Mixed);

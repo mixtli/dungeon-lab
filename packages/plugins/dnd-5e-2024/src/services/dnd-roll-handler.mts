@@ -1,5 +1,14 @@
 import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { ProcessedRollResult } from '@dungeon-lab/shared/interfaces/processed-roll-result.interface.mjs';
+import { 
+  calculateD20Total, 
+  processD20Roll, 
+  formatSkillName, 
+  createRollDescription, 
+  createRollMessage, 
+  logRollProcessing 
+} from '../utils/dnd-roll-utilities.mjs';
 
 /**
  * D&D 5e Roll Handler for Ability Checks
@@ -7,42 +16,74 @@ import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.m
  * Player clients provide UI feedback only
  */
 export class DndAbilityCheckHandler implements RollTypeHandler {
+  /**
+   * Process ability check roll and return augmented data
+   * Pure function without side effects
+   */
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+    const skill = result.arguments.pluginArgs?.skill as string | undefined;
+    const advantageMode = result.arguments.pluginArgs?.advantageMode;
+    const characterName = result.metadata.characterName;
+    
+    // Create descriptive roll message - use skill name if available, otherwise ability name
+    let baseDescription: string;
+    if (skill) {
+      const formattedSkill = formatSkillName(skill);
+      const formattedAbility = ability.slice(0, 3).toUpperCase();
+      baseDescription = `${formattedSkill} (${formattedAbility})`;
+    } else {
+      baseDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
+    }
+    
+    const rollDescription = createRollDescription(baseDescription, advantageMode as string);
+    const total = calculateD20Total(result);
+    const rollMessage = createRollMessage(characterName, rollDescription, total);
+    
+    // Use common D20 processing with custom data
+    return processD20Roll(result, 'DndAbilityCheckHandler', {
+      supportsCriticalHits: false, // Ability checks don't have critical hits
+      customProcessedData: {
+        ability,
+        skill,
+        rollDescription,
+        formattedMessage: rollMessage
+      }
+    });
+  }
+
+  /**
+   * Handle ability check roll - send chat message if GM
+   */
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    console.log('[DndAbilityCheckHandler] Processing ability check:', {
-      ability: result.arguments.pluginArgs?.ability,
-      advantageMode: result.arguments.pluginArgs?.advantageMode,
-      total: this.calculateTotal(result),
-      characterName: result.metadata.characterName,
+    const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+    const skill = result.arguments.pluginArgs?.skill as string | undefined;
+    
+    // Use common logging
+    logRollProcessing('DndAbilityCheckHandler', 'ability check', result, {
+      ability,
+      skill,
       isGM: context.isGM
     });
 
     if (context.isGM) {
-      // GM client: Calculate final result and send authoritative chat message
-      const total = this.calculateTotal(result);
-      const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
-      const skill = result.arguments.pluginArgs?.skill;
-      const advantageMode = result.arguments.pluginArgs?.advantageMode;
+      // GM client: Send chat message
+      const advantageMode = result.arguments.pluginArgs?.advantageMode as string;
       const characterName = result.metadata.characterName;
       
-      // Create descriptive roll message - use skill name if available, otherwise ability name
-      let rollDescription: string;
+      // Create descriptive roll message using utilities
+      let baseDescription: string;
       if (skill) {
-        // Format skill name (e.g., "animal-handling" -> "Animal Handling")
-        const formattedSkill = skill.split('-').map((word: string) => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
+        const formattedSkill = formatSkillName(skill);
         const formattedAbility = ability.slice(0, 3).toUpperCase();
-        rollDescription = `${formattedSkill} (${formattedAbility})`;
+        baseDescription = `${formattedSkill} (${formattedAbility})`;
       } else {
-        rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
-      }
-      if (advantageMode === 'advantage') {
-        rollDescription += ' (Advantage)';
-      } else if (advantageMode === 'disadvantage') {
-        rollDescription += ' (Disadvantage)';
+        baseDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Check`;
       }
       
-      const rollMessage = `${characterName ? `${characterName} rolled ` : ''}${rollDescription}: **${total}**`;
+      const rollDescription = createRollDescription(baseDescription, advantageMode);
+      const total = calculateD20Total(result);
+      const rollMessage = createRollMessage(characterName, rollDescription, total);
       
       // Send chat message via context (only available for GM)
       if (context.sendChatMessage) {
@@ -62,47 +103,43 @@ export class DndAbilityCheckHandler implements RollTypeHandler {
     }
   }
 
+}
+
+/**
+ * D&D 5e Roll Handler for Weapon Attacks
+ * Fixes advantage/disadvantage calculation but doesn't send chat messages
+ * (weapon attack action handler already sends chat messages)
+ */
+export class DndWeaponAttackHandler implements RollTypeHandler {
   /**
-   * Calculate the final total for an ability check
+   * Process weapon attack roll and return enhanced data with proper advantage/disadvantage calculation
    */
-  private calculateTotal(result: RollServerResult): number {
-    let total = 0;
-    
-    // Handle advantage/disadvantage for d20 rolls
-    for (const diceGroup of result.results) {
-      if (diceGroup.sides === 20 && diceGroup.results.length === 2) {
-        const advantageMode = result.arguments.pluginArgs?.advantageMode;
-        if (advantageMode === 'advantage') {
-          total += Math.max(...diceGroup.results);
-        } else if (advantageMode === 'disadvantage') {
-          total += Math.min(...diceGroup.results);
-        } else {
-          total += diceGroup.results[0];
-        }
-      } else {
-        total += diceGroup.results.reduce((sum, res) => sum + res, 0);
-      }
-    }
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    // Use common D20 processing with critical hit support
+    return processD20Roll(result, 'DndWeaponAttackHandler', {
+      supportsCriticalHits: true // Weapon attacks can crit
+    });
+  }
 
-    // Add modifiers
-    for (const modifier of result.modifiers) {
-      total += modifier.value;
-    }
+  /**
+   * Handle weapon attack roll - no chat messages needed since weapon attack action handles that
+   */
+  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    // Use common logging
+    logRollProcessing('DndWeaponAttackHandler', 'weapon attack roll', result, {
+      isGM: context.isGM
+    });
 
-    // Add custom modifier
-    total += result.arguments.customModifier;
-
-    return total;
+    // No chat messages - the weapon attack action handler already sends detailed messages
+    // This handler only fixes the calculation logic for advantage/disadvantage
   }
 }
 
 /**
- * Future: Additional D&D roll handlers
+ * Legacy attack roll handler - keeping for compatibility
  */
-
-// Example for future attack roll handler
 export class DndAttackRollHandler implements RollTypeHandler {
-  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+  async handleRoll(_result: RollServerResult, context: RollHandlerContext): Promise<void> {
     console.log('[DndAttackRollHandler] Processing attack roll (placeholder):', {
       isGM: context.isGM
     });
@@ -118,33 +155,84 @@ export class DndAttackRollHandler implements RollTypeHandler {
   }
 }
 
-// Example for future saving throw handler  
-export class DndSavingThrowHandler implements RollTypeHandler {
+/**
+ * D&D 5e Roll Handler for Spell Attacks
+ * Fixes advantage/disadvantage calculation for spell attacks
+ */
+export class DndSpellAttackHandler implements RollTypeHandler {
+  /**
+   * Process spell attack roll and return enhanced data with proper advantage/disadvantage calculation
+   */
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    // Use common D20 processing with critical hit support
+    return processD20Roll(result, 'DndSpellAttackHandler', {
+      supportsCriticalHits: true // Spell attacks can crit
+    });
+  }
+
+  /**
+   * Handle spell attack roll - no chat messages needed since spell casting action handles that
+   */
   async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
-    console.log('[DndSavingThrowHandler] Processing saving throw:', {
-      ability: result.arguments.pluginArgs?.ability,
-      advantageMode: result.arguments.pluginArgs?.advantageMode,
-      total: this.calculateTotal(result),
-      characterName: result.metadata.characterName,
+    // Use common logging with spell-specific context
+    logRollProcessing('DndSpellAttackHandler', 'spell attack roll', result, {
+      spellName: result.metadata.spellName,
+      isGM: context.isGM
+    });
+
+    // No chat messages - the spell casting action handler already sends detailed messages
+    // This handler only fixes the calculation logic for advantage/disadvantage
+  }
+}
+
+export class DndSavingThrowHandler implements RollTypeHandler {
+  /**
+   * Process saving throw roll and return enhanced data
+   */
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+    const advantageMode = result.arguments.pluginArgs?.advantageMode;
+    const characterName = result.metadata.characterName;
+    
+    // Create descriptive roll message - reuse logic from handleRoll
+    const baseDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Saving Throw`;
+    const rollDescription = createRollDescription(baseDescription, advantageMode as string);
+    const total = calculateD20Total(result);
+    const rollMessage = createRollMessage(characterName, rollDescription, total);
+    
+    // Use common D20 processing
+    return processD20Roll(result, 'DndSavingThrowHandler', {
+      supportsCriticalHits: false, // Saving throws don't have critical hits
+      customProcessedData: {
+        ability,
+        rollDescription,
+        formattedMessage: rollMessage
+      }
+    });
+  }
+
+  /**
+   * Handle saving throw roll - send chat message if GM
+   */
+  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
+    
+    // Use common logging
+    logRollProcessing('DndSavingThrowHandler', 'saving throw', result, {
+      ability,
       isGM: context.isGM
     });
 
     if (context.isGM) {
       // GM client: Calculate final result and send authoritative chat message
-      const total = this.calculateTotal(result);
-      const ability = String(result.arguments.pluginArgs?.ability || 'Unknown');
-      const advantageMode = result.arguments.pluginArgs?.advantageMode;
+      const advantageMode = result.arguments.pluginArgs?.advantageMode as string;
       const characterName = result.metadata.characterName;
       
-      // Create descriptive roll message
-      let rollDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Saving Throw`;
-      if (advantageMode === 'advantage') {
-        rollDescription += ' (Advantage)';
-      } else if (advantageMode === 'disadvantage') {
-        rollDescription += ' (Disadvantage)';
-      }
-      
-      const rollMessage = `${characterName ? `${characterName} rolled ` : ''}${rollDescription}: **${total}**`;
+      // Create descriptive roll message using utilities
+      const baseDescription = `${ability.charAt(0).toUpperCase() + ability.slice(1)} Saving Throw`;
+      const rollDescription = createRollDescription(baseDescription, advantageMode);
+      const total = calculateD20Total(result);
+      const rollMessage = createRollMessage(characterName, rollDescription, total);
       
       // Send chat message via context (only available for GM)
       if (context.sendChatMessage) {
@@ -162,37 +250,108 @@ export class DndSavingThrowHandler implements RollTypeHandler {
       console.log('[DndSavingThrowHandler] Player client - providing UI feedback');
     }
   }
+}
+
+/**
+ * D&D 5e Roll Handler for Initiative
+ * Handles initiative rolls with dexterity modifier and optional bonuses
+ */
+export class DndInitiativeHandler implements RollTypeHandler {
+  /**
+   * Process initiative roll and return enhanced data
+   */
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    // Use common D20 processing without critical hit support (initiative doesn't crit)
+    return processD20Roll(result, 'DndInitiativeHandler', {
+      supportsCriticalHits: false, // Initiative rolls don't have critical hits
+      customProcessedData: {
+        rollDescription: 'Initiative',
+        formattedMessage: createRollMessage(
+          result.metadata.characterName, 
+          'Initiative', 
+          calculateD20Total(result)
+        )
+      }
+    });
+  }
 
   /**
-   * Calculate the final total for a saving throw
+   * Handle initiative roll - send chat message if GM
    */
-  private calculateTotal(result: RollServerResult): number {
-    let total = 0;
-    
-    // Handle advantage/disadvantage for d20 rolls
-    for (const diceGroup of result.results) {
-      if (diceGroup.sides === 20 && diceGroup.results.length === 2) {
-        const advantageMode = result.arguments.pluginArgs?.advantageMode;
-        if (advantageMode === 'advantage') {
-          total += Math.max(...diceGroup.results);
-        } else if (advantageMode === 'disadvantage') {
-          total += Math.min(...diceGroup.results);
-        } else {
-          total += diceGroup.results[0];
-        }
+  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    // Use common logging
+    logRollProcessing('DndInitiativeHandler', 'initiative roll', result, {
+      isGM: context.isGM
+    });
+
+    if (context.isGM) {
+      // GM client: Send chat message
+      const advantageMode = result.arguments.pluginArgs?.advantageMode as string;
+      const characterName = result.metadata.characterName;
+      
+      // Create descriptive roll message using utilities
+      const rollDescription = createRollDescription('Initiative', advantageMode);
+      const total = calculateD20Total(result);
+      const rollMessage = createRollMessage(characterName, rollDescription, total);
+      
+      // Send chat message via context (only available for GM)
+      if (context.sendChatMessage) {
+        context.sendChatMessage(rollMessage, {
+          type: 'roll',
+          rollData: result,
+          recipient: result.recipients
+        });
+        console.log('[DndInitiativeHandler] GM sent chat message:', rollMessage);
       } else {
-        total += diceGroup.results.reduce((sum, res) => sum + res, 0);
+        console.warn('[DndInitiativeHandler] GM client but no sendChatMessage function available');
       }
+    } else {
+      // Player client: Provide UI feedback only
+      console.log('[DndInitiativeHandler] Player client - providing UI feedback');
     }
+  }
+}
 
-    // Add modifiers
-    for (const modifier of result.modifiers) {
-      total += modifier.value;
-    }
+/**
+ * D&D 5e Roll Handler for Monster Attacks
+ * Handles monster weapon attacks, natural attacks, etc.
+ */
+export class DndMonsterAttackHandler implements RollTypeHandler {
+  /**
+   * Process monster attack roll and return enhanced data
+   */
+  async processRoll(result: RollServerResult, _context: RollHandlerContext): Promise<ProcessedRollResult> {
+    // Use common D20 processing with critical hit support
+    return processD20Roll(result, 'DndMonsterAttackHandler', {
+      supportsCriticalHits: true, // Monster attacks can crit
+      customProcessedData: {
+        actionName: result.metadata.actionName,
+        creatureName: result.metadata.creatureName,
+        targetName: result.metadata.targetName,
+        targetAC: result.metadata.targetAC,
+        rollDescription: `${result.metadata.actionName || 'Monster'} Attack`,
+        formattedMessage: createRollMessage(
+          result.metadata.creatureName as string | undefined,
+          `${result.metadata.actionName || 'Attack'} vs ${result.metadata.targetName || 'Target'}`,
+          calculateD20Total(result)
+        )
+      }
+    });
+  }
 
-    // Add custom modifier
-    total += result.arguments.customModifier;
+  /**
+   * Handle monster attack roll - no chat messages needed since monster action handler handles that
+   */
+  async handleRoll(result: RollServerResult, context: RollHandlerContext): Promise<void> {
+    // Use common logging
+    logRollProcessing('DndMonsterAttackHandler', 'monster attack', result, {
+      actionName: result.metadata.actionName,
+      creatureName: result.metadata.creatureName,
+      targetName: result.metadata.targetName,
+      isGM: context.isGM
+    });
 
-    return total;
+    // No chat messages - the monster action handler already sends detailed roll results
+    // This handler only fixes the calculation logic for advantage/disadvantage
   }
 }

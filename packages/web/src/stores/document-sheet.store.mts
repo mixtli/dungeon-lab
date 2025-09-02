@@ -12,7 +12,7 @@ export interface DocumentSheetStore<T extends BaseDocument = BaseDocument> {
 
 export const useDocumentSheetStore = defineStore('documentSheet', () => {
   const floatingSheets = ref<Map<string, DocumentSheetStore>>(new Map());
-  let nextZIndex = 1000;
+  let nextZIndex = 1500; // Start above HUD (1000) but below dice overlay (2000)
 
   function openDocumentSheet<T extends BaseDocument>(document: T) {
     const id = `document-sheet-${document.documentType}-${document.id}`;

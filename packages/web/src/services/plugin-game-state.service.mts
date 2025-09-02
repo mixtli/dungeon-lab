@@ -79,7 +79,7 @@ export class PluginGameStateService implements GameStateContext {
       return [];
     }
     
-    return encounter.tokens.filter(token => 
+    return Object.values(encounter.tokens).filter(token => 
       token.documentId === documentId && 
       (!documentType || token.documentType === documentType)
     );

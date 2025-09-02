@@ -6,15 +6,16 @@
 
 import type { GameActionRequest, UpdateDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 /**
  * Validate document update request
  */
-function validateUpdateDocument(
+const validateUpdateDocument: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as UpdateDocumentParameters;
 
   console.log('[UpdateDocumentHandler] Validating document update:', {
@@ -54,10 +55,12 @@ function validateUpdateDocument(
 /**
  * Execute document update using direct state mutation
  */
-function executeUpdateDocument(
+const executeUpdateDocument: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as UpdateDocumentParameters;
 
   console.log('[UpdateDocumentHandler] Executing document update:', {
@@ -130,12 +133,12 @@ function executeUpdateDocument(
 /**
  * Core update-document action handler
  */
-export const updateDocumentActionHandler: ActionHandler = {
+export const updateDocumentActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   requiresManualApproval: true, // Document updates require GM approval
   validate: validateUpdateDocument,
   execute: executeUpdateDocument,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as UpdateDocumentParameters;
     return `wants to modify ${params.documentName ? `character "${params.documentName}"` : `document "${params.documentId}"`}`;
   }

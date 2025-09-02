@@ -102,6 +102,7 @@ class CharacterOwnershipReassigner {
               {
                 $set: {
                   createdBy: targetUser._id.toString(),
+                  ownerId: targetUser._id.toString(),
                   updatedBy: targetUser._id.toString()
                 }
               }

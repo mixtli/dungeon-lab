@@ -6,15 +6,16 @@
 
 import type { GameActionRequest, AddDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 
 /**
  * Validate document addition request
  */
-function validateAddDocument(
+const validateAddDocument: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as AddDocumentParameters;
 
   console.log('[AddDocumentHandler] Validating document addition:', {
@@ -62,10 +63,12 @@ function validateAddDocument(
 /**
  * Execute document addition using direct state mutation
  */
-function executeAddDocument(
+const executeAddDocument: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as AddDocumentParameters;
 
   console.log('[AddDocumentHandler] Executing document addition:', {
@@ -89,11 +92,11 @@ function executeAddDocument(
 /**
  * Core add-document action handler
  */
-export const addDocumentActionHandler: ActionHandler = {
+export const addDocumentActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   validate: validateAddDocument,
   execute: executeAddDocument,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as AddDocumentParameters;
     return `wants to add document "${params.documentData.name || params.documentData.id}" to the game`;
   }

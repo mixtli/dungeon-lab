@@ -50,6 +50,7 @@
         ]"
         draggable="true"
         @click="selectItem(item)"
+        @dblclick="openItemSheet(item)"
         @dragstart="handleDragStart($event, item)"
         @dragend="handleDragEnd"
       >
@@ -76,6 +77,9 @@
           <button class="action-button" title="Duplicate" @click.stop="duplicateItem(item)">
             <i class="mdi mdi-content-copy"></i>
           </button>
+          <button class="action-button" title="Delete" @click.stop="requestDeleteItem(item)">
+            <i class="mdi mdi-delete"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -98,19 +102,44 @@
         Create Magic Item
       </button>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <ConfirmationDialog
+      :show="showDeleteConfirmation"
+      title="Delete Item"
+      :message="itemToDelete ? `Are you sure you want to remove '${itemToDelete.name}' from the game session?` : ''"
+      confirm-text="Delete"
+      cancel-text="Cancel"
+      variant="danger"
+      :show-database-option="true"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
+import { useSocketStore } from '../../../stores/socket.store.mjs';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getAssetUrl } from '../../../utils/asset-utils.mjs';
-import type { IItem } from '@dungeon-lab/shared/types/index.mjs';
+import { playerActionService } from '../../../services/player-action.service.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
+import type { IItem, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
+const socketStore = useSocketStore();
+const documentSheetStore = useDocumentSheetStore();
+const documentsClient = new DocumentsClient();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 const itemImageUrls = ref<Record<string, string>>({});
+
+// Confirmation dialog state
+const showDeleteConfirmation = ref(false);
+const itemToDelete = ref<IItem | null>(null);
 
 // Drag and drop state
 const isDragging = ref(false);
@@ -130,6 +159,14 @@ const items = computed(() => gameStateStore.items);
 
 const filteredItems = computed(() => {
   let filtered = items.value;
+
+  // First filter by ownership - only show items owned by current user
+  if (socketStore.userId) {
+    filtered = filtered.filter(item => item.ownerId === socketStore.userId);
+  } else {
+    // No user logged in, show no items
+    return [];
+  }
 
   // Filter by type
   if (activeFilter.value !== 'all') {
@@ -198,6 +235,69 @@ async function selectItem(item: IItem): Promise<void> {
     console.log('Selected item:', item.name);
   } catch (error) {
     console.error('Failed to select item:', error);
+  }
+}
+
+function openItemSheet(item: IItem): void {
+  documentSheetStore.openDocumentSheet(item);
+}
+
+function requestDeleteItem(item: IItem): void {
+  itemToDelete.value = item;
+  showDeleteConfirmation.value = true;
+}
+
+function handleDeleteCancel(): void {
+  showDeleteConfirmation.value = false;
+  itemToDelete.value = null;
+}
+
+async function handleDeleteConfirm(deleteFromDatabase: boolean): Promise<void> {
+  if (!itemToDelete.value) return;
+
+  const item = itemToDelete.value;
+  showDeleteConfirmation.value = false;
+  itemToDelete.value = null;
+
+  try {
+    // Always remove from game session first
+    const parameters: RemoveDocumentParameters = {
+      documentId: item.id,
+      documentName: item.name,
+      documentType: item.documentType
+    };
+
+    const result = await playerActionService.requestAction(
+      'remove-document',
+      undefined, // actorId - not an actor-specific action
+      parameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Remove ${item.name} from session`
+      }
+    );
+
+    if (result.success && result.approved) {
+      console.log(`[ItemsTab] ${item.name} removed from session successfully`);
+
+      // If user requested database deletion, do that too
+      if (deleteFromDatabase) {
+        try {
+          await documentsClient.deleteDocument(item.id);
+          console.log(`[ItemsTab] ${item.name} deleted from database successfully`);
+        } catch (dbError) {
+          console.error('[ItemsTab] Failed to delete item from database:', dbError);
+          // Don't throw - session removal succeeded
+        }
+      }
+    } else if (result.success && !result.approved) {
+      console.log(`[ItemsTab] Waiting for GM approval to remove ${item.name}`);
+    } else {
+      console.error('[ItemsTab] Failed to remove item from session:', result.error);
+    }
+  } catch (error) {
+    console.error('Failed to delete item:', error);
   }
 }
 

@@ -7,19 +7,18 @@
 
 import type { GameActionRequest, MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
-import { useGameSessionStore } from '../../../stores/game-session.store.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { checkWallCollision } from '../../../utils/collision-detection.mjs';
 
 /**
  * Validate token movement request
  */
-function validateMoveToken(
+const validateMoveToken: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as MoveTokenParameters;
-  const gameSessionStore = useGameSessionStore();
 
   console.log('[MoveTokenHandler] Validating token movement:', {
     tokenId: params.tokenId,
@@ -39,7 +38,7 @@ function validateMoveToken(
   }
 
   // Find the token
-  const token = gameState.currentEncounter.tokens?.find(t => t.id === params.tokenId);
+  const token = gameState.currentEncounter.tokens?.[params.tokenId];
   if (!token) {
     return {
       valid: false,
@@ -50,15 +49,32 @@ function validateMoveToken(
     };
   }
 
-  // Permission check - players can only move player-controlled tokens
-  if (!gameSessionStore.isGameMaster && token.isPlayerControlled) {
-    // For now, allow all player-controlled token movement
-    // TODO: Add proper ownership checking when we have user-character linkage
-    console.log('[MoveTokenHandler] Player moving player-controlled token:', {
-      playerId: request.playerId,
-      tokenId: params.tokenId,
-      tokenName: token.name
-    });
+  // Permission check - ownership validation with GM bypass
+  if (token.documentId) {
+    const character = gameState.documents[token.documentId];
+    if (character) {
+      const isOwner = character.ownerId === request.playerId;
+      const isGM = request.playerId === gameState.campaign?.gameMasterId;
+      
+      if (!isOwner && !isGM) {
+        return {
+          valid: false,
+          error: {
+            code: 'NOT_OWNER',
+            message: `You don't own ${character.name}`
+          }
+        };
+      }
+      
+      console.log('[MoveTokenHandler] Ownership validation passed:', {
+        playerId: request.playerId,
+        tokenId: params.tokenId,
+        tokenName: token.name,
+        characterName: character.name,
+        isOwner,
+        isGM
+      });
+    }
   }
 
   // Collision detection using game state map data
@@ -78,15 +94,26 @@ function validateMoveToken(
     const currentGridCenterY = (token.bounds.topLeft.y + token.bounds.bottomRight.y + 1) / 2;
     const currentGridPos = { x: currentGridCenterX, y: currentGridCenterY };
     
-    // Convert target world position to grid coordinates and get center of target cell
-    const mapData = gameState.currentEncounter.currentMap;
-    const pixelsPerGrid = mapData.uvtt?.resolution?.pixels_per_grid || 50;
-    const targetGridPos = { 
-      x: params.newPosition.x / pixelsPerGrid + 0.5, 
-      y: params.newPosition.y / pixelsPerGrid + 0.5 
-    };
+    // Target position is already in grid coordinates (top-left corner)
+    // Calculate center of target position for collision detection
+    const tokenWidth = token.bounds.bottomRight.x - token.bounds.topLeft.x + 1;
+    const tokenHeight = token.bounds.bottomRight.y - token.bounds.topLeft.y + 1;
+    const targetGridCenterX = params.newPosition.gridX + tokenWidth / 2;
+    const targetGridCenterY = params.newPosition.gridY + tokenHeight / 2;
+    const targetGridPos = { x: targetGridCenterX, y: targetGridCenterY };
+    
+    // Debug backend position calculations
+    console.log('[MoveTokenHandler] Backend position calculation debug:', {
+      tokenId: params.tokenId,
+      tokenBounds: token.bounds,
+      tokenSize: { width: tokenWidth, height: tokenHeight },
+      currentGridCenter: { x: currentGridCenterX, y: currentGridCenterY },
+      receivedTargetGrid: params.newPosition,
+      targetGridCenter: { x: targetGridCenterX, y: targetGridCenterY }
+    });
     
     try {
+      const mapData = gameState.currentEncounter.currentMap;
       const collisionDetected = checkWallCollision(currentGridPos, targetGridPos, mapData, false);
       
       if (collisionDetected) {
@@ -111,40 +138,29 @@ function validateMoveToken(
 }
 
 /**
- * Calculate new bounds from center position, preserving token size
+ * Calculate new bounds from top-left grid position, preserving token size
  */
 function calculateNewBounds(
   params: MoveTokenParameters,
-  currentBounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation?: number },
-  currentMap: { uvtt?: { resolution?: { pixels_per_grid?: number } } } | undefined
+  currentBounds: { topLeft: { x: number; y: number }; bottomRight: { x: number; y: number }; elevation?: number }
 ) {
-  const newCenterX = params.newPosition.x;
-  const newCenterY = params.newPosition.y;
+  const newTopLeftX = params.newPosition.gridX;
+  const newTopLeftY = params.newPosition.gridY;
   const newElevation = params.newPosition.elevation || currentBounds.elevation || 0;
-  
-  // Get the actual grid size from current map data
-  const pixelsPerGrid = currentMap?.uvtt?.resolution?.pixels_per_grid || 50; // fallback to 50
-  
-  // Convert center world coordinates to grid coordinates
-  const centerGridX = Math.round(newCenterX / pixelsPerGrid);
-  const centerGridY = Math.round(newCenterY / pixelsPerGrid);
   
   // Calculate current size
   const width = currentBounds.bottomRight.x - currentBounds.topLeft.x;
   const height = currentBounds.bottomRight.y - currentBounds.topLeft.y;
   
-  // Calculate new bounds centered on the new position
-  const halfWidth = Math.floor(width / 2);
-  const halfHeight = Math.floor(height / 2);
-  
+  // Calculate new bounds using the grid top-left position
   return {
     topLeft: {
-      x: centerGridX - halfWidth,
-      y: centerGridY - halfHeight
+      x: newTopLeftX,
+      y: newTopLeftY
     },
     bottomRight: {
-      x: centerGridX + width - halfWidth,
-      y: centerGridY + height - halfHeight
+      x: newTopLeftX + width,
+      y: newTopLeftY + height
     },
     elevation: newElevation
   };
@@ -154,10 +170,12 @@ function calculateNewBounds(
  * Execute token movement using direct draft mutation
  * The draft is provided by Immer's produceWithPatches in the GM Action Handler
  */
-function executeMoveToken(
+const executeMoveToken: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as MoveTokenParameters;
 
   console.log('[MoveTokenHandler] Executing token movement with direct draft mutation:', {
@@ -166,22 +184,12 @@ function executeMoveToken(
     requestId: request.id
   });
 
-  // Find the token in the current encounter draft
-  if (!draft.currentEncounter?.tokens) {
-    throw new Error('No tokens found in current encounter');
-  }
-
-  const token = draft.currentEncounter.tokens.find(t => t.id === params.tokenId);
-  if (!token) {
-    throw new Error('Token not found for movement update');
-  }
+  // Get the token from the current encounter draft
+  // Validation ensures currentEncounter and token exist
+  const token = draft.currentEncounter!.tokens![params.tokenId]!;
 
   // Calculate new bounds using the helper function
-  const newBounds = calculateNewBounds(
-    params, 
-    token.bounds, 
-    draft.currentEncounter?.currentMap || undefined
-  );
+  const newBounds = calculateNewBounds(params, token.bounds);
 
   // Direct draft mutation - Immer will automatically generate patches
   token.bounds = newBounds;
@@ -196,12 +204,12 @@ function executeMoveToken(
 /**
  * Core move-token action handler
  */
-export const moveTokenActionHandler: ActionHandler = {
+export const moveTokenActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   validate: validateMoveToken,
   execute: executeMoveToken,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as MoveTokenParameters;
-    return `wants to move token to position (${params.newPosition.x}, ${params.newPosition.y})`;
+    return `wants to move token to grid position (${params.newPosition.gridX}, ${params.newPosition.gridY})`;
   }
 };

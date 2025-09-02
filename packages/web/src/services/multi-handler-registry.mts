@@ -5,7 +5,7 @@
  * Supports priority-based execution ordering with core handlers first.
  */
 
-import type { ActionHandler } from './action-handler.interface.mjs';
+import type { ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { GameActionRequest } from '@dungeon-lab/shared/types/index.mjs';
 
 /**
@@ -108,13 +108,13 @@ export function isGmOnly(actionType: string): boolean {
 /**
  * Generate approval message for an action request
  */
-export function generateApprovalMessage(actionType: string, request: GameActionRequest): string {
+export async function generateApprovalMessage(actionType: string, request: GameActionRequest): Promise<string> {
   const handlers = getHandlers(actionType);
   
   // Use the first handler that has an approval message
   for (const handler of handlers) {
     if (handler.approvalMessage) {
-      return handler.approvalMessage(request);
+      return await handler.approvalMessage(request);
     }
   }
   

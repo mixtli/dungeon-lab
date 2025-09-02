@@ -27,6 +27,7 @@ import {
   type DndItemData,
   type DndWeaponData,
   type DndArmorData,
+  type DndShieldData,
   type DndGearData,
   type DndToolData
 } from '../../types/dnd/item.mjs';
@@ -132,6 +133,8 @@ export class TypedItemConverter extends TypedConverter<
         return this.transformToWeapon(input);
       case 'armor':
         return this.transformToArmor(input);
+      case 'shield':
+        return this.transformToShield(input);
       case 'tool':
         return this.transformToTool(input);
       case 'gear':
@@ -345,10 +348,11 @@ export class TypedItemConverter extends TypedConverter<
    * Private helper methods for item-specific parsing
    */
 
-  private determineItemType(input: z.infer<typeof etoolsItemSchema>): 'weapon' | 'armor' | 'tool' | 'gear' {
+  private determineItemType(input: z.infer<typeof etoolsItemSchema>): 'weapon' | 'armor' | 'shield' | 'tool' | 'gear' {
     // Check explicit boolean flags first
     if (input.weapon || input.firearm) return 'weapon';
-    if (input.armor || input.shield) return 'armor';
+    if (input.shield) return 'shield'; // Shields get their own type
+    if (input.armor) return 'armor';
     
     // Check type codes if available
     if (input.type) {
@@ -358,7 +362,9 @@ export class TypedItemConverter extends TypedConverter<
       switch (baseType) {
         case 'M': case 'R': // Melee, Ranged
           return 'weapon';
-        case 'LA': case 'MA': case 'HA': case 'S': // Light Armor, Medium Armor, Heavy Armor, Shield
+        case 'S': // Shield
+          return 'shield';
+        case 'LA': case 'MA': case 'HA': // Light Armor, Medium Armor, Heavy Armor
           return 'armor';
         case 'AT': case 'T': case 'GS': case 'INS': // Artisan Tools, Tools, Gaming Sets, Instruments
           return 'tool';
@@ -410,6 +416,27 @@ export class TypedItemConverter extends TypedConverter<
       maxDexBonus: this.parseMaxDexBonus(input),
       strengthRequirement: this.parseStrengthRequirement(input.strength),
       stealthDisadvantage: input.stealth === true, // Note: stealth true means disadvantage
+      weight: this.parseWeight(input.weight),
+      cost: this.parseCost(input.value),
+      magical: this.isMagicalItem(input),
+      enchantmentBonus: this.parseEnchantmentBonus(input.bonusAc),
+      rarity: this.parseRarity(input.rarity),
+      attunement: this.parseAttunement(input.reqAttune),
+      source: input.source,
+      page: input.page
+    };
+  }
+
+  private transformToShield(input: z.infer<typeof etoolsItemSchema>): DndShieldData {
+    return {
+      itemType: 'shield',
+      name: input.name,
+      description: this.extractDescription(input),
+      armorClass: this.parseArmorClass(input.ac),
+      type: this.parseArmorType(input), // Shield type will be 'shield'
+      maxDexBonus: this.parseMaxDexBonus(input),
+      strengthRequirement: this.parseStrengthRequirement(input.strength),
+      stealthDisadvantage: input.stealth === true,
       weight: this.parseWeight(input.weight),
       cost: this.parseCost(input.value),
       magical: this.isMagicalItem(input),
@@ -671,11 +698,9 @@ export class TypedItemConverter extends TypedConverter<
       case 'weapon': 
         return 'weapon';
       case 'armor':
-        // Check if it's a shield - shields need their own plugin document type
-        if (pluginData.type === 'shield') {
-          return 'shield';
-        }
         return 'armor';
+      case 'shield':
+        return 'armor'; // Shields use armor plugin document type for UI consistency
       case 'tool': 
         return 'tool';
       case 'gear': 

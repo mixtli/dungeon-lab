@@ -333,10 +333,10 @@ if (!localData.value.selectedLanguages) {
   localData.value.selectedLanguages = [...localData.value.selectedLanguages];
 }
 
-// Compendium data
-const availableSpecies = ref<Array<{entryId: string, document: DndSpeciesDocument}>>([]);
-const availableBackgrounds = ref<Array<{entryId: string, document: DndBackgroundDocument}>>([]);
-const availableLanguages = ref<Array<{entryId: string, document: DndLanguageDocument}>>([]);
+// Document data
+const availableSpecies = ref<Array<{documentId: string, document: DndSpeciesDocument}>>([]);
+const availableBackgrounds = ref<Array<{documentId: string, document: DndBackgroundDocument}>>([]);
+const availableLanguages = ref<Array<{documentId: string, document: DndLanguageDocument}>>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const languagesLoading = ref(false);
@@ -361,23 +361,23 @@ const isValid = computed(() => {
 });
 
 const selectedSpecies = computed(() => {
-  return availableSpecies.value.find(species => species.entryId === localData.value.species?.id)?.document;
+  return availableSpecies.value.find(species => species.documentId === localData.value.species?.id)?.document;
 });
 
 const selectedBackground = computed(() => {
-  return availableBackgrounds.value.find(bg => bg.entryId === localData.value.background?.id)?.document;
+  return availableBackgrounds.value.find(bg => bg.documentId === localData.value.background?.id)?.document;
 });
 
 const speciesSelectOptions = computed(() => {
   return availableSpecies.value.map(species => ({
-    id: species.entryId,
+    id: species.documentId,
     name: species.document.name
   }));
 });
 
 const backgroundSelectOptions = computed(() => {
   return availableBackgrounds.value.map(bg => ({
-    id: bg.entryId,
+    id: bg.documentId,
     name: bg.document.name
   }));
 });
@@ -388,7 +388,7 @@ const firstLanguageOptions = computed(() => {
   return availableLanguages.value
     .filter(language => language.document.slug !== 'common' && language.document.pluginData.category !== 'rare')
     .map(language => ({
-      id: language.entryId,
+      id: language.documentId,
       displayName: `${language.document.name} (${capitalizeFirst(language.document.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
     }));
 });
@@ -398,12 +398,12 @@ const secondLanguageOptions = computed(() => {
   const firstLanguageId = localData.value.selectedLanguages?.[0]?.id;
   return availableLanguages.value
     .filter(language => 
-      language.entryId !== firstLanguageId && 
+      language.documentId !== firstLanguageId && 
       language.document.slug !== 'common' && 
       language.document.pluginData.category !== 'rare'
     )
     .map(language => ({
-      id: language.entryId,
+      id: language.documentId,
       displayName: `${language.document.name} (${capitalizeFirst(language.document.pluginData.category === 'standard' ? 'Standard' : 'Rare')})`
     }));
 });
@@ -608,12 +608,12 @@ const formatItemName = (slug: string): string => {
 };
 
 const handleSpeciesSelection = (value: string | number | null) => {
-  const entryId = value as string;
-  const speciesItem = availableSpecies.value.find(s => s.entryId === entryId);
+  const documentId = value as string;
+  const speciesItem = availableSpecies.value.find(s => s.documentId === documentId);
   
   if (speciesItem) {
     localData.value.species = {
-      id: speciesItem.entryId,
+      id: speciesItem.documentId,
       name: speciesItem.document.name,
       subspecies: undefined // Reset subspecies when changing species
     };
@@ -639,12 +639,12 @@ const handleLineageSelection = (value: string | number | null) => {
 };
 
 const handleBackgroundSelection = (value: string | number | null) => {
-  const entryId = value as string;
-  const backgroundItem = availableBackgrounds.value.find(bg => bg.entryId === entryId);
+  const documentId = value as string;
+  const backgroundItem = availableBackgrounds.value.find(bg => bg.documentId === documentId);
   
   if (backgroundItem) {
     localData.value.background = {
-      id: backgroundItem.entryId,
+      id: backgroundItem.documentId,
       name: backgroundItem.document.name,
       selectedEquipment: 'package' // Default to equipment package
     };
@@ -660,12 +660,12 @@ const handleBackgroundSelection = (value: string | number | null) => {
 };
 
 const handleFirstLanguageSelection = (value: string | number | null) => {
-  const entryId = value as string;
-  const languageItem = availableLanguages.value.find(lang => lang.entryId === entryId);
+  const documentId = value as string;
+  const languageItem = availableLanguages.value.find(lang => lang.documentId === documentId);
   
   if (languageItem) {
     const languageSelection: LanguageSelection = {
-      id: languageItem.entryId,
+      id: languageItem.documentId,
       name: languageItem.document.name
     };
     
@@ -673,7 +673,7 @@ const handleFirstLanguageSelection = (value: string | number | null) => {
     const currentSecond = localData.value.selectedLanguages?.[1];
     
     // If the second language is the same as the first, only keep the first
-    if (currentSecond?.id === entryId) {
+    if (currentSecond?.id === documentId) {
       localData.value.selectedLanguages = [languageSelection];
     } else {
       // Keep the second language if it exists and is different
@@ -691,12 +691,12 @@ const handleFirstLanguageSelection = (value: string | number | null) => {
 };
 
 const handleSecondLanguageSelection = (value: string | number | null) => {
-  const entryId = value as string;
-  const languageItem = availableLanguages.value.find(lang => lang.entryId === entryId);
+  const documentId = value as string;
+  const languageItem = availableLanguages.value.find(lang => lang.documentId === documentId);
   
   if (languageItem) {
     const languageSelection: LanguageSelection = {
-      id: languageItem.entryId,
+      id: languageItem.documentId,
       name: languageItem.document.name
     };
     

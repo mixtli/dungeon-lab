@@ -42,15 +42,19 @@ const getThumbnailUrl = (map: IMap): string | undefined => {
 };
 
 const canStartEncounter = computed(() => {
-  const encounterStatus = encounterData.value?.status || gameStateStore.currentEncounter?.status;
   const hasSession = !!gameSessionStore.currentSession;
-  return hasSession && encounterStatus === 'stopped';
+  const hasCurrentEncounter = !!gameStateStore.currentEncounter;
+  
+  // Can start if: in session + no current encounter
+  return hasSession && !hasCurrentEncounter;
 });
 
 const canStopEncounter = computed(() => {
-  const encounterStatus = encounterData.value?.status || gameStateStore.currentEncounter?.status;
   const hasSession = !!gameSessionStore.currentSession;
-  return hasSession && encounterStatus === 'in_progress';
+  const thisEncounterId = route.params.id as string;
+  
+  // Can stop if: in session + this encounter is the current encounter
+  return hasSession && gameStateStore.currentEncounter?.id === thisEncounterId;
 });
 
 const isEncounterActive = computed(() => {
@@ -148,6 +152,17 @@ async function handleStartEncounter() {
   const encounter = encounterData.value || gameStateStore.currentEncounter;
   if (!encounter) {
     error.value = 'No encounter data available';
+    return;
+  }
+
+  // Check preconditions according to new plan
+  if (!gameSessionStore.currentSession) {
+    error.value = 'You must be in a game session to start an encounter';
+    return;
+  }
+  
+  if (gameStateStore.currentEncounter) {
+    error.value = 'You must stop the active encounter before starting a new one';
     return;
   }
 
@@ -363,11 +378,11 @@ async function handleStopEncounter() {
         <span
           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
           :class="{
-            'bg-gray-100 text-gray-800': (encounterData || gameStateStore.currentEncounter)?.status === 'stopped',
-            'bg-green-100 text-green-800': (encounterData || gameStateStore.currentEncounter)?.status === 'in_progress',
+            'bg-gray-100 text-gray-800': !isEncounterActive,
+            'bg-green-100 text-green-800': isEncounterActive,
           }"
         >
-          {{ (encounterData || gameStateStore.currentEncounter)?.status?.replace('_', ' ') }}
+          {{ isEncounterActive ? '▶️ Active' : 'Inactive' }}
         </span>
       </div>
 

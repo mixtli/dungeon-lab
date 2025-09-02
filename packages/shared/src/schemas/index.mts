@@ -64,7 +64,6 @@ export {
 // Encounter schemas
 export {
   encounterSchema,
-  EncounterStatusEnum,
   encounterSettingsSchema,
   createEncounterSchema,
   updateEncounterSchema,

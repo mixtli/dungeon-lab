@@ -69,6 +69,7 @@
         ]"
         draggable="true"
         @click="selectDocument(document)"
+        @dblclick="openDocumentSheet(document)"
         @dragstart="handleDragStart($event, document)"
         @dragend="handleDragEnd"
       >
@@ -103,6 +104,9 @@
           <button class="action-button" title="View Document" @click.stop="viewDocument(document)">
             <i class="mdi mdi-eye"></i>
           </button>
+          <button class="action-button" title="Delete" @click.stop="requestDeleteDocument(document)">
+            <i class="mdi mdi-delete"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -118,6 +122,19 @@
         Load More
       </button>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <ConfirmationDialog
+      :show="showDeleteConfirmation"
+      title="Delete Document"
+      :message="documentToDelete ? `Are you sure you want to remove '${documentToDelete.name}' from the game session?` : ''"
+      confirm-text="Delete"
+      cancel-text="Cancel"
+      variant="danger"
+      :show-database-option="true"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
+    />
   </div>
 </template>
 
@@ -126,8 +143,9 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
+import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
-import type { AddDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
+import type { AddDocumentParameters, RemoveDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
 
 const documentsClient = new DocumentsClient();
 const documentSheetStore = useDocumentSheetStore();
@@ -140,6 +158,10 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const isAddingToSession = ref(false);
 const selectedDocument = ref<BaseDocument | null>(null);
+
+// Confirmation dialog state
+const showDeleteConfirmation = ref(false);
+const documentToDelete = ref<BaseDocument | null>(null);
 
 // Pagination
 const currentPage = ref(1);
@@ -282,9 +304,16 @@ async function addToSession(document: BaseDocument): Promise<void> {
       documentData: document
     };
 
-    const result = await playerActionService.requestAction('add-document', parameters, {
-      description: `Add ${document.name} to session`
-    });
+    const result = await playerActionService.requestAction(
+      'add-document',
+      undefined, // actorId - not an actor-specific action
+      parameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Add ${document.name} to session`
+      }
+    );
 
     if (result.success && result.approved) {
       console.log(`[DocumentsTab] ${document.name} added to session successfully`);
@@ -307,6 +336,69 @@ async function viewDocument(document: BaseDocument): Promise<void> {
   
   // Open the document using the same floating sheet system as characters/actors
   documentSheetStore.openDocumentSheet(document);
+}
+
+function openDocumentSheet(document: BaseDocument): void {
+  documentSheetStore.openDocumentSheet(document);
+}
+
+function requestDeleteDocument(document: BaseDocument): void {
+  documentToDelete.value = document;
+  showDeleteConfirmation.value = true;
+}
+
+function handleDeleteCancel(): void {
+  showDeleteConfirmation.value = false;
+  documentToDelete.value = null;
+}
+
+async function handleDeleteConfirm(deleteFromDatabase: boolean): Promise<void> {
+  if (!documentToDelete.value) return;
+
+  const document = documentToDelete.value;
+  showDeleteConfirmation.value = false;
+  documentToDelete.value = null;
+
+  try {
+    // Always remove from game session first
+    const parameters: RemoveDocumentParameters = {
+      documentId: document.id,
+      documentName: document.name,
+      documentType: document.documentType
+    };
+
+    const result = await playerActionService.requestAction(
+      'remove-document',
+      undefined, // actorId - not an actor-specific action
+      parameters,
+      undefined, // actorTokenId
+      undefined, // targetTokenIds
+      {
+        description: `Remove ${document.name} from session`
+      }
+    );
+
+    if (result.success && result.approved) {
+      console.log(`[DocumentsTab] ${document.name} removed from session successfully`);
+
+      // If user requested database deletion, do that too
+      if (deleteFromDatabase) {
+        try {
+          await documentsClient.deleteDocument(document.id);
+          console.log(`[DocumentsTab] ${document.name} deleted from database successfully`);
+        } catch (dbError) {
+          console.error('[DocumentsTab] Failed to delete document from database:', dbError);
+          // Don't throw - session removal succeeded
+        }
+      }
+    } else if (result.success && !result.approved) {
+      console.log(`[DocumentsTab] Waiting for GM approval to remove ${document.name}`);
+    } else {
+      console.error('[DocumentsTab] Failed to remove document from session:', result.error);
+    }
+  } catch (error) {
+    console.error('Failed to delete document:', error);
+  }
 }
 
 // Drag and drop functionality

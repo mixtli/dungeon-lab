@@ -9,6 +9,7 @@ import {
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { useChatStore } from './chat.store.mjs';
+import { useNotificationStore } from './notification.store.mjs';
 import { getApiBaseUrl } from '../utils/getApiBaseUrl.mts';
 
 // Define a type for the socket store
@@ -133,6 +134,14 @@ export const useSocketStore = defineStore(
         // Set up roll request listener
         socket.value?.on('roll:request', (rollRequest: RollRequest) => {
           console.log('[Socket] Received roll request:', rollRequest);
+          
+          // Show toast notification
+          const notificationStore = useNotificationStore();
+          notificationStore.addNotification({
+            message: `Roll request: ${rollRequest.message}`,
+            type: 'info',
+            duration: 4000 // Show for 4 seconds
+          });
           
           // Get chat store and add roll request to chat
           const chatStore = useChatStore();

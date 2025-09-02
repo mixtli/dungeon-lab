@@ -289,4 +289,105 @@ describe('TypedSpellConverter', () => {
       }
     });
   });
+
+  describe('Damage and Scaling Parsing', () => {
+    it('should correctly parse Fireball damage and scaling from markup tags', async () => {
+      const fireballSpell: EtoolsSpell = {
+        name: 'Fireball',
+        source: 'XPHB',
+        page: 274,
+        level: 3,
+        school: 'V',
+        time: [{ number: 1, unit: 'action' }],
+        range: { type: 'point', distance: { type: 'feet', amount: 150 } },
+        components: { v: true, s: true, m: 'a ball of bat guano and sulfur' },
+        duration: [{ type: 'instant' }],
+        entries: [
+          'A bright streak flashes from you to a point you choose within range and then blossoms with a low roar into a fiery explosion. Each creature in a 20-foot-radius sphere centered on that point makes a Dexterity saving throw, taking {@damage 8d6} Fire damage on a failed save or half as much damage on a successful one.',
+          'Flammable objects in the area that aren\'t being worn or carried start burning.'
+        ],
+        entriesHigherLevel: [{
+          type: 'entries',
+          name: 'Using a Higher-Level Spell Slot',
+          entries: [
+            'The damage increases by {@scaledamage 8d6|3-9|1d6} for each spell slot level above 3.'
+          ]
+        }],
+        damageInflict: ['fire'],
+        savingThrow: ['dexterity']
+      };
+
+      const result = await converter.convertItem(fireballSpell);
+
+      expect(result.success).toBe(true);
+      expect(result.document).toBeDefined();
+      
+      if (result.document) {
+        const pluginData = result.document.pluginData;
+        
+        // Test base damage parsing
+        expect(pluginData.damage).toBeDefined();
+        expect(pluginData.damage?.dice).toBe('8d6');
+        expect(pluginData.damage?.type).toBe('fire');
+        
+        // Test saving throw parsing  
+        expect(pluginData.savingThrow).toBeDefined();
+        expect(pluginData.savingThrow?.ability).toBe('dexterity');
+        
+        // Test scaling damage parsing
+        expect(pluginData.scaling).toBeDefined();
+        expect(pluginData.scaling?.higherLevels).toBeDefined();
+        expect(pluginData.scaling?.higherLevels?.scaling).toBeDefined();
+        expect(pluginData.scaling?.higherLevels?.scaling.length).toBeGreaterThan(0);
+        
+        const damageScaling = pluginData.scaling?.higherLevels?.scaling[0];
+        expect(damageScaling?.type).toBe('damage');
+        expect(damageScaling?.increment).toBe('1d6');
+        expect(damageScaling?.damageScaling).toBeDefined();
+        expect(damageScaling?.damageScaling?.baseDamage).toBe('8d6');
+        expect(damageScaling?.damageScaling?.levelRange.min).toBe(3);
+        expect(damageScaling?.damageScaling?.levelRange.max).toBe(9);
+        expect(damageScaling?.damageScaling?.increment).toBe('1d6');
+      }
+    });
+
+    it('should handle spells with damage but no scaling', async () => {
+      const magicMissileSpell: EtoolsSpell = {
+        name: 'Magic Missile',
+        source: 'XPHB', 
+        level: 1,
+        school: 'V',
+        time: [{ number: 1, unit: 'action' }],
+        range: { type: 'point', distance: { type: 'feet', amount: 120 } },
+        components: { v: true, s: true },
+        duration: [{ type: 'instant' }],
+        entries: [
+          'You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals {@damage 1d4 + 1} force damage to its target.'
+        ],
+        damageInflict: ['force'],
+        spellAttack: ['ranged']
+      };
+
+      const result = await converter.convertItem(magicMissileSpell);
+
+      expect(result.success).toBe(true);
+      expect(result.document).toBeDefined();
+      
+      if (result.document) {
+        const pluginData = result.document.pluginData;
+        
+        // Should have damage but no scaling
+        expect(pluginData.damage).toBeDefined();
+        expect(pluginData.damage?.dice).toBe('1d4 + 1');
+        expect(pluginData.damage?.type).toBe('force');
+        
+        // Should have attack roll
+        expect(pluginData.attackRoll).toBeDefined();
+        expect(pluginData.attackRoll?.type).toBe('ranged');
+        
+        // Should not have scaling or should have empty scaling
+        expect(pluginData.scaling?.higherLevels?.scaling?.length || 0).toBe(0);
+      }
+    });
+  });
 });

@@ -14,6 +14,8 @@ export async function generateAIImage(
     contentType?: string;
   }
 ): Promise<File> {
+  console.log('Generating image with prompt:', prompt);
+  console.log('Data:', data);
   try {
     // get summary of data
     const summary = await generateText({

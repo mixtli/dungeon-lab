@@ -6,15 +6,17 @@
 
 import type { GameActionRequest, RollInitiativeParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ValidationResult } from '../../action-handler.interface.mjs';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import { pluginRegistry } from '../../plugin-registry.mjs';
 
 /**
  * Validate roll initiative request
  */
-function validateRollInitiative(
+const validateRollInitiative: ActionValidationHandler = async (
   request: GameActionRequest, 
   gameState: ServerGameStateWithVirtuals
-): ValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as RollInitiativeParameters;
 
   console.log('[RollInitiativeHandler] Validating initiative roll:', {
@@ -35,14 +37,14 @@ function validateRollInitiative(
 
   // Validate participants if specific ones are provided
   if (params.participants && params.participants.length > 0) {
-    const encounterTokens = gameState.currentEncounter.tokens || [];
+    const encounterTokens = gameState.currentEncounter.tokens || {};
     const encounterDocuments = Object.values(gameState.documents).filter(
       doc => doc.documentType === 'character' || doc.documentType === 'actor'
     );
     
     for (const participantId of params.participants) {
       // Check if participant exists either as a token or document
-      const tokenExists = encounterTokens.some(token => 
+      const tokenExists = Object.values(encounterTokens).some(token => 
         token.id === participantId || token.documentId === participantId
       );
       const documentExists = encounterDocuments.some(doc => doc.id === participantId);
@@ -65,10 +67,12 @@ function validateRollInitiative(
 /**
  * Execute initiative rolling using direct state mutation
  */
-function executeRollInitiative(
+const executeRollInitiative: ActionExecutionHandler = async (
   request: GameActionRequest, 
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as RollInitiativeParameters;
 
   console.log('[RollInitiativeHandler] Executing initiative roll:', {
@@ -86,57 +90,68 @@ function executeRollInitiative(
     };
   }
 
-  // Generate turn order participants from encounter tokens and characters
-  const participants = [];
+  // Get the appropriate plugin for initiative calculation
+  const gameSystemPlugin = pluginRegistry.getGameSystemPlugin(draft.campaign?.pluginId || 'dnd-5e-2024');
+  const turnManagerPlugin = gameSystemPlugin?.turnManager;
   
-  if (draft.currentEncounter?.tokens) {
-    for (const token of draft.currentEncounter.tokens) {
-      // Skip if specific participants were requested and this token isn't included
-      if (params.participants && params.participants.length > 0) {
-        if (!params.participants.includes(token.id) && !params.participants.includes(token.documentId || '')) {
+  if (!turnManagerPlugin) {
+    console.warn('[RollInitiativeHandler] No turn manager plugin found, using simple rolling');
+  }
+
+  // Generate turn order participants from encounter participants only
+  let participants = [];
+  const encounterParticipants = draft.currentEncounter?.participants || [];
+  const tokens = draft.currentEncounter?.tokens || {};
+
+  if (encounterParticipants.length === 0) {
+    console.warn('[RollInitiativeHandler] No encounter participants found - cannot roll initiative');
+    return;
+  }
+
+  for (const participantId of encounterParticipants) {
+    // Skip if specific participants were requested and this participant isn't included
+    if (params.participants && params.participants.length > 0) {
+      if (!params.participants.includes(participantId)) {
+        // Also check token IDs for backward compatibility
+        const token = Object.values(tokens).find(t => t.documentId === participantId);
+        if (!token || !params.participants.includes(token.id)) {
           continue;
         }
       }
-      
-      // Roll initiative (d20 + dex modifier, for now just random 1-20)
-      const initiativeRoll = Math.floor(Math.random() * 20) + 1;
-      
-      participants.push({
-        id: `participant_${token.id}`,
-        name: token.name,
-        tokenId: token.id,
-        actorId: token.documentId,
-        turnOrder: initiativeRoll,
-        hasActed: false
-      });
     }
-  }
 
-  // If no specific participants were requested, include characters not represented by tokens
-  if (!params.participants || params.participants.length === 0) {
-    const tokenDocumentIds = new Set(
-      draft.currentEncounter?.tokens?.map(t => t.documentId).filter(Boolean) || []
-    );
+    const document = draft.documents[participantId];
+    if (!document) {
+      console.warn(`[RollInitiativeHandler] Document not found for participant: ${participantId}`);
+      continue;
+    }
+
+    const token = Object.values(tokens).find(t => t.documentId === participantId);
     
-    for (const document of Object.values(draft.documents)) {
-      if ((document.documentType === 'character' || document.documentType === 'actor') && 
-          !tokenDocumentIds.has(document.id)) {
-        
-        const initiativeRoll = Math.floor(Math.random() * 20) + 1;
-        
-        participants.push({
-          id: `participant_${document.id}`,
-          name: document.name,
-          actorId: document.id,
-          turnOrder: initiativeRoll,
-          hasActed: false
-        });
-      }
-    }
+    participants.push({
+      id: token?.id || `participant_${participantId}`,
+      name: document.name,
+      tokenId: token?.id,
+      actorId: participantId,
+      turnOrder: 0, // Will be calculated by plugin
+      hasActed: false
+    });
   }
 
-  // Sort participants by initiative roll (higher goes first)
-  participants.sort((a, b) => b.turnOrder - a.turnOrder);
+  // Use plugin to calculate initiative if available, otherwise use simple rolling
+  if (turnManagerPlugin && turnManagerPlugin.supportsAutomaticCalculation()) {
+    console.log('[RollInitiativeHandler] Using plugin to calculate initiative');
+    participants = await turnManagerPlugin.calculateInitiative(participants);
+  } else {
+    console.log('[RollInitiativeHandler] Using simple initiative rolling');
+    // Fallback to simple d20 rolling
+    participants = participants.map(participant => ({
+      ...participant,
+      turnOrder: Math.floor(Math.random() * 20) + 1
+    }));
+    // Sort by initiative roll (higher goes first)
+    participants.sort((a, b) => b.turnOrder - a.turnOrder);
+  }
 
   // Update turn manager
   draft.turnManager.participants = participants;
@@ -154,12 +169,12 @@ function executeRollInitiative(
 /**
  * Core roll-initiative action handler
  */
-export const rollInitiativeActionHandler: ActionHandler = {
+export const rollInitiativeActionHandler: Omit<ActionHandler, 'pluginId'> = {
   priority: 0, // Core handler runs first
   gmOnly: true, // Only GMs can roll initiative
   validate: validateRollInitiative,
   execute: executeRollInitiative,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as RollInitiativeParameters;
     const participantCount = params.participants?.length || 'all participants';
     return `wants to roll initiative for ${participantCount}`;

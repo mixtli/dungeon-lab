@@ -4,7 +4,8 @@ import {
   userCreateSchema,
   userUpdateSchema,
   UserTheme,
-  userPreferencesSchema
+  userPreferencesSchema,
+  dicePreferencesSchema
 } from '../schemas/user.schema.mjs';
 
 import {
@@ -41,7 +42,6 @@ import {
 // Encounter schemas
 import { 
   encounterSchema, 
-  EncounterStatusEnum,
   encounterSettingsSchema,
   createEncounterSchema,
   updateEncounterSchema,
@@ -132,6 +132,7 @@ export type IUserCreateData = z.infer<typeof userCreateSchema>;
 export type IUserUpdateData = z.infer<typeof userUpdateSchema>;
 export type IUserPreferences = z.infer<typeof userPreferencesSchema>;
 export type UserThemeType = z.infer<typeof UserTheme>;
+export type DicePreferences = z.infer<typeof dicePreferencesSchema>;
 
 // Campaign Types
 export type ICampaign = z.infer<typeof campaignWithVirtualsSchema>;
@@ -166,7 +167,6 @@ export type GridBounds = z.infer<typeof gridBoundsSchema>;
 export type IEncounter = z.infer<typeof encounterSchema>;
 export type IEncounterCreateData = z.infer<typeof createEncounterSchema>;
 export type IEncounterUpdateData = z.infer<typeof updateEncounterSchema>;
-export type EncounterStatusType = z.infer<typeof EncounterStatusEnum>;
 export type IEncounterSettings = z.infer<typeof encounterSettingsSchema>;
 export type IEncounterPermissions = z.infer<typeof encounterPermissionsSchema>;
 

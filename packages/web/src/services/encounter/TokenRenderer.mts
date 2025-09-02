@@ -1,8 +1,9 @@
 import * as PIXI from 'pixi.js';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { TokenStatusBarData } from '@dungeon-lab/shared/types/token-status-bars.mjs';
+import type { ViewportManager } from './ViewportManager.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
-import { isPositionWithinBounds, clampPositionToBounds } from '../../utils/bounds-validation.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 export interface TokenSpriteData {
@@ -15,12 +16,6 @@ export interface TokenSpriteData {
 // Extended sprite interface for token-specific properties
 interface TokenSprite extends PIXI.Sprite {
   tokenId?: string;
-  dragging?: boolean;
-  dragData?: PIXI.FederatedPointerEvent;
-  dragStartPosition?: { x: number; y: number };
-  originalPosition?: { x: number; y: number };
-  dragStartGlobal?: { x: number; y: number };
-  worldPosition?: { x: number; y: number };
   lastClickTime?: number;
   clickCount?: number;
 }
@@ -40,31 +35,27 @@ interface TokenPosition {
 export interface TokenEvents {
   select: (tokenId: string) => void;
   deselect: (tokenId: string) => void;
-  dragStart: (tokenId: string, position: TokenPosition) => void;
-  dragMove: (tokenId: string, position: TokenPosition) => void;
-  dragEnd: (tokenId: string, position: TokenPosition) => void;
   click: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   doubleClick: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   rightClick: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
+  longPress: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
 }
 
 interface TokenRendererEventHandlers {
   select?: (tokenId: string) => void;
   deselect?: () => void;
-  dragStart?: (tokenId: string, position: { x: number; y: number }) => void;
-  dragMove?: (tokenId: string, position: { x: number; y: number }) => void;
-  dragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   click?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   doubleClick?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
   rightClick?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
+  longPress?: (tokenId: string, event: PIXI.FederatedPointerEvent) => void;
+  dragStart?: (tokenId: string, worldPos: { x: number; y: number }) => void;
+  dragMove?: (tokenId: string, worldPos: { x: number; y: number }) => void;
+  dragEnd?: (tokenId: string, startPos: { x: number; y: number }, endPos: { x: number; y: number }) => void;
 }
 
 interface TokenRendererOptions {
   onTokenSelect?: (tokenId: string) => void;
   onTokenDeselect?: () => void;
-  onTokenDragStart?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragMove?: (tokenId: string, position: { x: number; y: number }) => void;
-  onTokenDragEnd?: (tokenId: string, position: { x: number; y: number }) => void;
   onTokenClick?: (tokenId: string) => void;
   onTokenRightClick?: (tokenId: string) => void;
 }
@@ -82,8 +73,8 @@ export class TokenRenderer {
   private targetTokenIds: Set<string> = new Set();
   private eventHandlers: TokenRendererEventHandlers = {};
 
-  private dragEnabled: boolean = true;
   private scaleProvider?: () => number;
+  private viewportManager?: ViewportManager;
   
   // Performance settings
   private maxPoolSize = 50;
@@ -91,32 +82,57 @@ export class TokenRenderer {
   // Configuration
   private _gridSize: number = 50;
   private _snapToGrid: boolean = true;
-  private _dragThreshold: number = 5; // pixels - minimum distance to start dragging
   private _doubleClickTime: number = 300; // milliseconds - time window for double-click detection
   
-  // Drag state
-  private _isDragging = false;
-  private _dragTarget: TokenSprite | null = null;
-  private _dragStartPosition: { x: number; y: number } | null = null;
-  private _dragStartGlobal: { x: number; y: number } | null = null;
+  // Long press timing state
+  private _pendingLongPressTimers: Map<string, number> = new Map();
   
   // Map data for bounds checking
   private _mapData: IMapResponse | null = null;
   
-  constructor(tokenContainer: PIXI.Container, _options?: TokenRendererOptions, scaleProvider?: () => number) {
+  // Drag state management
+  private dragState: {
+    isDragging: boolean;
+    tokenId: string | null;
+    dragSprite: PIXI.Container | null;
+    originalSprite: PIXI.Container | null;
+    startWorldPosition: { x: number; y: number }; // For event handlers
+    originalTokenWorldPos: { x: number; y: number }; // Token's original world position
+    initialPointerScreenPos: { x: number; y: number }; // Initial pointer in screen coordinates
+    movementThreshold: number;
+    hasCrossedThreshold: boolean;
+  } | null = null;
+  
+  // Drag configuration
+  private _dragThreshold: number = 5; // pixels - minimum movement to start drag
+  private _dragAlpha: number = 0.8; // alpha for drag sprite
+  private _originalAlphaDuringDrag: number = 0.3; // alpha for original sprite during drag
+  
+  constructor(tokenContainer: PIXI.Container, _options?: TokenRendererOptions, scaleProvider?: () => number, viewportManager?: ViewportManager) {
     this.tokenContainer = tokenContainer;
     this.scaleProvider = scaleProvider;
+    this.viewportManager = viewportManager;
+    
+    // Suppress unused variable warnings - these properties are kept for future use
+    void this.scaleProvider;
   }
 
   /**
    * Clean up resources
    */
   destroy(): void {
+    // Clean up any active drag state
+    this.cleanupDragState();
+    
     // Clear all tokens
     this.clearAllTokens();
     
     // Clear texture cache
     this.textureCache.clear();
+    
+    // Clear all pending long press timers
+    this._pendingLongPressTimers.forEach(timerId => clearTimeout(timerId));
+    this._pendingLongPressTimers.clear();
   }
   
   /**
@@ -149,6 +165,8 @@ export class TokenRenderer {
    */
   setMapData(mapData: IMapResponse | null): void {
     this._mapData = mapData;
+    // Suppress unused variable warning - map data is stored for future bounds checking
+    void this._mapData;
   }
   
   /**
@@ -157,9 +175,21 @@ export class TokenRenderer {
   private snapToGrid(position: TokenPosition): TokenPosition {
     if (!this._snapToGrid) return position;
     
-    // Snap to grid center - each grid square center is at (n * gridSize + gridSize/2)
-    const gridX = Math.round((position.x - this._gridSize / 2) / this._gridSize) * this._gridSize + this._gridSize / 2;
-    const gridY = Math.round((position.y - this._gridSize / 2) / this._gridSize) * this._gridSize + this._gridSize / 2;
+    // Snap to grid cell centers for proper visual positioning
+    // Grid cell centers are at (n * gridSize + gridSize/2)
+    const gridCellX = Math.round((position.x - this._gridSize / 2) / this._gridSize);
+    const gridCellY = Math.round((position.y - this._gridSize / 2) / this._gridSize);
+    const gridX = gridCellX * this._gridSize + this._gridSize / 2;
+    const gridY = gridCellY * this._gridSize + this._gridSize / 2;
+    
+    console.log('[TokenRenderer] Snap-to-grid calculation:', {
+      originalPosition: position,
+      gridSize: this._gridSize,
+      gridCellX,
+      gridCellY,
+      snappedPosition: { x: gridX, y: gridY },
+      resultingGridCoords: { x: gridX / this._gridSize, y: gridY / this._gridSize }
+    });
     
     return { x: gridX, y: gridY };
   }
@@ -308,6 +338,9 @@ export class TokenRenderer {
   removeToken(tokenId: string): void {
     const tokenData = this.activeTokens.get(tokenId);
     if (!tokenData) return;
+    
+    // Cancel any pending long press for this token
+    this.cancelPendingLongPress(tokenId);
     
     // Remove from container
     this.tokenContainer.removeChild(tokenData.root);
@@ -487,12 +520,6 @@ export class TokenRenderer {
     }
   }
   
-  /**
-   * Enable or disable token dragging
-   */
-  setDragEnabled(enabled: boolean): void {
-    this.dragEnabled = enabled;
-  }
   
   /**
    * Acquire a sprite from the pool or create a new one
@@ -513,7 +540,6 @@ export class TokenRenderer {
     sprite.rotation = 0;
     sprite.scale.set(1, 1);
     sprite.tint = 0xFFFFFF;
-    sprite.dragging = false;
     sprite.lastClickTime = 0;
     sprite.clickCount = 0;
     
@@ -549,6 +575,10 @@ export class TokenRenderer {
     // The tokenRoot will be positioned at world coordinates, so sprite should be at (0, 0)
     sprite.x = 0;
     sprite.y = 0;
+    
+    // Set sprite event mode and cursor
+    sprite.eventMode = 'static';
+    sprite.cursor = 'pointer';
     
     // Calculate size based on grid bounds
     const size = this.getPixelSizeFromBounds(token.bounds);
@@ -657,16 +687,15 @@ export class TokenRenderer {
    */
   private setupSpriteEvents(sprite: TokenSprite): void {
     sprite.removeAllListeners(); // Prevent duplicate event handlers
-    // Click/tap handler
+    
+    // Simple click handler for selection
     sprite.on('pointerdown', this.handlePointerDown.bind(this, sprite));
-    // Remove pointermove from individual sprites - we'll use stage-level listeners during drag
-    // sprite.on('pointermove', this.handlePointerMove.bind(this, sprite));
-    sprite.on('pointerup', this.handlePointerUp.bind(this));
-    sprite.on('pointerupoutside', this.handlePointerUp.bind(this));
+    
     // Hover effects
     sprite.on('pointerover', this.handlePointerOver.bind(this, sprite));
     sprite.on('pointerout', this.handlePointerOut.bind(this, sprite));
-    // Add rightdown event for right-click context menu
+    
+    // Right-click context menu
     sprite.on('rightdown', (event: PIXI.FederatedPointerEvent) => {
       if (sprite.tokenId && this.eventHandlers.rightClick) {
         this.eventHandlers.rightClick(sprite.tokenId, event);
@@ -701,28 +730,21 @@ export class TokenRenderer {
   }
 
   /**
-   * Handle pointer down event
+   * Handle pointer down event - setup drag tracking and handle clicks
    */
   private handlePointerDown(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): void {
     if (!sprite.tokenId) return;
-    // Store original position before any potential drag
-    sprite.originalPosition = { x: sprite.x, y: sprite.y };
-    // Remove right-click logic from here; handled by rightdown event
-    // Left click - prepare for potential drag (but don't start dragging yet)
-    if (event.button === 0 && this.dragEnabled) {
-      // Store drag start information but don't mark as dragging yet
-      this._dragTarget = sprite;
-      this._dragStartPosition = { x: sprite.x, y: sprite.y };
-      this._dragStartGlobal = { x: event.global.x, y: event.global.y };
-      // Set up stage-level listeners to detect if this becomes a drag
-      const stage = this.tokenContainer.parent;
-      if (stage) {
-        stage.on('pointermove', this.handleStageDragMove, this);
-        stage.on('pointerup', this.handleStageDragEnd, this);
-        stage.on('pointerupoutside', this.handleStageDragEnd, this);
-      }
+    
+    // Don't start drag if we're already dragging something
+    if (this.dragState) {
+      return;
     }
-    // Handle click and double-click detection
+    
+    // Initialize drag tracking for potential drag operation
+    // This sets up the listeners but doesn't start dragging until movement threshold is crossed
+    this.initializeDragState(sprite.tokenId, { x: event.globalX, y: event.globalY });
+    
+    // Handle click and double-click detection for all buttons
     this.handleClickAndDoubleClick(sprite, event);
   }
   
@@ -740,177 +762,54 @@ export class TokenRenderer {
     sprite.lastClickTime = currentTime;
     
     if (timeDifference <= this._doubleClickTime) {
-      // This is a double-click
+      // This is a double-click - cancel any pending operations and emit double-click
+      this.cancelPendingLongPress(sprite.tokenId);
+      this.cleanupDragState(); // Cancel any potential drag
       sprite.clickCount = 0; // Reset click count
+      
       if (this.eventHandlers.doubleClick) {
         this.eventHandlers.doubleClick(sprite.tokenId, event);
       }
     } else {
-      // This is a single click (for now)
+      // This is a single click - emit click immediately
       sprite.clickCount = 1;
       
-      // Emit single click event immediately
       if (this.eventHandlers.click) {
         this.eventHandlers.click(sprite.tokenId, event);
       }
-    }
-  }
-  
-  /**
-   * Handle stage-level drag move event
-   */
-  private handleStageDragMove(event: PIXI.FederatedPointerEvent): void {
-    if (!this._dragTarget || !this._dragStartGlobal || !this._dragStartPosition) return;
-    
-    const sprite = this._dragTarget;
-    if (!sprite.tokenId) return;
-    
-    // Calculate distance from initial mouse position
-    const deltaX = event.global.x - this._dragStartGlobal.x;
-    const deltaY = event.global.y - this._dragStartGlobal.y;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    
-    // If not dragging yet, check if we've exceeded the threshold
-    if (!this._isDragging) {
-      if (distance >= this._dragThreshold) {
-        // Start dragging
-        this._isDragging = true;
-        sprite.dragging = true;
-        
-        // Emit drag start event
-        if (this.eventHandlers.dragStart) {
-          const currentPos = { x: sprite.x, y: sprite.y };
-          this.eventHandlers.dragStart(sprite.tokenId, currentPos);
-        }
-      } else {
-        // Haven't exceeded threshold yet, don't move the token
-        return;
-      }
-    }
-    
-    // Continue dragging - update sprite position
-    const newPosition = this.calculateDragPosition(sprite, event);
-    sprite.x = newPosition.x;
-    sprite.y = newPosition.y;
-    
-    // Emit drag move event
-    if (this.eventHandlers.dragMove) {
-      this.eventHandlers.dragMove(sprite.tokenId, { x: sprite.x, y: sprite.y });
-    }
-  }
-  
-  /**
-   * Handle stage-level drag end event
-   */
-  private handleStageDragEnd(): void {
-    if (!this._dragTarget) return;
-    
-    const sprite = this._dragTarget;
-    if (!sprite.tokenId) return;
-    
-    // Remove stage-level event listeners
-    const stage = this.tokenContainer.parent;
-    if (stage) {
-      stage.off('pointermove', this.handleStageDragMove, this);
-      stage.off('pointerup', this.handleStageDragEnd, this);
-      stage.off('pointerupoutside', this.handleStageDragEnd, this);
-    }
-    
-    // Check if we were actually dragging
-    if (this._isDragging && sprite.dragging) {
-      // This was a drag operation
-      const originalPos = this._dragStartPosition;
-      const currentPos = { x: sprite.x, y: sprite.y };
       
-      // Check if the token actually moved
-      const hasMoved = originalPos && (
-        Math.abs(currentPos.x - originalPos.x) > 0.1 || 
-        Math.abs(currentPos.y - originalPos.y) > 0.1
-      );
-      
-      if (hasMoved) {
-        // Snap the final position to grid
-        const snappedPosition = this.snapToGrid(currentPos);
-        
-        // Check if the snapped position is within map bounds
-        if (!isPositionWithinBounds(snappedPosition, this._mapData)) {
-          const clampedPosition = clampPositionToBounds(snappedPosition, this._mapData);
-          
-          // Update sprite to clamped position
-          sprite.x = clampedPosition.x;
-          sprite.y = clampedPosition.y;
-          
-          // Emit drag end event with clamped position
-          if (this.eventHandlers.dragEnd) {
-            this.eventHandlers.dragEnd(sprite.tokenId, clampedPosition);
-          }
-        } else {
-          // Position is within bounds, use snapped position
-          sprite.x = snappedPosition.x;
-          sprite.y = snappedPosition.y;
-          
-          // Emit drag end event with snapped position
-          if (this.eventHandlers.dragEnd) {
-            this.eventHandlers.dragEnd(sprite.tokenId, snappedPosition);
-          }
-        }
-      } else {
-        // Token didn't actually move, reset to original position
-        if (originalPos) {
-          sprite.x = originalPos.x;
-          sprite.y = originalPos.y;
-        }
-      }
-    } else {
-      // This was a click (not a drag) - let parent component handle selection
-      // The click event was already emitted in handlePointerDown
+      // Note: Don't cleanup drag state here for single clicks, 
+      // as the user might still be in the process of dragging
     }
-    
-    // Clean up drag state
-    this._isDragging = false;
-    this._dragTarget = null;
-    this._dragStartPosition = null;
-    this._dragStartGlobal = null;
-    
-    // Clean up sprite drag state
-    sprite.dragging = false;
-    sprite.originalPosition = undefined;
   }
   
-
   
   /**
-   * Handle pointer up event
+   * Cancel a pending long press operation for a token
    */
-  private handlePointerUp(): void {
-    // The stage drag end handler will handle all the drag/selection logic
+  private cancelPendingLongPress(tokenId: string): void {
+    const timerId = this._pendingLongPressTimers.get(tokenId);
+    if (timerId) {
+      clearTimeout(timerId);
+      this._pendingLongPressTimers.delete(tokenId);
+    }
   }
   
+
   /**
-   * Calculate new position during drag
+   * Refresh a token's visual state from the provided game state data
+   * (Used when moves fail validation and we need to revert to game state)
    */
-  private calculateDragPosition(sprite: TokenSprite, event: PIXI.FederatedPointerEvent): TokenPosition {
-    if (!this._dragStartGlobal || !this._dragStartPosition) return { x: sprite.x, y: sprite.y };
-
-    // Calculate the difference in global coordinates (screen pixels)
-    const dx = event.global.x - this._dragStartGlobal.x;
-    const dy = event.global.y - this._dragStartGlobal.y;
-
-    // Get the current scale from the scale provider (ViewportManager)
-    const scale = this.scaleProvider ? this.scaleProvider() : 1;
+  async refreshTokenFromState(tokenId: string, tokenData: Token): Promise<void> {
+    console.log('[TokenRenderer] Refreshing token from game state:', {
+      tokenId,
+      currentBounds: tokenData.bounds
+    });
     
-    // Convert screen pixel movement to world coordinate movement
-    const worldDx = dx / scale;
-    const worldDy = dy / scale;
-
-
-    return {
-      x: this._dragStartPosition.x + worldDx,
-      y: this._dragStartPosition.y + worldDy
-    };
+    // Simply update the token using the existing updateToken method
+    // This will re-position the token based on the bounds from game state
+    await this.updateToken(tokenData);
   }
-  
-
   
   /**
    * Apply hover visual effect to token
@@ -1053,5 +952,343 @@ export class TokenRenderer {
       // Add the target circle as a child of the token root
       tokenRoot.addChild(targetCircle);
     }
+  }
+  
+  /**
+   * Update status bars for a token
+   */
+  updateTokenStatusBars(tokenId: string, statusBars: TokenStatusBarData[]): void {
+    const tokenData = this.activeTokens.get(tokenId);
+    if (!tokenData) {
+      return;
+    }
+    
+    const tokenRoot = tokenData.root as TokenContainer;
+    const sprite = tokenData.sprite;
+    
+    // Remove existing status bars
+    const existingStatusBars = tokenRoot.children.filter(child => 
+      typeof child.label === 'string' && child.label.startsWith('status-bar-')
+    );
+    for (const bar of existingStatusBars) {
+      tokenRoot.removeChild(bar);
+      bar.destroy();
+    }
+    
+    if (!statusBars.length) return;
+    
+    // Get sprite dimensions for positioning
+    const spriteRadius = Math.max(sprite.width, sprite.height) / 2;
+    
+    // Group status bars by position
+    const topBars = statusBars.filter(bar => bar.config.position === 'top' && bar.visible);
+    const bottomBars = statusBars.filter(bar => bar.config.position === 'bottom' && bar.visible);
+    
+    // Render status bars
+    this.renderStatusBarsAtPosition(tokenRoot, topBars, spriteRadius, 'top');
+    this.renderStatusBarsAtPosition(tokenRoot, bottomBars, spriteRadius, 'bottom');
+  }
+  
+  /**
+   * Render status bars at a specific position (top or bottom)
+   */
+  private renderStatusBarsAtPosition(
+    tokenRoot: TokenContainer, 
+    statusBars: TokenStatusBarData[], 
+    spriteRadius: number, 
+    position: 'top' | 'bottom'
+  ): void {
+    if (!statusBars.length) {
+      return;
+    }
+    
+    const barWidth = spriteRadius * 1.8; // Status bar width relative to token size
+    const barHeight = 6; // Fixed height for status bars
+    const barSpacing = 2; // Spacing between multiple bars
+    const marginFromSprite = 8; // Distance from token edge
+    
+    // Calculate starting Y position based on position type
+    const baseY = position === 'top' 
+      ? -spriteRadius - marginFromSprite - barHeight 
+      : spriteRadius + marginFromSprite;
+    
+    statusBars.forEach((statusBar, index) => {
+      const barContainer = new PIXI.Container();
+      barContainer.label = `status-bar-${statusBar.config.id}`;
+      
+      // Calculate Y position for this bar
+      const yOffset = position === 'top' 
+        ? -(barHeight + barSpacing) * index 
+        : (barHeight + barSpacing) * index;
+      const barY = baseY + yOffset;
+      
+      // Create background bar (empty state)
+      const backgroundBar = new PIXI.Graphics();
+      backgroundBar.rect(-barWidth / 2, 0, barWidth, barHeight)
+        .fill(0x333333) // Dark gray background
+        .stroke({ width: 1, color: 0x666666 }); // Light gray border
+      
+      // Add background bar first (renders behind)
+      barContainer.addChild(backgroundBar);
+      
+      // Create filled bar (current state) - add after background so it renders on top
+      const fillWidth = barWidth * statusBar.percentage;
+      if (fillWidth > 0) {
+        const fillColor = this.parseHexColor(statusBar.displayColor);
+        const fillBar = new PIXI.Graphics();
+        fillBar.rect(-barWidth / 2, 0, fillWidth, barHeight)
+          .fill(fillColor);
+        barContainer.addChild(fillBar);
+      }
+      
+      // Position the bar container
+      barContainer.x = 0; // Centered horizontally
+      barContainer.y = barY;
+      
+      // Add to token root
+      tokenRoot.addChild(barContainer);
+    });
+  }
+  
+  /**
+   * Parse hex color string to PIXI color number
+   */
+  private parseHexColor(hexColor: string): number {
+    // Remove # prefix if present
+    const hex = hexColor.replace('#', '');
+    
+    // Convert to number
+    return parseInt(hex, 16);
+  }
+  
+  // ============================================================================
+  // DRAG AND DROP METHODS
+  // ============================================================================
+  
+  /**
+   * Create a visual copy of a token for dragging
+   */
+  private createDragSprite(originalTokenData: TokenSpriteData): PIXI.Container {
+    const dragContainer = new PIXI.Container();
+    dragContainer.label = `drag-${originalTokenData.token.id}`;
+    
+    // Clone the sprite
+    const dragSprite = new PIXI.Sprite(originalTokenData.sprite.texture);
+    dragSprite.anchor.set(0.5);
+    dragSprite.width = originalTokenData.sprite.width;
+    dragSprite.height = originalTokenData.sprite.height;
+    dragSprite.alpha = this._dragAlpha;
+    
+    // Add subtle glow effect for drag feedback
+    const glow = new PIXI.Graphics();
+    const radius = Math.max(dragSprite.width, dragSprite.height) / 2 + 4;
+    glow.circle(0, 0, radius).fill({ color: 0xffffff, alpha: 0.3 });
+    
+    // Add glow first (behind sprite)
+    dragContainer.addChild(glow);
+    dragContainer.addChild(dragSprite);
+    
+    return dragContainer;
+  }
+  
+  /**
+   * Initialize drag state and setup global listeners
+   */
+  private initializeDragState(tokenId: string, pointerPosition: { x: number; y: number }): void {
+    const tokenData = this.activeTokens.get(tokenId);
+    if (!tokenData) return;
+    
+    const tokenRoot = tokenData.root as TokenContainer;
+    const tokenWorldPos = { x: tokenRoot.x, y: tokenRoot.y };
+    
+    this.dragState = {
+      isDragging: false, // Not dragging yet, just tracking potential drag
+      tokenId,
+      dragSprite: null,
+      originalSprite: tokenRoot,
+      startWorldPosition: { ...tokenWorldPos }, // For event handlers
+      originalTokenWorldPos: { ...tokenWorldPos }, // Token's original world position
+      initialPointerScreenPos: { ...pointerPosition }, // Screen coordinates from globalX/globalY
+      movementThreshold: this._dragThreshold,
+      hasCrossedThreshold: false
+    };
+    
+    // Setup global pointer move and up listeners
+    // Use the token container's parent (which should be the main stage) for global events
+    const stage = this.tokenContainer.parent || this.tokenContainer;
+    stage.on('pointermove', this.handleGlobalPointerMove.bind(this));
+    stage.on('pointerup', this.handleGlobalPointerUp.bind(this));
+    stage.on('pointerupoutside', this.handleGlobalPointerUp.bind(this));
+  }
+  
+  /**
+   * Start the actual drag operation
+   */
+  private startDragOperation(): void {
+    if (!this.dragState || this.dragState.isDragging) return;
+    
+    const tokenData = this.activeTokens.get(this.dragState.tokenId!);
+    if (!tokenData) return;
+    
+    // Create drag sprite
+    this.dragState.dragSprite = this.createDragSprite(tokenData);
+    this.tokenContainer.addChild(this.dragState.dragSprite);
+    
+    // Reduce alpha of original sprite
+    this.dragState.originalSprite!.alpha = this._originalAlphaDuringDrag;
+    
+    // Mark as actively dragging
+    this.dragState.isDragging = true;
+    this.dragState.hasCrossedThreshold = true;
+    
+    // Notify listeners
+    if (this.eventHandlers.dragStart) {
+      this.eventHandlers.dragStart(
+        this.dragState.tokenId!,
+        this.dragState.startWorldPosition
+      );
+    }
+  }
+  
+  /**
+   * Handle global pointer move for drag tracking
+   */
+  private handleGlobalPointerMove(event: PIXI.FederatedPointerEvent): void {
+    if (!this.dragState) return;
+    
+    const currentPointerScreenPos = { x: event.globalX, y: event.globalY };
+    
+    // Check if we've crossed the movement threshold (use screen coordinates for threshold)
+    if (!this.dragState.hasCrossedThreshold) {
+      const distance = Math.sqrt(
+        Math.pow(currentPointerScreenPos.x - this.dragState.initialPointerScreenPos.x, 2) +
+        Math.pow(currentPointerScreenPos.y - this.dragState.initialPointerScreenPos.y, 2)
+      );
+      
+      if (distance >= this.dragState.movementThreshold) {
+        this.startDragOperation();
+      }
+    }
+    
+    // If we're actively dragging, update drag sprite position
+    if (this.dragState.isDragging && this.dragState.dragSprite && this.viewportManager) {
+      // Convert current screen coordinates to world coordinates
+      const currentWorldPos = this.viewportManager.globalScreenToWorld(
+        event.globalX, 
+        event.globalY
+      );
+      
+      // Calculate the world offset from the initial pointer position
+      const initialWorldPos = this.viewportManager.globalScreenToWorld(
+        this.dragState.initialPointerScreenPos.x,
+        this.dragState.initialPointerScreenPos.y
+      );
+      
+      const worldOffset = {
+        x: currentWorldPos.x - initialWorldPos.x,
+        y: currentWorldPos.y - initialWorldPos.y
+      };
+      
+      // Position drag sprite at original token position + world offset
+      const dragSpriteWorldPos = {
+        x: this.dragState.originalTokenWorldPos.x + worldOffset.x,
+        y: this.dragState.originalTokenWorldPos.y + worldOffset.y
+      };
+      
+      this.dragState.dragSprite.x = dragSpriteWorldPos.x;
+      this.dragState.dragSprite.y = dragSpriteWorldPos.y;
+      
+      // Notify listeners
+      if (this.eventHandlers.dragMove) {
+        this.eventHandlers.dragMove(this.dragState.tokenId!, dragSpriteWorldPos);
+      }
+    }
+  }
+  
+  /**
+   * Handle global pointer up to end drag
+   */
+  private handleGlobalPointerUp(event: PIXI.FederatedPointerEvent): void {
+    if (!this.dragState) return;
+    
+    const wasDragging = this.dragState.isDragging;
+    const tokenId = this.dragState.tokenId!;
+    const startPosition = { ...this.dragState.startWorldPosition };
+    
+    let endPosition = { ...startPosition }; // Default to start position
+    
+    // If we actually dragged, calculate the final world position
+    if (wasDragging && this.viewportManager) {
+      const finalWorldPos = this.viewportManager.globalScreenToWorld(
+        event.globalX,
+        event.globalY
+      );
+      
+      // Calculate the world offset from the initial pointer position
+      const initialWorldPos = this.viewportManager.globalScreenToWorld(
+        this.dragState.initialPointerScreenPos.x,
+        this.dragState.initialPointerScreenPos.y
+      );
+      
+      const worldOffset = {
+        x: finalWorldPos.x - initialWorldPos.x,
+        y: finalWorldPos.y - initialWorldPos.y
+      };
+      
+      endPosition = {
+        x: this.dragState.originalTokenWorldPos.x + worldOffset.x,
+        y: this.dragState.originalTokenWorldPos.y + worldOffset.y
+      };
+    }
+    
+    // Clean up drag state but don't restore alpha - let the drag end handler decide
+    this.cleanupDragState(false);
+    
+    // Notify listeners if we actually dragged
+    if (wasDragging && this.eventHandlers.dragEnd) {
+      this.eventHandlers.dragEnd(tokenId, startPosition, endPosition);
+    }
+  }
+  
+  /**
+   * Clean up drag state and optionally restore normal token appearance
+   */
+  private cleanupDragState(restoreAlpha: boolean = true): void {
+    if (!this.dragState) return;
+    
+    // Remove drag sprite if it exists
+    if (this.dragState.dragSprite) {
+      this.tokenContainer.removeChild(this.dragState.dragSprite);
+      this.dragState.dragSprite.destroy();
+    }
+    
+    // Conditionally restore original sprite alpha
+    if (restoreAlpha && this.dragState.originalSprite) {
+      this.dragState.originalSprite.alpha = 1;
+    }
+    
+    // Remove global listeners
+    const stage = this.tokenContainer.parent || this.tokenContainer;
+    stage.off('pointermove', this.handleGlobalPointerMove.bind(this));
+    stage.off('pointerup', this.handleGlobalPointerUp.bind(this));
+    stage.off('pointerupoutside', this.handleGlobalPointerUp.bind(this));
+    
+    // Clear drag state
+    this.dragState = null;
+  }
+
+  /**
+   * Restore token visibility after a failed move action
+   */
+  restoreTokenVisibility(tokenId: string): void {
+    const tokenData = this.activeTokens.get(tokenId);
+    if (!tokenData) {
+      console.warn(`[TokenRenderer] Cannot restore visibility for token ${tokenId}: not found`);
+      return;
+    }
+    
+    // Restore sprite alpha to make token visible again
+    tokenData.sprite.alpha = 1;
+    console.log(`[TokenRenderer] Restored visibility for token ${tokenId}`);
   }
 } 

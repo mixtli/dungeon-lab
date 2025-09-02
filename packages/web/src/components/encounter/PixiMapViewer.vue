@@ -44,8 +44,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import { playerActionService } from '@/services/player-action.service.mjs';
+import type { MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IUVTT } from '@dungeon-lab/shared/types/index.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
@@ -53,6 +57,7 @@ import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 import { useDocumentSheetStore } from '@/stores/document-sheet.store.mjs';
 import { useGameStateStore } from '@/stores/game-state.store.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.mts';
 
 // Token change operations for efficient updates
 interface TokenChangeOperation {
@@ -157,6 +162,8 @@ function getCenterFromBounds(bounds: Token['bounds']) {
 const mapsClient = new MapsClient();
 
 // Initialize stores
+const router = useRouter();
+const { isPhone } = useDeviceAdaptation();
 const documentSheetStore = useDocumentSheetStore();
 const gameStateStore = useGameStateStore();
 
@@ -199,7 +206,7 @@ interface Emits {
   (e: 'map-loaded', mapData: IMapResponse): void;
   (e: 'map-error', error: string): void;
   (e: 'token-selected', tokenId: string, modifiers?: { shift?: boolean; ctrl?: boolean; alt?: boolean }): void;
-  (e: 'token-moved', tokenId: string, x: number, y: number): void;
+  (e: 'token-moved', tokenId: string, gridX: number, gridY: number): void;
   (e: 'viewport-changed', viewport: { x: number; y: number; scale: number }): void;
   (e: 'canvas-click', x: number, y: number, event: MouseEvent): void;
   (e: 'canvas-right-click', x: number, y: number, event: MouseEvent): void;
@@ -234,10 +241,12 @@ const {
   removeToken,
   moveToken,
   clearAllTokens,
+  updateTokenStatusBars,
   selectToken,
   deselectToken,
   addTarget,
   clearTargets,
+  restoreTokenVisibility,
   getGridSize,
   panTo,
   zoomTo,
@@ -250,13 +259,10 @@ const {
   setObjectHighlights,
   setPortalHighlights,
   setLightHighlights,
+  tokenRenderer,
   destroy
 } = usePixiMap();
 
-// Add new state for drag tracking
-const isDragging = ref(false);
-const dragStartPos = ref<{ x: number; y: number } | null>(null);
-const draggedTokenId = ref<string | null>(null);
 
 // Computed
 const loadingText = computed(() => {
@@ -265,6 +271,73 @@ const loadingText = computed(() => {
   if (!isLoaded.value) return 'Preparing map...';
   return 'Loading...';
 });
+
+// Helper functions for grid coordinate calculations
+const worldToGridCoords = (worldX: number, worldY: number) => {
+  const gridSize = getGridSize();
+  return {
+    x: Math.round((worldX - gridSize / 2) / gridSize),
+    y: Math.round((worldY - gridSize / 2) / gridSize)
+  };
+};
+
+const calculateTokenTopLeft = (tokenId: string, cursorGridPos: { x: number; y: number }) => {
+  const token = props.tokens?.find(t => t.id === tokenId);
+  if (!token) return cursorGridPos;
+  
+  const tokenGridWidth = token.bounds.bottomRight.x - token.bounds.topLeft.x + 1;
+  const tokenGridHeight = token.bounds.bottomRight.y - token.bounds.topLeft.y + 1;
+  
+  return {
+    x: cursorGridPos.x - Math.floor(tokenGridWidth / 2),
+    y: cursorGridPos.y - Math.floor(tokenGridHeight / 2)
+  };
+};
+
+/**
+ * Send a move token request through the player action service
+ */
+const requestMoveToken = async (tokenId: string, gridPosition: { x: number; y: number }) => {
+  try {
+    const parameters: MoveTokenParameters = {
+      tokenId,
+      newPosition: {
+        gridX: gridPosition.x,
+        gridY: gridPosition.y
+      }
+    };
+    
+    console.log('[PixiMapViewer] Requesting token move:', { tokenId, gridPosition, parameters });
+    
+    const result = await playerActionService.requestAction(
+      'move-token',
+      undefined, // actorId - not needed for token movement
+      parameters,
+      tokenId, // actorTokenId
+      undefined, // targetTokenIds
+      { 
+        description: `Move token to grid position (${gridPosition.x}, ${gridPosition.y})` 
+      }
+    );
+    
+    console.log('[PixiMapViewer] Move token request result:', result);
+    
+    if (!result.success) {
+      console.error('[PixiMapViewer] Token move request failed:', result.error);
+      // TODO: Show user-friendly error message
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[PixiMapViewer] Error requesting token move:', error);
+    return {
+      success: false,
+      approved: false,
+      requestId: '',
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
+  }
+};
 
 // Methods
 const initializeViewer = async () => {
@@ -282,14 +355,14 @@ const initializeViewer = async () => {
       width,
       height,
       autoResize: props.autoResize,
-      onTokenDragStart: handleTokenDragStart,
-      onTokenDragMove: handleTokenDragMove,
-      onTokenDragEnd: handleTokenDragEnd,
       onTokenClick: (tokenId: string, modifiers: { shift?: boolean; ctrl?: boolean; alt?: boolean }) => {
         emit('token-selected', tokenId, modifiers);
       },
       onTokenDoubleClick: (tokenId: string) => {
         handleTokenDoubleClick(tokenId);
+      },
+      onTokenLongPress: (tokenId: string) => {
+        handleTokenLongPress(tokenId);
       },
       onTokenRightClick: (tokenId: string) => {
         const token = props.tokens?.find(t => t.id === tokenId) || null;
@@ -300,11 +373,47 @@ const initializeViewer = async () => {
           });
           suppressNextMapContextMenu.value = true;
         }
+      },
+      
+      // Drag event handlers - Phase 1: drag with return to original position
+      onTokenDragStart: (tokenId: string, worldPos: { x: number; y: number }) => {
+        console.log('🎯 Token drag started:', { tokenId, worldPos });
+      },
+      onTokenDragMove: (tokenId: string, worldPos: { x: number; y: number }) => {
+        // Throttle drag move logging to avoid console spam
+        if (Math.random() < 0.1) { // Log only 10% of drag moves
+          console.log('🔄 Token dragging:', { tokenId, worldPos });
+        }
+      },
+      onTokenDragEnd: async (tokenId: string, startPos: { x: number; y: number }, endPos: { x: number; y: number }) => {
+        // Calculate grid coordinates
+        const cursorGridPos = worldToGridCoords(endPos.x, endPos.y);
+        const tokenTopLeftGridPos = calculateTokenTopLeft(tokenId, cursorGridPos);
+        
+        console.log('🎯 Token drag ended - requesting movement:', { 
+          tokenId, 
+          startPos, 
+          endPos,
+          distance: Math.sqrt(Math.pow(endPos.x - startPos.x, 2) + Math.pow(endPos.y - startPos.y, 2)),
+          cursorGridPosition: `(${cursorGridPos.x}, ${cursorGridPos.y})`,
+          tokenTopLeftGridPosition: `(${tokenTopLeftGridPos.x}, ${tokenTopLeftGridPos.y})`
+        });
+        
+        // Send move token request and wait for result
+        const result = await requestMoveToken(tokenId, tokenTopLeftGridPos);
+        
+        // Only restore token visibility if the request failed
+        if (!result.success || !result.approved) {
+          console.log('❌ Token move failed, restoring token visibility at original position:', result.error);
+          restoreTokenVisibility(tokenId);
+        } else {
+          console.log('✅ Token move approved, waiting for game state update');
+          // Don't restore visibility - let the game state update handle the final positioning and visibility
+        }
       }
     };
 
     await initializeMap(canvasRef.value, options);
-    // enableTokenDragging(true); // This line was removed from destructuring
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to initialize map viewer';
     error.value = errorMessage;
@@ -451,6 +560,9 @@ const loadTokens = async (tokens: Token[]) => {
     
     tokenCount.value = tokens.length;
     
+    // Update status bars for all tokens after loading
+    refreshAllTokenStatusBars();
+    
   } catch (err) {
     console.error('[PixiMapViewer] Failed to load tokens:', err);
     throw err;
@@ -522,11 +634,17 @@ defineExpose({
   screenToWorld,
   worldToScreen,
   
+  // Grid operations
+  getGridSize,
+  
   // State
   isInitialized,
   isLoaded,
   viewportState,
-  currentMap
+  currentMap,
+  
+  // Services (for advanced use cases)
+  tokenRenderer
 });
 
 // New canvas event handlers
@@ -566,8 +684,6 @@ const handleCanvasMouseMove = (event: MouseEvent) => {
 
 // Set up token interaction
 const setupTokenInteractions = () => {
-  // Enable token dragging by default
-  // enableTokenDragging(true); // This line was removed from destructuring
   
   // Set up token selection watcher
   watch(pixiSelectedTokenId, (newTokenId) => {
@@ -577,52 +693,6 @@ const setupTokenInteractions = () => {
   });
 };
 
-// Add drag handler methods
-const handleTokenDragStart = (tokenId: string, position: { x: number; y: number }) => {
-  isDragging.value = true;
-  dragStartPos.value = position;
-  draggedTokenId.value = tokenId;
-  emit('token-selected', tokenId, {});
-};
-
-const handleTokenDragMove = (tokenId: string, position: { x: number; y: number }) => {
-  if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) return;
-  
-  // Get grid size from map data
-  const gridSize = currentMap.value?.uvtt?.resolution?.pixels_per_grid || 50;
-  
-  // Snap to grid
-  const snappedPosition = {
-    x: Math.round(position.x / gridSize) * gridSize,
-    y: Math.round(position.y / gridSize) * gridSize
-  };
-  
-  // Don't move token locally during drag - let the TokenRenderer handle the visual movement
-  // moveToken(tokenId, snappedPosition.x, snappedPosition.y);
-  
-  // Emit move event for parent components
-  emit('token-moved', tokenId, snappedPosition.x, snappedPosition.y);
-};
-
-const handleTokenDragEnd = async (tokenId: string, position: { x: number; y: number }) => {
-  if (!isDragging.value || !draggedTokenId.value || draggedTokenId.value !== tokenId) {
-    return;
-  }
-  
-  // Get current token elevation
-  const token = props.tokens?.find((t: Token) => t.id === tokenId);
-  if (!token) {
-    return;
-  }
-  
-  // Emit the token moved event to parent (EncounterView will handle the state update)
-  emit('token-moved', tokenId, position.x, position.y);
-  
-  // Reset drag state
-  isDragging.value = false;
-  dragStartPos.value = null;
-  draggedTokenId.value = null;
-};
 
 const handleTokenDoubleClick = (tokenId: string) => {
   // Find the token in props to get the document ID
@@ -649,6 +719,105 @@ const handleTokenDoubleClick = (tokenId: string) => {
   documentSheetStore.openDocumentSheet(document);
 };
 
+const handleTokenLongPress = (tokenId: string) => {
+  // Only handle long press on mobile devices
+  if (!isPhone.value) {
+    return;
+  }
+  
+  // Find the token in props to get the document ID
+  const token = props.tokens?.find(t => t.id === tokenId);
+  if (!token || !token.documentId) {
+    console.warn('[PixiMapViewer] Cannot navigate to actor: token or documentId not found', { tokenId, token });
+    return;
+  }
+  
+  // Navigate to mobile container with actor sheet open
+  router.push({
+    name: 'mobile-container',
+    query: { 
+      tab: 'actors',
+      actor: token.documentId
+    }
+  });
+};
+
+/**
+ * Get the first available plugin (for now - could be more sophisticated)
+ */
+const getActivePlugin = () => {
+  const plugins = pluginRegistry.getPlugins();
+  return plugins.length > 0 ? plugins[0] : null;
+};
+
+/**
+ * Update status bars for a token based on its linked document
+ */
+const refreshTokenStatusBars = (token: Token) => {
+  try {
+    if (!token.documentId) {
+      console.debug('[PixiMapViewer] Token has no documentId, skipping status bars:', token.id);
+      return;
+    }
+    
+    // Find the linked document using the correct access pattern
+    const document = gameStateStore.getDocument(token.documentId);
+    if (!document) {
+      console.debug('[PixiMapViewer] Document not found for token:', token.id, 'documentId:', token.documentId);
+      return;
+    }
+    
+    // Get the active plugin
+    const activePlugin = getActivePlugin();
+    if (!activePlugin) {
+      console.debug('[PixiMapViewer] No active plugin available, skipping status bars');
+      return;
+    }
+    
+    // Check if the plugin has status bar configuration for this document type
+    const statusBarConfigs = activePlugin.getTokenStatusBarConfig(document.documentType);
+    if (!statusBarConfigs || statusBarConfigs.length === 0) {
+      console.debug('[PixiMapViewer] No status bar config for document type:', document.documentType);
+      return;
+    }
+    
+    // Update the status bars using the usePixiMap composable
+    updateTokenStatusBars(token.id, document, activePlugin);
+    console.debug('[PixiMapViewer] Updated status bars for token:', token.id, 'document:', document.documentType);
+    
+  } catch (error) {
+    console.warn('[PixiMapViewer] Failed to update status bars for token:', token.id, error);
+  }
+};
+
+/**
+ * Update status bars for all tokens that have linked documents
+ */
+const refreshAllTokenStatusBars = () => {
+  try {
+    if (!props.tokens || props.tokens.length === 0) {
+      console.debug('[PixiMapViewer] No tokens to update status bars for');
+      return;
+    }
+    
+    // Check if we have the necessary dependencies
+    if (!isInitialized.value) {
+      console.debug('[PixiMapViewer] Not initialized yet, skipping status bar updates');
+      return;
+    }
+    
+    const tokensWithDocs = props.tokens.filter(token => token.documentId);
+    console.debug(`[PixiMapViewer] Updating status bars for ${tokensWithDocs.length}/${props.tokens.length} tokens`);
+    
+    for (const token of tokensWithDocs) {
+      refreshTokenStatusBars(token);
+    }
+    
+  } catch (error) {
+    console.warn('[PixiMapViewer] Failed to update all token status bars:', error);
+  }
+};
+
 // Arrow key handling for token movement
 const handleKeyDown = async (event: KeyboardEvent) => {
   // Only handle arrow keys
@@ -670,32 +839,40 @@ const handleKeyDown = async (event: KeyboardEvent) => {
     return;
   }
   
-  // Get grid size
-  const gridSize = getGridSize();
+  // Get current top-left grid position directly from bounds
+  let targetGridX = token.bounds.topLeft.x;
+  let targetGridY = token.bounds.topLeft.y;
   
-  // Calculate current center position from bounds
-  const centerGridX = (token.bounds.topLeft.x + token.bounds.bottomRight.x) / 2;
-  const centerGridY = (token.bounds.topLeft.y + token.bounds.bottomRight.y) / 2;
-  let newX = centerGridX * gridSize; // Convert to world coordinates
-  let newY = centerGridY * gridSize;
+  console.log('[Arrow Key Debug] Token movement:', {
+    key: event.key,
+    tokenId: pixiSelectedTokenId.value,
+    bounds: token.bounds,
+    currentTopLeft: { gridX: targetGridX, gridY: targetGridY }
+  });
   
+  // Move by one grid cell
   switch (event.key) {
     case 'ArrowUp':
-      newY -= gridSize;
+      targetGridY -= 1;
       break;
     case 'ArrowDown':
-      newY += gridSize;
+      targetGridY += 1;
       break;
     case 'ArrowLeft':
-      newX -= gridSize;
+      targetGridX -= 1;
       break;
     case 'ArrowRight':
-      newX += gridSize;
+      targetGridX += 1;
       break;
   }
   
-  // Emit the token moved event to parent (EncounterView will handle the state update)
-  emit('token-moved', pixiSelectedTokenId.value, newX, newY);
+  console.log('[Arrow Key Debug] Target grid coordinates:', {
+    key: event.key,
+    targetGrid: { gridX: targetGridX, gridY: targetGridY }
+  });
+  
+  // Emit the token moved event with grid coordinates
+  emit('token-moved', pixiSelectedTokenId.value, targetGridX, targetGridY);
 };
 
 // Watchers
@@ -815,6 +992,9 @@ watch(() => props.tokens, async (newTokens, oldTokens) => {
     if (props.selectedTokenId) {
       selectToken(props.selectedTokenId);
     }
+    
+    // Update status bars for affected tokens
+    refreshAllTokenStatusBars();
   } catch (error) {
     console.error('[PixiMapViewer] Smart token updates failed:', error);
     // Fallback to full reload on error
@@ -898,6 +1078,26 @@ watch(() => props.targetTokenIds, (newTargetIds) => {
     }
   }
 }, { immediate: true, deep: true });
+
+// Watch for document state changes and update status bars
+watch(() => gameStateStore.gameState, () => {
+  // Update status bars when any document changes (like HP changes)
+  // Note: Watching gameState instead of documents since documents is not directly exposed
+  // Use nextTick to defer updates until after Vue finishes applying state changes
+  // This prevents hash mismatches during gameState updates
+  nextTick(() => {
+    refreshAllTokenStatusBars();
+  });
+}, { deep: true });
+
+// Watch for plugin registry changes (plugin loads/unloads)
+watch(() => pluginRegistry.getPlugins(), () => {
+  // Update status bars when plugin availability changes
+  // Use nextTick for consistency and safety
+  nextTick(() => {
+    refreshAllTokenStatusBars();
+  });
+}, { deep: true });
 
 // Lifecycle
 let preventContextMenu: ((e: MouseEvent) => void) | null = null;

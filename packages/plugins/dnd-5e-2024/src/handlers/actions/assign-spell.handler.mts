@@ -7,7 +7,8 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
-import type { ActionHandler, ActionValidationResult } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
+import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { DndCharacterData } from '../../types/dnd/character.mjs';
 
 /**
@@ -26,10 +27,10 @@ export interface AssignSpellParameters extends Record<string, unknown> {
 /**
  * Validate spell assignment request
  */
-function validateAssignSpell(
+const validateAssignSpell: ActionValidationHandler = async (
   request: GameActionRequest,
   gameState: ServerGameStateWithVirtuals
-): ActionValidationResult {
+): Promise<ActionValidationResult> => {
   const params = request.parameters as AssignSpellParameters;
 
   console.log('[AssignSpellHandler] Validating spell assignment:', {
@@ -105,10 +106,11 @@ function validateAssignSpell(
 /**
  * Execute spell assignment using direct state mutation
  */
-function executeAssignSpell(
+const executeAssignSpell: ActionExecutionHandler = async (
   request: GameActionRequest,
-  draft: ServerGameStateWithVirtuals
-): void {
+  draft: ServerGameStateWithVirtuals,
+  _context: AsyncActionContext
+): Promise<void> => {
   const params = request.parameters as AssignSpellParameters;
 
   console.log('[AssignSpellHandler] Executing spell assignment:', {
@@ -129,7 +131,11 @@ function executeAssignSpell(
   // Get character data and initialize spellcasting if needed
   const characterData = targetCharacter.pluginData as DndCharacterData;
   if (!characterData.spellcasting) {
-    (characterData as any).spellcasting = {
+    console.log('[AssignSpellHandler] Initializing spellcasting for character:', {
+      characterId: params.targetCharacterId,
+      characterName: params.targetCharacterName
+    });
+    (characterData as DndCharacterData).spellcasting = {
       classes: {},
       spellSlots: {},
       spells: [],
@@ -192,8 +198,11 @@ function executeAssignSpell(
 export const dndAssignSpellHandler: Omit<ActionHandler, 'pluginId'> = {
   validate: validateAssignSpell,
   execute: executeAssignSpell,
-  approvalMessage: (request) => {
+  approvalMessage: async (request) => {
     const params = request.parameters as AssignSpellParameters;
     return `wants to assign "${params.spellName || 'a spell'}" to ${params.targetCharacterName || 'a character'}`;
   }
 };
+
+// Export individual functions for compatibility
+export { validateAssignSpell, executeAssignSpell };
