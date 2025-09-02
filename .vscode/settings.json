@@ -57,5 +57,6 @@
     "less.validate": false,
     "css.customData": [
         ".vscode/tailwind.json"
-    ]
+    ],
+    "typescript.tsserver.useSyntaxServer": "never"
 }
