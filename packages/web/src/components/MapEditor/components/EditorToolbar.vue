@@ -48,6 +48,12 @@
                 <span class="tool-icon">🔆</span>
                 <span class="tool-label">Light</span>
             </button>
+
+            <button class="tool-button" :class="{ active: currentTool === 'object' }" @click="selectTool('object')"
+                title="Object Tool: Click to create polygon objects. Click to place vertices, double-click to finish.">
+                <span class="tool-icon">⬢</span>
+                <span class="tool-label">Object</span>
+            </button>
         </div>
 
         <div class="divider"></div>

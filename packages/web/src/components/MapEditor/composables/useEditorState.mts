@@ -3,6 +3,7 @@ import type {
   WallObject,
   PortalObject,
   LightObject,
+  ObjectEditorObject,
   EditorToolType,
   GridConfig,
   MapMetadata,
@@ -16,7 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 export function useEditorState() {
   // Core editor state
   const walls = ref<WallObject[]>([]);
-  const objectWalls = ref<WallObject[]>([]); // New collection for objects_line_of_sight
+  const objects = ref<ObjectEditorObject[]>([]);
   const portals = ref<PortalObject[]>([]);
   const lights = ref<LightObject[]>([]);
   const selectedObjectIds = ref<string[]>([]);
@@ -69,7 +70,7 @@ export function useEditorState() {
 
   // Computed state
   const allObjects = computed<AnyEditorObject[]>(() => {
-    return [...walls.value, ...objectWalls.value, ...portals.value, ...lights.value];
+    return [...walls.value, ...objects.value, ...portals.value, ...lights.value];
   });
 
   const selectedObjects = computed(() => {
@@ -90,16 +91,16 @@ export function useEditorState() {
     }
   };
 
-  // Methods for object walls
-  const addObjectWall = (wall: WallObject) => {
-    objectWalls.value.push(wall);
+  // Methods for objects
+  const addObject = (object: ObjectEditorObject) => {
+    objects.value.push(object);
     isModified.value = true;
   };
 
-  const updateObjectWall = (id: string, updates: Partial<WallObject>) => {
-    const index = objectWalls.value.findIndex((w) => w.id === id);
+  const updateObject = (id: string, updates: Partial<ObjectEditorObject>) => {
+    const index = objects.value.findIndex((o) => o.id === id);
     if (index >= 0) {
-      objectWalls.value[index] = { ...objectWalls.value[index], ...updates };
+      objects.value[index] = { ...objects.value[index], ...updates };
       isModified.value = true;
     }
   };
@@ -150,9 +151,9 @@ export function useEditorState() {
       removed = true;
     }
 
-    const objectWallIndex = objectWalls.value.findIndex((w) => w.id === id);
-    if (objectWallIndex >= 0) {
-      objectWalls.value.splice(objectWallIndex, 1);
+    const objectIndex = objects.value.findIndex((o) => o.id === id);
+    if (objectIndex >= 0) {
+      objects.value.splice(objectIndex, 1);
       removed = true;
     }
 
@@ -216,7 +217,7 @@ export function useEditorState() {
   // State management methods
   const resetState = () => {
     walls.value = [];
-    objectWalls.value = [];
+    objects.value = [];
     portals.value = [];
     lights.value = [];
     selectedObjectIds.value = [];
@@ -236,7 +237,7 @@ export function useEditorState() {
   const loadMap = (
     newMapMetadata: MapMetadata,
     newWalls: WallObject[] = [],
-    newObjectWalls: WallObject[] = [],
+    newObjects: ObjectEditorObject[] = [],
     newPortals: PortalObject[] = [],
     newLights: LightObject[] = []
   ) => {
@@ -245,7 +246,7 @@ export function useEditorState() {
 
     // Replace objects
     walls.value = newWalls;
-    objectWalls.value = newObjectWalls;
+    objects.value = newObjects;
     portals.value = newPortals;
     lights.value = newLights;
 
@@ -258,7 +259,7 @@ export function useEditorState() {
   return {
     // State
     walls,
-    objectWalls,
+    objects,
     portals,
     lights,
     selectedObjectIds,
@@ -276,8 +277,8 @@ export function useEditorState() {
     // Methods
     addWall,
     updateWall,
-    addObjectWall,
-    updateObjectWall,
+    addObject,
+    updateObject,
     addPortal,
     updatePortal,
     addLight,

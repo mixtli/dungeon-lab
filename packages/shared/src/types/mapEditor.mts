@@ -6,12 +6,12 @@
 /**
  * Editor object types
  */
-export type EditorObjectType = 'wall' | 'portal' | 'light' | 'decoration';
+export type EditorObjectType = 'wall' | 'portal' | 'light' | 'object' | 'decoration';
 
 /**
  * Available tool modes
  */
-export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'pan' | 'grid-adjust';
+export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'object' | 'pan' | 'grid-adjust';
 
 /**
  * Point in 2D space
@@ -112,16 +112,27 @@ export interface WallObject extends EditorObject {
 }
 
 /**
- * Portal/Door object
+ * Portal/Door object using simplified line segment geometry
  */
 export interface PortalObject extends EditorObject {
   objectType: 'portal';
-  position: Point;
-  rotation: number;
-  bounds: Point[]; // Array of points defining the portal shape
-  closed: boolean;
-  freestanding: boolean;
-  doorType?: string; // Optional, for different door styles
+  coords: number[]; // [x1, y1, x2, y2] line segment coordinates
+  state: 'open' | 'closed' | 'locked' | 'stuck'; // Door/portal state
+  material?: 'wood' | 'metal' | 'stone' | 'glass' | 'magic' | 'force'; // Door material
+  stroke?: string; // Portal color
+  strokeWidth?: number; // Portal line width
+  requiresKey?: boolean; // Whether portal requires a key to open
+  openSound?: string; // Sound effect when opening
+  closeSound?: string; // Sound effect when closing
+  name?: string; // Portal name
+  description?: string; // Portal description
+  
+  // Legacy support for backward compatibility
+  position?: Point; // Deprecated: derived from coords
+  rotation?: number; // Deprecated: not needed with line segments
+  bounds?: Point[]; // Deprecated: use coords instead
+  freestanding?: boolean; // Deprecated: all portals are line segments
+  closed?: boolean; // Deprecated: use 'state' instead
 }
 
 /**
@@ -151,9 +162,33 @@ export interface LightObject extends EditorObject {
 }
 
 /**
+ * Polygon/Object using simplified editor format
+ */
+export interface ObjectEditorObject extends EditorObject {
+  objectType: 'object';
+  position: Point;
+  rotation: number;
+  points: number[]; // Flat array of [x1, y1, x2, y2, ...] relative to position for compatibility with Konva
+  shapeType: 'circle' | 'rectangle' | 'polygon';
+  type: 'furniture' | 'container' | 'decoration' | 'mechanism' | 'trap' | 'treasure' | 'altar' | 'pillar' | 'door' | 'other';
+  height?: number;
+  blocking?: {
+    movement: boolean;
+    sight: boolean;
+    light: boolean;
+  };
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  name?: string;
+  description?: string;
+  tags?: string[];
+}
+
+/**
  * Any editor object union type
  */
-export type AnyEditorObject = WallObject | PortalObject | LightObject;
+export type AnyEditorObject = WallObject | PortalObject | LightObject | ObjectEditorObject;
 
 /**
  * Complete editor state
@@ -163,6 +198,7 @@ export interface EditorState {
   walls: WallObject[];
   portals: PortalObject[];
   lights: LightObject[];
+  objects: ObjectEditorObject[];
   selectedObjectIds: string[];
   gridConfig: GridConfig;
   mapMetadata: MapMetadata;

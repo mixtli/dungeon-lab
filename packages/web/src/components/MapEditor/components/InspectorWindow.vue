@@ -58,16 +58,83 @@
 
           <template v-else-if="selectedObject?.objectType === 'portal'">
             <div class="property-group">
+              <h4 class="group-title">Portal Geometry</h4>
+              <div class="property-row">
+                <label class="property-label">Start X:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getPortalStartPoint(selectedObject as PortalObject).x || 0)"
+                  step="1"
+                  @change="updatePortalEndpoint(0, 'x', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Start Y:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getPortalStartPoint(selectedObject as PortalObject).y || 0)"
+                  step="1"
+                  @change="updatePortalEndpoint(0, 'y', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">End X:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getPortalEndPoint(selectedObject as PortalObject).x || 0)"
+                  step="1"
+                  @change="updatePortalEndpoint(1, 'x', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">End Y:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getPortalEndPoint(selectedObject as PortalObject).y || 0)"
+                  step="1"
+                  @change="updatePortalEndpoint(1, 'y', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Length:</label>
+                <span class="property-value">
+                  {{ Math.round(getPortalLength(selectedObject as PortalObject)) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="property-group">
               <h4 class="group-title">Portal Properties</h4>
               <div class="property-row">
                 <label class="property-label">State:</label>
                 <select 
                   class="property-input select-input"
-                  :value="(selectedObject as PortalObject).closed ? 'closed' : 'open'"
-                  @change="updateProperty('closed', ($event.target as HTMLSelectElement).value === 'closed')"
+                  :value="(selectedObject as PortalObject).state || 'closed'"
+                  @change="updateProperty('state', ($event.target as HTMLSelectElement).value)"
                 >
-                  <option value="closed">Closed</option>
                   <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                  <option value="locked">Locked</option>
+                  <option value="stuck">Stuck</option>
+                </select>
+              </div>
+              <div class="property-row">
+                <label class="property-label">Material:</label>
+                <select 
+                  class="property-input select-input"
+                  :value="(selectedObject as PortalObject).material || 'wood'"
+                  @change="updateProperty('material', ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="wood">Wood</option>
+                  <option value="metal">Metal</option>
+                  <option value="stone">Stone</option>
+                  <option value="glass">Glass</option>
+                  <option value="magic">Magic</option>
+                  <option value="force">Force</option>
                 </select>
               </div>
               <div class="property-row">
@@ -75,8 +142,27 @@
                 <input 
                   type="color" 
                   class="property-input color-input"
-                  :value="(selectedObject as PortalObject).fill || '#00ff00'"
-                  @change="updateProperty('fill', ($event.target as HTMLInputElement).value)" 
+                  :value="(selectedObject as PortalObject).stroke || '#8B4513'"
+                  @change="updateProperty('stroke', ($event.target as HTMLInputElement).value)" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Width:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="(selectedObject as PortalObject).strokeWidth || 3" 
+                  min="1" max="20"
+                  @change="updateProperty('strokeWidth', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Requires Key:</label>
+                <input 
+                  type="checkbox" 
+                  class="property-input checkbox-input"
+                  :checked="(selectedObject as PortalObject).requiresKey || false"
+                  @change="updateProperty('requiresKey', ($event.target as HTMLInputElement).checked)" 
                 />
               </div>
             </div>
@@ -137,30 +223,182 @@
             </div>
           </template>
 
-          <!-- Position properties (common to all objects) -->
-          <div class="property-group">
-            <h4 class="group-title">Position</h4>
-            <div class="property-row">
-              <label class="property-label">X:</label>
-              <input 
-                type="number" 
-                class="property-input number-input"
-                :value="Math.round(getObjectX(selectedObject) || 0)"
-                step="1"
-                @change="updatePosition('x', parseInt(($event.target as HTMLInputElement).value))" 
-              />
+          <template v-else-if="selectedObject?.objectType === 'object'">
+            <div class="property-group">
+              <h4 class="group-title">Object Properties</h4>
+              <div class="property-row">
+                <label class="property-label">Type:</label>
+                <select 
+                  class="property-input select-input"
+                  :value="(selectedObject as ObjectEditorObject).type || 'other'"
+                  @change="updateProperty('type', ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="furniture">Furniture</option>
+                  <option value="container">Container</option>
+                  <option value="decoration">Decoration</option>
+                  <option value="mechanism">Mechanism</option>
+                  <option value="trap">Trap</option>
+                  <option value="treasure">Treasure</option>
+                  <option value="altar">Altar</option>
+                  <option value="pillar">Pillar</option>
+                  <option value="door">Door</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="property-row">
+                <label class="property-label">Stroke Color:</label>
+                <input 
+                  type="color" 
+                  class="property-input color-input"
+                  :value="(selectedObject as ObjectEditorObject).stroke || '#666666'"
+                  @change="updateProperty('stroke', ($event.target as HTMLInputElement).value)" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Stroke Width:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="(selectedObject as ObjectEditorObject).strokeWidth || 2" 
+                  min="0" max="10" step="1"
+                  @change="updateProperty('strokeWidth', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Fill Color:</label>
+                <input 
+                  type="color" 
+                  class="property-input color-input"
+                  :value="(selectedObject as ObjectEditorObject).fill || 'rgba(0, 0, 0, 0)'"
+                  @change="updateProperty('fill', ($event.target as HTMLInputElement).value)" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Fill Opacity:</label>
+                <input 
+                  type="range" 
+                  class="property-input range-input"
+                  :value="getObjectFillOpacity(selectedObject as ObjectEditorObject)" 
+                  min="0" max="1" step="0.1"
+                  @change="updateObjectFillOpacity(parseFloat(($event.target as HTMLInputElement).value))" 
+                />
+                <span class="range-value">{{ getObjectFillOpacity(selectedObject as ObjectEditorObject).toFixed(1) }}</span>
+              </div>
             </div>
-            <div class="property-row">
-              <label class="property-label">Y:</label>
-              <input 
-                type="number" 
-                class="property-input number-input"
-                :value="Math.round(getObjectY(selectedObject) || 0)"
-                step="1"
-                @change="updatePosition('y', parseInt(($event.target as HTMLInputElement).value))" 
-              />
+
+            <div class="property-group">
+              <h4 class="group-title">Blocking Properties</h4>
+              <div class="property-row">
+                <label class="property-label">Blocks Movement:</label>
+                <input 
+                  type="checkbox" 
+                  class="property-input checkbox-input"
+                  :checked="(selectedObject as ObjectEditorObject).blocking?.movement ?? true"
+                  @change="updateBlockingProperty('movement', ($event.target as HTMLInputElement).checked)" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Blocks Sight:</label>
+                <input 
+                  type="checkbox" 
+                  class="property-input checkbox-input"
+                  :checked="(selectedObject as ObjectEditorObject).blocking?.sight ?? false"
+                  @change="updateBlockingProperty('sight', ($event.target as HTMLInputElement).checked)" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Blocks Light:</label>
+                <input 
+                  type="checkbox" 
+                  class="property-input checkbox-input"
+                  :checked="(selectedObject as ObjectEditorObject).blocking?.light ?? false"
+                  @change="updateBlockingProperty('light', ($event.target as HTMLInputElement).checked)" 
+                />
+              </div>
             </div>
-          </div>
+          </template>
+
+          <!-- Wall geometry (wall-specific) -->
+          <template v-if="selectedObject?.objectType === 'wall'">
+            <div class="property-group">
+              <h4 class="group-title">Wall Geometry</h4>
+              <div class="property-row">
+                <label class="property-label">Start X:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getWallStartPoint(selectedObject as WallObject).x)"
+                  step="1"
+                  @change="updateWallPoint('start', 'x', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Start Y:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getWallStartPoint(selectedObject as WallObject).y)"
+                  step="1"
+                  @change="updateWallPoint('start', 'y', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">End X:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getWallEndPoint(selectedObject as WallObject).x)"
+                  step="1"
+                  @change="updateWallPoint('end', 'x', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">End Y:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getWallEndPoint(selectedObject as WallObject).y)"
+                  step="1"
+                  @change="updateWallPoint('end', 'y', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Length:</label>
+                <span class="property-value">{{ Math.round(getWallLength(selectedObject as WallObject)) }} px</span>
+              </div>
+              <div class="property-row">
+                <label class="property-label">Angle:</label>
+                <span class="property-value">{{ Math.round(getWallAngle(selectedObject as WallObject)) }}°</span>
+              </div>
+            </div>
+          </template>
+
+          <!-- Position properties (for non-wall, non-portal objects) -->
+          <template v-else-if="selectedObject?.objectType !== 'portal'">
+            <div class="property-group">
+              <h4 class="group-title">Position</h4>
+              <div class="property-row">
+                <label class="property-label">X:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getObjectX(selectedObject) || 0)"
+                  step="1"
+                  @change="updatePosition('x', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Y:</label>
+                <input 
+                  type="number" 
+                  class="property-input number-input"
+                  :value="Math.round(getObjectY(selectedObject) || 0)"
+                  step="1"
+                  @change="updatePosition('y', parseInt(($event.target as HTMLInputElement).value))" 
+                />
+              </div>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -283,6 +521,68 @@ function getObjectY(object: MapEditorObject | null): number {
   return (object as any).y || 0;
 }
 
+// Wall-specific geometry helpers
+function getWallStartPoint(wall: WallObject): { x: number; y: number } {
+  if (!wall.points || wall.points.length < 4) {
+    return { x: 0, y: 0 };
+  }
+  return { x: wall.points[0], y: wall.points[1] };
+}
+
+function getWallEndPoint(wall: WallObject): { x: number; y: number } {
+  if (!wall.points || wall.points.length < 4) {
+    return { x: 0, y: 0 };
+  }
+  return { x: wall.points[2], y: wall.points[3] };
+}
+
+function getWallLength(wall: WallObject): number {
+  const start = getWallStartPoint(wall);
+  const end = getWallEndPoint(wall);
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getWallAngle(wall: WallObject): number {
+  const start = getWallStartPoint(wall);
+  const end = getWallEndPoint(wall);
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  return (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+}
+
+// Portal-specific geometry helpers
+function getPortalStartPoint(portal: PortalObject): { x: number; y: number } {
+  if (portal.coords && portal.coords.length >= 4) {
+    return { x: portal.coords[0], y: portal.coords[1] };
+  }
+  // Fallback to legacy bounds
+  if (portal.bounds && portal.bounds.length >= 1 && portal.bounds[0]) {
+    return { x: portal.bounds[0].x, y: portal.bounds[0].y };
+  }
+  return { x: 0, y: 0 };
+}
+
+function getPortalEndPoint(portal: PortalObject): { x: number; y: number } {
+  if (portal.coords && portal.coords.length >= 4) {
+    return { x: portal.coords[2], y: portal.coords[3] };
+  }
+  // Fallback to legacy bounds
+  if (portal.bounds && portal.bounds.length >= 2 && portal.bounds[1]) {
+    return { x: portal.bounds[1].x, y: portal.bounds[1].y };
+  }
+  return { x: 0, y: 0 };
+}
+
+function getPortalLength(portal: PortalObject): number {
+  const start = getPortalStartPoint(portal);
+  const end = getPortalEndPoint(portal);
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 // Property updates
 function updateProperty(property: string, value: any) {
   if (selectedObject.value) {
@@ -298,6 +598,72 @@ function updatePosition(axis: 'x' | 'y', value: number) {
     const newY = axis === 'y' ? value : currentY;
     
     emit('position-updated', selectedObject.value.id, newX, newY);
+  }
+}
+
+function updateWallPoint(point: 'start' | 'end', axis: 'x' | 'y', value: number) {
+  if (selectedObject.value && selectedObject.value.objectType === 'wall') {
+    const wall = selectedObject.value as WallObject;
+    if (!wall.points || wall.points.length < 4) return;
+    
+    const newPoints = [...wall.points];
+    
+    if (point === 'start') {
+      if (axis === 'x') {
+        newPoints[0] = value; // Start X
+      } else {
+        newPoints[1] = value; // Start Y
+      }
+    } else { // point === 'end'
+      if (axis === 'x') {
+        newPoints[2] = value; // End X
+      } else {
+        newPoints[3] = value; // End Y
+      }
+    }
+    
+    emit('property-updated', wall.id, 'points', newPoints);
+  }
+}
+
+function updatePortalEndpoint(endpointIndex: number, axis: 'x' | 'y', value: number) {
+  if (selectedObject.value && selectedObject.value.objectType === 'portal') {
+    const portal = selectedObject.value as PortalObject;
+    let newCoords: number[];
+    
+    if (portal.coords && portal.coords.length >= 4) {
+      // Use existing coords array
+      newCoords = [...portal.coords];
+    } else if (portal.bounds && portal.bounds.length >= 2) {
+      // Convert from legacy bounds to coords
+      newCoords = [
+        portal.bounds[0].x, portal.bounds[0].y,
+        portal.bounds[1].x, portal.bounds[1].y
+      ];
+    } else {
+      // Default fallback
+      newCoords = [0, 0, 100, 0];
+    }
+    
+    const coordIndex = endpointIndex * 2 + (axis === 'x' ? 0 : 1);
+    newCoords[coordIndex] = value;
+    
+    // Update both new coords and legacy fields for compatibility
+    const updates = {
+      coords: newCoords,
+      bounds: [
+        { x: newCoords[0], y: newCoords[1] },
+        { x: newCoords[2], y: newCoords[3] }
+      ],
+      position: {
+        x: (newCoords[0] + newCoords[2]) / 2,
+        y: (newCoords[1] + newCoords[3]) / 2
+      }
+    };
+    
+    emit('property-updated', portal.id, 'coords', newCoords);
+    emit('property-updated', portal.id, 'bounds', updates.bounds);
+    emit('property-updated', portal.id, 'position', updates.position);
   }
 }
 
@@ -331,6 +697,62 @@ function handleResize(width: number, height: number) {
 
 function saveWindowState() {
   localStorage.setItem('inspector-window-state', JSON.stringify(windowState.value));
+}
+
+// Object-specific helper functions
+function getObjectFillOpacity(object: ObjectEditorObject): number {
+  const fill = object.fill || 'rgba(0, 0, 0, 0)';
+  // Parse RGBA values to get opacity
+  if (fill.includes('rgba')) {
+    const match = fill.match(/rgba\([^,]+,[^,]+,[^,]+,([^)]+)\)/);
+    return match ? parseFloat(match[1]) : 0;
+  } else if (fill.includes('rgb')) {
+    return 1; // RGB without alpha is fully opaque
+  } else {
+    return 0; // Default transparent
+  }
+}
+
+function updateObjectFillOpacity(opacity: number) {
+  if (selectedObject.value && selectedObject.value.objectType === 'object') {
+    const obj = selectedObject.value as ObjectEditorObject;
+    const currentFill = obj.fill || 'rgba(0, 0, 0, 0)';
+    
+    // Extract RGB values and apply new opacity
+    let newFill;
+    if (currentFill.includes('rgba') || currentFill.includes('rgb')) {
+      // Extract RGB values
+      const rgbMatch = currentFill.match(/rgba?\(([^,]+),([^,]+),([^,]+)/);
+      if (rgbMatch) {
+        const r = rgbMatch[1].trim();
+        const g = rgbMatch[2].trim();
+        const b = rgbMatch[3].trim();
+        newFill = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      } else {
+        newFill = `rgba(0, 0, 0, ${opacity})`;
+      }
+    } else if (currentFill.startsWith('#')) {
+      // Convert hex to rgba
+      const hex = currentFill.slice(1);
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      newFill = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    } else {
+      newFill = `rgba(0, 0, 0, ${opacity})`;
+    }
+    
+    updateProperty('fill', newFill);
+  }
+}
+
+function updateBlockingProperty(type: 'movement' | 'sight' | 'light', value: boolean) {
+  if (selectedObject.value && selectedObject.value.objectType === 'object') {
+    const obj = selectedObject.value as ObjectEditorObject;
+    const currentBlocking = obj.blocking || { movement: true, sight: false, light: false };
+    const newBlocking = { ...currentBlocking, [type]: value };
+    updateProperty('blocking', newBlocking);
+  }
 }
 
 // Show/hide window based on selection
@@ -468,6 +890,12 @@ watch(() => props.selectedObjects.length, (newLength) => {
 }
 
 .select-input {
+  cursor: pointer;
+}
+
+.checkbox-input {
+  width: auto;
+  flex: none;
   cursor: pointer;
 }
 

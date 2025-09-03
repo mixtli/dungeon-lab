@@ -21,7 +21,7 @@
 
                 <!-- Layer panel -->
                 <EditorLayerPanel :walls="editorState.walls.value" 
-                    :object-walls="editorState.objectWalls.value"
+                    :objects="editorState.objects.value"
                     :portals="editorState.portals.value"
                     :lights="editorState.lights.value" 
                     @visibility-changed="handleLayerVisibility" />
@@ -36,7 +36,7 @@
                 />
                 
                 <EditorCanvas :walls="editorState.walls.value" 
-                    :object-walls="editorState.objectWalls.value"
+                    :objects="editorState.objects.value"
                     :portals="editorState.portals.value"
                     :lights="editorState.lights.value" 
                     :selected-object-ids="editorState.selectedObjectIds.value"
@@ -48,7 +48,8 @@
                     @object-added="handleObjectAdded"
                     @object-modified="handleObjectModified" 
                     @object-removed="handleObjectRemoved"
-                    @mouse-move="handleMouseMove" />
+                    @mouse-move="handleMouseMove"
+                    @selection-cleared="handleSelectionCleared" />
             </div>
         </div>
 
@@ -89,6 +90,7 @@ import type {
     WallObject,
     PortalObject,
     LightObject,
+    ObjectEditorObject,
     Point,
     AnyEditorObject
 } from '@dungeon-lab/shared/types/index.mjs';
@@ -167,10 +169,13 @@ const loadMapData = (data: InternalMapData) => {
             version: data.version,
             coordinates: data.coordinates,
             walls_length: data.walls?.length || 0,
-            terrain_length: data.terrain?.length || 0,
+            objects_length: data.objects?.length || 0,
             doors_length: data.doors?.length || 0,
             lights_length: data.lights?.length || 0
         });
+        
+        console.log('EditorState properties:', Object.keys(editorState));
+        console.log('EditorState.objects:', editorState.objects);
         
         // Set the map metadata using the new format directly - no conversion needed!
         editorState.mapMetadata = {
@@ -185,9 +190,10 @@ const loadMapData = (data: InternalMapData) => {
             editorState.mapMetadata.name = `Map ${props.mapId}`;
         }
 
-        // Update grid size from converted metadata
-        editorState.gridConfig.worldUnitsPerCell = editorState.mapMetadata.coordinates.worldUnitsPerGridCell;
-        console.log(`Grid world units per cell set to: ${editorState.gridConfig.worldUnitsPerCell} from converted map data`);
+        // Update grid size from converted metadata with fallback
+        const worldUnitsFromMetadata = editorState.mapMetadata.coordinates.worldUnitsPerGridCell;
+        editorState.gridConfig.worldUnitsPerCell = worldUnitsFromMetadata || 50; // Default fallback
+        console.log(`Grid world units per cell set to: ${editorState.gridConfig.worldUnitsPerCell} from converted map data (was ${worldUnitsFromMetadata})`);
 
         // Load walls from InternalMapData format
         if (data.walls && Array.isArray(data.walls)) {
@@ -216,31 +222,52 @@ const loadMapData = (data: InternalMapData) => {
             console.log(`Loaded ${editorState.walls.value.length} walls from InternalMapData`);
         }
         
-        // Load terrain walls (object walls) from InternalMapData format 
-        if (data.terrain && Array.isArray(data.terrain)) {
-            console.log('Loading terrain from InternalMapData format:', data.terrain);
+        // Load objects from InternalMapData format 
+        if (data.objects && Array.isArray(data.objects)) {
+            console.log('Loading objects from InternalMapData format:', data.objects);
             
-            // Reset the objectWalls array
-            editorState.objectWalls.value = [];
-            
-            // Convert server terrain to editor object walls
-            data.terrain.forEach((serverTerrain, terrainIndex) => {
-                const points = [
-                    serverTerrain.start.x, serverTerrain.start.y,
-                    serverTerrain.end.x, serverTerrain.end.y
-                ];
+            // Reset the objects array - ensure editorState.objects exists
+            if (editorState.objects?.value) {
+                editorState.objects.value = [];
                 
-                editorState.objectWalls.value.push({
-                    id: serverTerrain.id || `terrain-${terrainIndex}`,
-                    objectType: 'wall',
-                    points: points,
-                    visible: true,
-                    locked: false,
-                    stroke: '#3399ff' // Blue color for terrain walls
+                // Convert server objects to editor objects
+                data.objects.forEach((serverObject, objectIndex) => {
+                    // Convert bounds array to flat points array
+                    const points: number[] = [];
+                    if (serverObject.bounds && Array.isArray(serverObject.bounds)) {
+                        serverObject.bounds.forEach(point => {
+                            points.push(point.x, point.y);
+                        });
+                    }
+                    
+                    editorState.objects.value.push({
+                        id: serverObject.id || `object-${objectIndex}`,
+                        objectType: 'object',
+                        position: {
+                            x: serverObject.position?.x || 0,
+                            y: serverObject.position?.y || 0
+                        },
+                        rotation: serverObject.rotation || 0,
+                        points: points,
+                        shapeType: serverObject.shapeType || 'polygon',
+                        type: serverObject.type || 'other',
+                        height: serverObject.height,
+                        fill: `rgba(100, 100, 100, ${serverObject.opacity || 0.3})`,
+                        stroke: serverObject.color || '#666666',
+                        strokeWidth: 2,
+                        blocking: {
+                            movement: serverObject.blocksMovement || false,
+                            sight: serverObject.blocksLight || false,
+                            light: serverObject.blocksLight || false
+                        },
+                        locked: false
+                    });
                 });
-            });
-            
-            console.log(`Loaded ${editorState.objectWalls.value.length} terrain walls from InternalMapData`);
+                
+                console.log(`Loaded ${editorState.objects.value.length} objects from InternalMapData`);
+            } else {
+                console.warn('editorState.objects is not available - objects loading skipped. You may need to refresh your browser.');
+            }
         }
 
         // Load portals
@@ -315,15 +342,16 @@ const handleObjectSelected = (id: string | null, addToSelection: boolean) => {
     editorState.selectObject(id, addToSelection);
 };
 
+const handleSelectionCleared = () => {
+    editorState.selectedObjectIds.value = [];
+};
+
 const handleObjectAdded = (object: AnyEditorObject) => {
     editorState.isModified.value = true;
     if (object.objectType === 'wall') {
-        // Check if it's a regular wall or an object wall based on currentWallType
-        if (currentWallType.value === 'object') {
-            editorState.addObjectWall(object as WallObject);
-        } else {
-            editorState.addWall(object as WallObject);
-        }
+        editorState.addWall(object as WallObject);
+    } else if (object.objectType === 'object') {
+        editorState.addObject(object as ObjectEditorObject);
     } else if (object.objectType === 'portal') {
         console.log('[MapEditorComponent] handleObjectAdded for Portal. Received portal object:', JSON.parse(JSON.stringify(object)));
         editorState.addPortal(object as PortalObject);
@@ -377,12 +405,9 @@ const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => 
     if (!object) return;
 
     if (object.objectType === 'wall') {
-        // Check if it's a regular wall or object wall by ID or stroke color
-        if (id.startsWith('object-wall-') || object.stroke === '#3399ff') {
-            editorState.updateObjectWall(id, updates as Partial<WallObject>);
-        } else {
-            editorState.updateWall(id, updates as Partial<WallObject>);
-        }
+        editorState.updateWall(id, updates as Partial<WallObject>);
+    } else if (object.objectType === 'object') {
+        editorState.updateObject(id, updates as Partial<ObjectEditorObject>);
     } else if (object.objectType === 'portal') {
         editorState.updatePortal(id, updates as Partial<PortalObject>);
     } else if (object.objectType === 'light') {
@@ -455,14 +480,14 @@ watch(() => editorState.selectedObjectIds.value.length, (newLength) => {
     }
 });
 
-const handleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 'lights', visible: boolean) => {
+const handleLayerVisibility = (layerType: 'walls' | 'objects' | 'portals' | 'lights', visible: boolean) => {
     // Update visibility for all objects in the layer
     let collection;
     
     if (layerType === 'walls') {
         collection = editorState.walls.value;
-    } else if (layerType === 'objectWalls') {
-        collection = editorState.objectWalls.value;
+    } else if (layerType === 'objects') {
+        collection = editorState.objects.value;
     } else if (layerType === 'portals') {
         collection = editorState.portals.value;
     } else if (layerType === 'lights') {
@@ -578,13 +603,8 @@ const convertEditorStateToWorldCoordinates = () => {
         convertPointsToWallSegments(wall, 'wall')
     );
     
-    // Convert object walls (also go into walls array, but with different properties)
-    const objectWalls = editorState.objectWalls.value.flatMap(wall => 
-        convertPointsToWallSegments(wall, 'terrain')
-    );
-    
-    // Combine all wall segments
-    const allWalls = [...walls, ...objectWalls];
+    // Use walls directly (no separate objectWalls collection)
+    const allWalls = [...walls];
     
     // Convert portals (doors)
     const doors = editorState.portals.value.map(portal => ({
@@ -634,14 +654,41 @@ const convertEditorStateToWorldCoordinates = () => {
         name: light.name,
         description: light.description
     }));
+
+    // Convert objects from editor format to schema format
+    const objects = editorState.objects.value.map(obj => ({
+        id: obj.id,
+        position: {
+            x: obj.position.x,
+            y: obj.position.y,
+            z: 0
+        },
+        rotation: obj.rotation || 0,
+        // bounds should be a simple array of coordinate objects (polygonSchema)
+        bounds: obj.points ? obj.points.reduce((acc: Array<{x: number, y: number}>, _, i, arr) => {
+            if (i % 2 === 0) {
+                acc.push({ x: arr[i], y: arr[i + 1] });
+            }
+            return acc;
+        }, []) : [],
+        shapeType: obj.shapeType || 'polygon',
+        type: obj.type || 'other',
+        blocksMovement: obj.blocking?.movement ?? true,
+        blocksLight: obj.blocking?.light ?? false,
+        blocksSound: obj.blocking?.sight ?? false, // Using sight as sound for now
+        color: obj.stroke || '#666666',
+        opacity: 1,
+        name: obj.name,
+        description: obj.description
+    }));
     
     // Return the complete mapData structure
     return {
         mapData: {
             coordinates: editorState.mapMetadata.coordinates,
             walls: allWalls,
-            terrain: [], // No terrain regions in current editor - terrain walls go in walls array
-            objects: [], // No objects in current editor
+            terrain: [], // No terrain regions in current editor
+            objects,
             regions: [], // No regions in current editor
             doors,
             lights,

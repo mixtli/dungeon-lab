@@ -78,10 +78,23 @@
                     @dragend="handleWallDragEnd($event, wall.id)" />
             </v-layer>
             
-            <!-- Object Wall layer -->
-            <v-layer ref="objectWallLayer">
-                <v-line v-for="wall in visibleObjectWalls" :key="wall.id" :config="getObjectWallConfig(wall)"
-                    @click="handleObjectClick($event, wall.id)" @dragend="handleWallDragEnd($event, wall.id)" />
+            <!-- Objects layer -->
+            <v-layer ref="objectsLayer">
+                <template v-for="object in visibleObjects" :key="object.id">
+                    <v-group :config="getObjectGroupConfig(object)" 
+                        @click="handleObjectClick($event, object.id)"
+                        @dragend="handleObjectDragEnd($event, object.id)">
+                        <!-- Polygon shape -->
+                        <v-line :config="getObjectPolygonConfig(object)" />
+                        
+                        <!-- Object vertex handles (only show when selected AND in select mode) -->
+                        <template v-if="props.selectedObjectIds.includes(object.id) && props.currentTool === 'select'">
+                            <v-circle v-for="(vertex, index) in getObjectVertices(object)" :key="`object-vertex-${object.id}-${index}`"
+                                :config="getObjectVertexHandleConfig(object, vertex, index)"
+                                @dragend="handleObjectVertexDrag($event, object.id, index)" />
+                        </template>
+                    </v-group>
+                </template>
             </v-layer>
 
             <!-- Add a dedicated vertices layer -->
@@ -104,15 +117,15 @@
             <!-- Portal layer -->
             <v-layer ref="portalLayer">
                 <template v-for="portal in portals" :key="portal.id">
-                    <v-group v-bind="getPortalGroupConfig(portal)" 
-                        @click="(e: KonvaEventObject<MouseEvent>) => handleObjectClick(e, portal.id)"
-                        @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalDragEnd(e, portal.id)">
+                    <v-group v-bind="getPortalGroupConfig(portal)">
                         
-                        <!-- Portal line segment -->
-                        <v-line v-bind="getPortalLineConfig(portal)" />
+                        <!-- Portal line segment (draggable for whole portal movement) -->
+                        <v-line v-bind="getPortalLineConfig(portal)" 
+                            @click="(e: KonvaEventObject<MouseEvent>) => handleObjectClick(e, portal.id)"
+                            @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalDragEnd(e, portal.id)" />
                         
-                        <!-- Portal endpoint handles (only show when selected) -->
-                        <template v-if="props.selectedObjectIds.includes(portal.id)">
+                        <!-- Portal endpoint handles (only show when selected AND in select mode) -->
+                        <template v-if="props.selectedObjectIds.includes(portal.id) && props.currentTool === 'select'">
                             <v-circle v-bind="getPortalHandleConfig(portal, 0)"
                                 @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalEndpointDrag(e, portal.id, 0)" />
                             <v-circle v-bind="getPortalHandleConfig(portal, 1)"
@@ -138,7 +151,7 @@
 
             <!-- Selection layer -->
             <v-layer ref="selectionLayer">
-                <v-transformer v-if="selectedObjectIds.length > 0" ref="transformer" :config="transformerConfig" />
+                <v-transformer v-if="selectedNonWallObjectIds.length > 0" ref="transformer" :config="transformerConfig" />
             </v-layer>
         </v-stage>
         
@@ -166,6 +179,12 @@
             :is-active="currentTool === 'wall'"
             @wall-created="handleWallCreated" 
         />
+        <ObjectTool
+            ref="objectTool"
+            :grid-config="gridConfig"
+            :is-active="currentTool === 'object'"
+            @object-created="handleObjectCreated"
+        />
         <SelectionTool
             ref="selectionTool"
             :is-active="currentTool === 'select'"
@@ -182,11 +201,13 @@ import { type KonvaEventObject } from 'konva/lib/Node.js';
 import { useGridSystem } from '../composables/useGridSystem.mjs';
 import { snapToWorldGrid, worldToGrid } from '../../../../../shared/src/utils/coordinate-conversion.mjs';
 import WallTool from './tools/WallTool.vue';
+import ObjectTool from './tools/ObjectTool.vue';
 import SelectionTool from './tools/SelectionTool.vue';
 import type {
     WallObject,
     PortalObject,
-    // LightObject,
+    LightObject,
+    ObjectEditorObject,
     EditorToolType,
     GridConfig,
     Point,
@@ -210,7 +231,7 @@ interface KonvaTransformer {
 // Props
 const props = defineProps<{
     walls: WallObject[];
-    objectWalls?: WallObject[];
+    objects: ObjectEditorObject[];
     portals: PortalObject[];
     lights: LightObject[];
     selectedObjectIds: string[];
@@ -223,10 +244,11 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
     (e: 'object-selected', id: string | null, addToSelection: boolean): void;
-    (e: 'object-added', object: WallObject | PortalObject | LightObject): void;
-    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | LightObject>): void;
+    (e: 'object-added', object: WallObject | PortalObject | LightObject | ObjectEditorObject): void;
+    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | LightObject | ObjectEditorObject> | { viewportTransform?: any; worldUnitsPerCell?: number; offset?: Point; }): void;
     (e: 'object-removed', id: string): void;
     (e: 'mouse-move', pixelPos: Point, gridPos: Point): void;
+    (e: 'selection-cleared'): void;
 }>();
 
 // Refs
@@ -235,11 +257,13 @@ const stage = ref<KonvaStage | null>(null);
 const bgLayer = ref<KonvaLayer | null>(null);
 const gridLayer = ref<KonvaLayer | null>(null);
 const wallLayer = ref<KonvaLayer | null>(null);
+const objectsLayer = ref<KonvaLayer | null>(null);
 const portalLayer = ref<KonvaLayer | null>(null);
 const lightLayer = ref<KonvaLayer | null>(null);
 const selectionLayer = ref<KonvaLayer | null>(null);
 const transformer = ref<KonvaTransformer | null>(null);
 const wallTool = ref<InstanceType<typeof WallTool> | null>(null);
+const objectTool = ref<InstanceType<typeof ObjectTool> | null>(null);
 const selectionTool = ref<InstanceType<typeof SelectionTool> | null>(null);
 const selectionRect = ref<Konva.Rect | null>(null);
 const verticesLayer = ref<KonvaLayer | null>(null);
@@ -285,8 +309,8 @@ const visibleWalls = computed(() => {
     return visible;
 });
 
-const visibleObjectWalls = computed(() => {
-    return props.objectWalls?.filter(wall => wall.visible !== false) || [];
+const visibleObjects = computed(() => {
+    return props.objects?.filter(object => object.visible !== false) || [];
 });
 
 const visibleLights = computed(() =>
@@ -348,6 +372,19 @@ const gridDrawingData = computed(() => {
     };
 });
 
+// Selected objects excluding walls and portals (they use endpoint handles instead of transformer)
+const selectedNonWallObjectIds = computed(() => {
+    return props.selectedObjectIds.filter(id => {
+        // Check if this ID belongs to a wall
+        const isWall = props.walls.some(wall => wall.id === id);
+        // Check if this ID belongs to a portal
+        const isPortal = props.portals.some(portal => portal.id === id);
+        // Check if this ID belongs to an object
+        const isObject = props.objects.some(object => object.id === id);
+        return !isWall && !isPortal && !isObject;
+    });
+});
+
 // Transformer configuration
 const transformerConfig = computed(() => ({
     boundBoxFunc: (_oldBox: object, newBox: object) => {
@@ -375,117 +412,126 @@ const getWallConfig = (wall: WallObject) => {
 };
 
 const getPortalGroupConfig = (portal: PortalObject) => {
-    // Portal positions are now stored in world coordinates (1:1 with pixels)
-    console.log('Portal group config (world coordinates):', {
+    // Portals use endpoint handles for all manipulation (like walls)
+    // Group is just for organizing the line and handles, not for dragging
+    
+    console.log('Portal group config (endpoint handles only):', {
         portalId: portal.id,
-        worldPos: portal.position,
-        finalPos: portal.position
+        coords: portal.coords
     });
     
     return {
-        x: portal.position.x, // Direct world coordinate positioning
-        y: portal.position.y, // Direct world coordinate positioning
-        draggable: props.currentTool === 'select',
-        rotation: portal.rotation,
+        x: 0, // Portal line and handles use absolute coordinates
+        y: 0, // Portal line and handles use absolute coordinates  
+        draggable: false, // No group dragging - all manipulation via endpoint handles
         id: portal.id
     };
 };
 
 const getPortalLineConfig = (portal: PortalObject) => {
-    // Portal bounds and position are now in world coordinates (1:1 with pixels)
-    // Calculate line points relative to the group's center
-
-    if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1] || !portal.position) {
-        const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
-        const halfLength = 0.5 * worldUnitsPerCell; // Default to 1 grid cell wide portal
-        console.warn('Portal line (default/malformed bounds):', {
+    // Use coords array directly for line segment coordinates
+    let points: number[];
+    
+    if (portal.coords && portal.coords.length >= 4) {
+        // Use new coords format directly [x1, y1, x2, y2]
+        points = [...portal.coords];
+        console.log('Portal line (coords format):', {
             portalId: portal.id,
-            defaultHalfLength: halfLength,
-            final_points_relative: [-halfLength, 0, halfLength, 0]
+            coords: portal.coords,
+            final_points: points
         });
-        return {
-            points: [-halfLength, 0, halfLength, 0],
-            stroke: '#00FF00', // Bright green for all portals
-            strokeWidth: 10, // Match object wall thickness
-            lineCap: 'round',
-            lineJoin: 'round'
-        };
+    } else if (portal.bounds && portal.bounds.length >= 2 && portal.bounds[0] && portal.bounds[1]) {
+        // Legacy support: convert from bounds format
+        points = [
+            portal.bounds[0].x, portal.bounds[0].y,
+            portal.bounds[1].x, portal.bounds[1].y
+        ];
+        console.warn('Portal line (legacy bounds):', {
+            portalId: portal.id,
+            bounds: portal.bounds,
+            converted_points: points
+        });
+    } else {
+        // Default fallback: horizontal line segment
+        const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
+        const portalLength = worldUnitsPerCell;
+        const centerX = portal.position?.x || 0;
+        const centerY = portal.position?.y || 0;
+        
+        points = [
+            centerX - portalLength / 2, centerY,
+            centerX + portalLength / 2, centerY
+        ];
+        console.warn('Portal line (default fallback):', {
+            portalId: portal.id,
+            center: { x: centerX, y: centerY },
+            length: portalLength,
+            final_points: points
+        });
     }
 
-    // Calculate relative world coordinate points for the line within the group
-    const p0_relative_x = portal.bounds[0].x - portal.position.x;
-    const p0_relative_y = portal.bounds[0].y - portal.position.y;
-    const p1_relative_x = portal.bounds[1].x - portal.position.x;
-    const p1_relative_y = portal.bounds[1].y - portal.position.y;
-
-    const relativePoints = [
-        p0_relative_x, p0_relative_y,
-        p1_relative_x, p1_relative_y
-    ];
-
-    console.log('Portal line (world coordinates):', {
-        portalId: portal.id,
-        portalPos: portal.position,
-        bounds: portal.bounds,
-        calculated_p0_relative: {x: p0_relative_x, y: p0_relative_y},
-        calculated_p1_relative: {x: p1_relative_x, y: p1_relative_y},
-        final_points_relative: relativePoints
-    });
-
     return {
-        points: relativePoints,
-        stroke: '#00FF00', // Bright green for all portals
-        strokeWidth: 10, // Match object wall thickness
+        points: points,
+        stroke: portal.stroke || '#8B4513', // Brown default to match schema
+        strokeWidth: portal.strokeWidth || 3, // Default width to match schema
         lineCap: 'round',
-        lineJoin: 'round'
+        lineJoin: 'round',
+        draggable: props.currentTool === 'select', // Make line draggable like walls
+        id: portal.id
     };
 };
 
 const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
-    // Portal bounds and position are in world coordinates (1:1 with pixels)
-
-    // If bounds are empty or malformed, position handles relative to the group's (0,0)
-    if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1]) {
-        const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
-        const halfLength = 0.5 * worldUnitsPerCell;
-        const handleX_relative = endpointIndex === 0 ? -halfLength : halfLength;
-        const handleY_relative = 0;
-
-        console.log('Portal handle (default/new):', {
+    // Get endpoint coordinates from coords array or fallback to legacy bounds
+    let handleX: number, handleY: number;
+    
+    if (portal.coords && portal.coords.length >= 4) {
+        // Use coords array directly [x1, y1, x2, y2]
+        const coordIndex = endpointIndex * 2; // 0 for start (x1,y1), 2 for end (x2,y2)
+        handleX = portal.coords[coordIndex];
+        handleY = portal.coords[coordIndex + 1];
+        
+        console.log('Portal handle (coords format):', {
             portalId: portal.id,
-            portalPos: portal.position,
             endpointIndex: endpointIndex,
-            handle_relative: {x: handleX_relative, y: handleY_relative}
+            coords: portal.coords,
+            handle_absolute: { x: handleX, y: handleY }
         });
-
-        return {
-            x: handleX_relative,
-            y: handleY_relative,
-            radius: 6,
-            fill: '#4CAF50',
-            stroke: '#2E7D32',
-            strokeWidth: 2,
-            draggable: true
-        };
+    } else if (portal.bounds && portal.bounds.length >= 2 && portal.bounds[endpointIndex]) {
+        // Legacy bounds support
+        const endpoint = portal.bounds[endpointIndex];
+        handleX = endpoint.x;
+        handleY = endpoint.y;
+        
+        console.warn('Portal handle (legacy bounds):', {
+            portalId: portal.id,
+            endpointIndex: endpointIndex,
+            endpoint: endpoint,
+            handle_absolute: { x: handleX, y: handleY }
+        });
+    } else {
+        // Default fallback
+        const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
+        const portalLength = worldUnitsPerCell;
+        const centerX = portal.position?.x || 0;
+        const centerY = portal.position?.y || 0;
+        
+        handleX = endpointIndex === 0 ? 
+            centerX - portalLength / 2 : 
+            centerX + portalLength / 2;
+        handleY = centerY;
+        
+        console.warn('Portal handle (default fallback):', {
+            portalId: portal.id,
+            endpointIndex: endpointIndex,
+            center: { x: centerX, y: centerY },
+            handle_absolute: { x: handleX, y: handleY }
+        });
     }
 
-    // For existing portals with bounds:
-    // Calculate handle positions relative to portal.position (group's center)
-    const endpoint = portal.bounds[endpointIndex];
-    const handleX_relative = endpoint.x - portal.position.x;
-    const handleY_relative = endpoint.y - portal.position.y;
-    
-    console.log('Portal handle (existing with bounds):', {
-        portalId: portal.id,
-        portalPos: portal.position,
-        endpointIndex: endpointIndex,
-        endpoint: endpoint,
-        handle_relative: { x: handleX_relative, y: handleY_relative }
-    });
-
     return {
-        x: handleX_relative,
-        y: handleY_relative,
+        x: handleX, // Absolute coordinates since group is at (0,0)
+        y: handleY, // Absolute coordinates since group is at (0,0)
         radius: 6,
         fill: '#4CAF50',
         stroke: '#2E7D32',
@@ -565,6 +611,66 @@ const getObjectWallConfig = (wall: WallObject) => {
     return config;
 };
 
+// Object configuration methods
+const getObjectGroupConfig = (object: ObjectEditorObject) => ({
+    x: object.position.x,
+    y: object.position.y,
+    rotation: object.rotation || 0,
+    draggable: props.currentTool === 'select',
+    id: object.id
+});
+
+const getObjectPolygonConfig = (object: ObjectEditorObject) => {
+    // Ensure all points are valid numbers
+    const validPoints = Array.isArray(object.points) ? 
+        object.points.map((p, index) => {
+            const isValid = typeof p === 'number' && !isNaN(p);
+            if (!isValid) {
+                console.warn(`Invalid object point at index ${index}, value:`, p);
+            }
+            return isValid ? p : 0;
+        }) : [];
+    
+    // Close the polygon by adding the first point at the end
+    const closedPoints = [...validPoints];
+    if (closedPoints.length >= 4) {
+        closedPoints.push(closedPoints[0], closedPoints[1]);
+    }
+    
+    return {
+        points: closedPoints,
+        stroke: object.stroke || '#666666',
+        strokeWidth: object.strokeWidth || 2,
+        fill: object.fill || 'rgba(100, 100, 100, 0.3)',
+        lineCap: 'round',
+        lineJoin: 'round',
+        closed: true,
+        listening: true
+    };
+};
+
+const getObjectVertices = (object: ObjectEditorObject) => {
+    const vertices = [];
+    for (let i = 0; i < object.points.length; i += 2) {
+        vertices.push({
+            x: object.points[i],
+            y: object.points[i + 1]
+        });
+    }
+    return vertices;
+};
+
+const getObjectVertexHandleConfig = (object: ObjectEditorObject, vertex: { x: number; y: number }, index: number) => ({
+    x: vertex.x,
+    y: vertex.y,
+    radius: 6,
+    fill: '#09f',
+    stroke: '#000',
+    strokeWidth: 1,
+    draggable: true,
+    listening: true
+});
+
 // Event handlers
 const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
     console.log('Mouse down event:', { tool: props.currentTool, pos: e.target.getStage()?.getPointerPosition() });
@@ -591,6 +697,12 @@ const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
                 startWallDrawing(worldPos);
             }
             // We'll handle extending the wall in handleMouseUp for better click handling
+            break;
+        case 'object':
+            if (objectTool.value && !objectTool.value.getIsDrawing()) {
+                console.log('Object tool starting new polygon at:', worldPos);
+                objectTool.value.startDrawing(worldPos);
+            }
             break;
         case 'portal':
             placePortal(worldPos);
@@ -641,6 +753,11 @@ const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
                 drawTemporaryWall();
             }
             break;
+        case 'object':
+            if (objectTool.value?.getIsDrawing()) {
+                drawTemporaryObject(worldPos);
+            }
+            break;
         case 'select':
             selectionTool.value?.updateSelection(worldPos);
             updateSelectionRect();
@@ -664,6 +781,9 @@ const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
         if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
             console.log('Double click detected while drawing wall, finishing...');
             finishWallDrawing();
+        } else if (props.currentTool === 'object' && objectTool.value?.getIsDrawing()) {
+            console.log('Double click detected while drawing object, finishing...');
+            objectTool.value.finishDrawing();
         }
     } else if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
         // For single clicks while drawing a wall, add a point
@@ -675,6 +795,17 @@ const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
             };
             console.log('Single click while drawing wall, extending...');
             extendWallDrawing(worldPos);
+        }
+    } else if (props.currentTool === 'object' && objectTool.value?.getIsDrawing()) {
+        // For single clicks while drawing an object, add a point
+        const pos = stage.getPointerPosition();
+        if (pos) {
+            const worldPos = {
+                x: (pos.x - stage.x()) / stage.scaleX(),
+                y: (pos.y - stage.y()) / stage.scaleY()
+            };
+            console.log('Single click while drawing object, adding point...');
+            objectTool.value.addPoint(worldPos);
         }
     } else if (props.currentTool === 'select' && selectionTool.value?.isSelecting) {
         selectionTool.value.endSelection();
@@ -787,28 +918,65 @@ const handleWallDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
 
 const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     const node = e.target;
-    const newWorldPos = { x: node.x(), y: node.y() };
+    const dragOffset = { x: node.x(), y: node.y() };
 
-    // Snap to world grid if snap is enabled
-    const positionToUse = props.gridConfig.snap 
+    // Find the portal to get its current coords
+    const portal = props.portals.find(p => p.id === id);
+    if (!portal || !portal.coords || portal.coords.length < 4) {
+        console.error('Portal or coords not found for drag end:', { id, portal });
+        return;
+    }
+
+    // Calculate the center of the original portal
+    const originalCenterX = (portal.coords[0] + portal.coords[2]) / 2;
+    const originalCenterY = (portal.coords[1] + portal.coords[3]) / 2;
+    
+    // Calculate new center position
+    const newCenterX = originalCenterX + dragOffset.x;
+    const newCenterY = originalCenterY + dragOffset.y;
+    
+    // Apply snapping to the center if enabled
+    const snappedCenter = props.gridConfig.snap 
         ? snapToWorldGrid(
-            newWorldPos, 
+            { x: newCenterX, y: newCenterY }, 
             props.mapMetadata.coordinates.worldUnitsPerGridCell,
             props.mapMetadata.coordinates.offset
           )
-        : newWorldPos;
+        : { x: newCenterX, y: newCenterY };
 
-    console.log('Portal drag end:', {
+    // Calculate the offset to apply to all coordinates
+    const deltaX = snappedCenter.x - originalCenterX;
+    const deltaY = snappedCenter.y - originalCenterY;
+
+    // Update coords by applying the offset
+    const newCoords = [
+        portal.coords[0] + deltaX, // x1
+        portal.coords[1] + deltaY, // y1
+        portal.coords[2] + deltaX, // x2
+        portal.coords[3] + deltaY  // y2
+    ];
+
+    console.log('Portal drag end (coords system):', {
         id,
-        originalWorldPos: newWorldPos,
-        finalPosition: positionToUse,
-        snapEnabled: props.gridConfig.snap,
-        worldUnitsPerCell: props.mapMetadata.coordinates.worldUnitsPerGridCell
+        originalCoords: portal.coords,
+        dragOffset,
+        originalCenter: { x: originalCenterX, y: originalCenterY },
+        newCenter: snappedCenter,
+        delta: { x: deltaX, y: deltaY },
+        newCoords
     });
 
+    // Reset node position since we're updating coords directly
+    node.position({ x: 0, y: 0 });
+
     emit('object-modified', id, {
-        position: positionToUse, // Position is stored in world coordinates
-        rotation: node.rotation()
+        coords: newCoords,
+        // Update legacy fields for backward compatibility
+        position: snappedCenter,
+        bounds: [
+            { x: newCoords[0], y: newCoords[1] },
+            { x: newCoords[2], y: newCoords[3] }
+        ]
     });
 };
 
@@ -819,6 +987,32 @@ const handleLightDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     emit('object-modified', id, {
         position: { x: node.x(), y: node.y() }
     });
+};
+
+// Object drag handlers
+const handleObjectDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
+    // Update object position after drag
+    const node = e.target;
+    emit('object-modified', id, {
+        position: { x: node.x(), y: node.y() }
+    });
+};
+
+const handleObjectVertexDrag = (e: KonvaEventObject<DragEvent>, objectId: string, vertexIndex: number) => {
+    // Update object vertex position after drag
+    const node = e.target;
+    const newX = node.x();
+    const newY = node.y();
+    
+    // Find the object and update the specific vertex
+    const object = props.objects.find(obj => obj.id === objectId);
+    if (object) {
+        const newPoints = [...object.points];
+        newPoints[vertexIndex * 2] = newX;
+        newPoints[vertexIndex * 2 + 1] = newY;
+        
+        emit('object-modified', objectId, { points: newPoints });
+    }
 };
 
 // Wall tool status is already defined elsewhere in the file
@@ -902,10 +1096,19 @@ const cancelWallDrawing = () => {
 const handleKeyDown = (e: KeyboardEvent) => {
     console.log('Key pressed:', e.key);
     
-    // Cancel drawing on Escape
+    // Cancel drawing on Escape or clear selection
     if (e.key === 'Escape') {
         if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
             cancelWallDrawing();
+        }
+        else if (props.currentTool === 'object' && objectTool.value?.getIsDrawing()) {
+            console.log('Canceling object drawing with Escape key');
+            objectTool.value.cancelDrawing();
+            clearTemporaryObject();
+        }
+        // Clear selection if any objects are selected
+        else if (props.selectedObjectIds.length > 0) {
+            emit('selection-cleared');
         }
     }
     
@@ -913,6 +1116,10 @@ const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
         if (props.currentTool === 'wall' && wallTool.value?.isDrawing) {
             finishWallDrawing();
+        }
+        else if (props.currentTool === 'object' && objectTool.value?.getIsDrawing()) {
+            console.log('Finishing object drawing with Enter key');
+            objectTool.value.finishDrawing();
         }
     }
     
@@ -950,30 +1157,41 @@ const placePortal = (pos: Point) => {
           )
         : pos;
     
-    // Define portal length in world units. Default to 2 grid cells.
+    // Define portal length in world units. Default to 1 grid cell.
     const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
-    const portalLength = 2 * worldUnitsPerCell;
+    const portalLength = worldUnitsPerCell;
 
-    // Calculate bounds in world coordinates
-    // Assuming a horizontal portal centered at snappedWorldPos for simplicity upon creation
-    const bounds: [Point, Point] = [
-        { x: snappedWorldPos.x - portalLength / 2, y: snappedWorldPos.y },
-        { x: snappedWorldPos.x + portalLength / 2, y: snappedWorldPos.y }
+    // Create line segment coordinates [x1, y1, x2, y2] centered at snappedWorldPos
+    // Default to horizontal portal
+    const coords = [
+        snappedWorldPos.x - portalLength / 2, snappedWorldPos.y,  // Start point
+        snappedWorldPos.x + portalLength / 2, snappedWorldPos.y   // End point
     ];
 
     const newPortal: PortalObject = {
         id: `portal-${Date.now()}`,
         objectType: 'portal',
-        position: snappedWorldPos, // Store position in world coordinates
-        rotation: 0, // Default rotation
-        bounds: bounds,     // Store bounds in world coordinates
-        closed: false,
-        freestanding: true,
+        coords: coords, // Simple line segment coordinates
+        state: 'closed', // Default to closed
+        material: 'wood', // Default material
+        stroke: '#8B4513', // Brown color to match schema default
+        strokeWidth: 3, // Default width to match schema
+        requiresKey: false,
         visible: true,
-        locked: false
+        locked: false,
+        
+        // Legacy support for backward compatibility
+        position: snappedWorldPos,
+        rotation: 0,
+        bounds: [
+            { x: coords[0], y: coords[1] },
+            { x: coords[2], y: coords[3] }
+        ],
+        freestanding: true,
+        closed: true
     };
 
-    console.log('[EditorCanvas] placePortal - Emitting new portal (world coordinates):', JSON.parse(JSON.stringify(newPortal)));
+    console.log('[EditorCanvas] placePortal - Emitting new portal with coords:', JSON.parse(JSON.stringify(newPortal)));
     emit('object-added', newPortal);
 };
 
@@ -1075,6 +1293,52 @@ const clearTemporaryWall = () => {
     console.log('Temporary walls cleared');
 };
 
+// Temporary object drawing
+const drawTemporaryObject = (currentMousePos: Point) => {
+    if (!objectTool.value || !objectsLayer.value) {
+        return;
+    }
+    
+    clearTemporaryObject();
+    
+    const currentPoints = objectTool.value.getCurrentPoints();
+    if (currentPoints.length < 2) {
+        return; // Need at least one point to start drawing
+    }
+    
+    // Create temporary polygon showing current shape + mouse position
+    const tempPoints = [...currentPoints, currentMousePos.x, currentMousePos.y];
+    
+    // Close the polygon if we have more than 2 points
+    if (tempPoints.length >= 6) {
+        tempPoints.push(tempPoints[0], tempPoints[1]); // Close polygon
+    }
+    
+    const konvaLayer = objectsLayer.value.getNode();
+    const tempObject = new Konva.Line({
+        points: tempPoints,
+        stroke: '#09f',
+        strokeWidth: 2,
+        fill: 'rgba(0, 153, 255, 0.1)',
+        closed: tempPoints.length >= 6,
+        dash: [5, 5],
+        listening: false,
+        name: 'temp-object'
+    });
+    
+    konvaLayer.add(tempObject);
+    konvaLayer.batchDraw();
+};
+
+const clearTemporaryObject = () => {
+    if (!objectsLayer.value) return;
+    
+    const konvaLayer = objectsLayer.value.getNode();
+    const tempObjects = konvaLayer.find('.temp-object');
+    tempObjects.forEach(obj => obj.destroy());
+    konvaLayer.batchDraw();
+};
+
 // Handle wall creation from WallTool
 const handleWallCreated = (wall: WallObject) => {
     emit('object-added', wall);
@@ -1086,6 +1350,12 @@ const handleWallCreated = (wall: WallObject) => {
         tempWalls.forEach(wall => wall.destroy());
         konvaLayer.batchDraw();
     }
+};
+
+// Handle object creation from ObjectTool
+const handleObjectCreated = (object: ObjectEditorObject) => {
+    emit('object-added', object);
+    clearTemporaryObject(); // Clear the temporary dashed drawing lines
 };
 
 // Selection methods
@@ -1222,8 +1492,8 @@ const handleSelectionEnded = (rect: { start: Point; end: Point }) => {
     }
 };
 
-// Watch for selected objects to update transformer
-watch(() => props.selectedObjectIds, (newSelectedIds) => {
+// Watch for selected non-wall objects to update transformer
+watch(() => selectedNonWallObjectIds.value, (newSelectedIds) => {
     if (!transformer.value || !stage.value) return;
 
     if (newSelectedIds.length === 0) {
@@ -1236,7 +1506,7 @@ watch(() => props.selectedObjectIds, (newSelectedIds) => {
     const selectedNodes: Konva.Node[] = [];
 
     for (const id of newSelectedIds) {
-        // Find the node in wall, portal, or light layers
+        // Find the node in portal or light layers (walls are excluded)
         const node = konvaStage.findOne(`#${id}`);
         if (node) {
             selectedNodes.push(node);
@@ -1459,68 +1729,63 @@ watch(() => selectionTool.value, (tool) => {
 
 // Add a new method to handle portal endpoint drag
 const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, endpointIndex: number) => {
+    // Only allow portal editing when using select tool
+    if (props.currentTool !== 'select') return;
+    
     const portal = props.portals.find(p => p.id === id);
-    // Ensure portal and its existing bounds (which should be in grid coords) exist
-    if (!portal || !portal.bounds || !portal.bounds[0] || !portal.bounds[1] || !portal.position) { 
-        console.error('Portal, portal.position, or portal.bounds not found for endpoint drag', {id, portal});
+    if (!portal || !portal.coords || portal.coords.length < 4) {
+        console.error('Portal or coords not found for endpoint drag', { id, portal });
         return;
     }
 
     const handleNode = e.target; // This is the handle (Konva.Circle)
 
-    // 1. Get the handle's absolute position on the page (as returned by Konva for a dragged node)
-    const handleAbsPagePos = handleNode.getAbsolutePosition();
-    if (!handleAbsPagePos) {
-      console.error("[EditorCanvas] Could not get absolute page position of handle for portal endpoint drag");
-      return;
-    }
+    // 1. Get the handle's new position directly from the node
+    const handleNewPos = { x: handleNode.x(), y: handleNode.y() };
 
-    // 2. Convert absolute page position to world coordinates (accounting for stage pan/zoom)
-    const stageTx = props.viewportTransform.position.x;
-    const stageTy = props.viewportTransform.position.y;
-    const stageScale = props.viewportTransform.scale;
-
-    const handleWorldPos = {
-        x: (handleAbsPagePos.x - stageTx) / stageScale,
-        y: (handleAbsPagePos.y - stageTy) / stageScale
-    };
-
-    // 3. Snap this world position if snap is enabled
-    const snappedHandleWorldPos = props.gridConfig.snap 
+    // 2. Snap this position if snap is enabled
+    const snappedHandlePos = props.gridConfig.snap 
         ? snapToWorldGrid(
-            handleWorldPos,
+            handleNewPos,
             props.mapMetadata.coordinates.worldUnitsPerGridCell,
             props.mapMetadata.coordinates.offset
           )
-        : handleWorldPos;
+        : handleNewPos;
 
-    // 4. Create a new bounds array with the updated world coordinate
-    const newBounds: [Point, Point] = [
-        endpointIndex === 0 ? snappedHandleWorldPos : { ...portal.bounds[0] },
-        endpointIndex === 1 ? snappedHandleWorldPos : { ...portal.bounds[1] }
-    ];
+    // 3. Update the coords array with the new endpoint position
+    const newCoords = [...portal.coords];
+    const coordIndex = endpointIndex * 2; // 0 for start (x1,y1), 2 for end (x2,y2)
+    newCoords[coordIndex] = snappedHandlePos.x;
+    newCoords[coordIndex + 1] = snappedHandlePos.y;
     
-    console.log('[EditorCanvas] Portal endpoint drag - world coordinates:', {
+    console.log('[EditorCanvas] Portal endpoint drag (coords system):', {
         id, endpointIndex,
-        handleAbsPagePos,
-        stageTransform: { x: stageTx, y: stageTy, scale: stageScale },
-        calculated_handleWorldPos: handleWorldPos,
-        snappedHandleWorldPos,
-        originalPortalBounds: portal.bounds,
-        newBounds_emitted: newBounds
+        originalCoords: portal.coords,
+        handleNewPos,
+        snappedHandlePos,
+        coordIndex,
+        newCoords
     });
 
-    // Emit the object-modified event with the updated bounds in world coordinates.
-    // The portal's main `position` (its group center in grid) remains unchanged by this operation.
+    // Reset handle position since we're using absolute coordinates
+    handleNode.position({ x: snappedHandlePos.x, y: snappedHandlePos.y });
+
+    // 4. Emit the object-modified event with updated coords
     emit('object-modified', id, {
-        bounds: newBounds 
+        coords: newCoords,
+        // Update legacy fields for backward compatibility
+        bounds: [
+            { x: newCoords[0], y: newCoords[1] },
+            { x: newCoords[2], y: newCoords[3] }
+        ],
+        position: {
+            x: (newCoords[0] + newCoords[2]) / 2,
+            y: (newCoords[1] + newCoords[3]) / 2
+        }
     });
 
-    // Redraw the layer containing the portal to ensure the line updates visually.
-    // The portal group's x/y (derived from portal.position) hasn't changed,
-    // but its internal line (derived from portal.bounds relative to portal.position)
-    // and its handles (derived from portal.bounds relative to portal.position) need re-rendering.
-    const portalKonvaNode = handleNode.getParent(); // Get the Konva.Group for the portal
+    // Redraw the layer containing the portal
+    const portalKonvaNode = handleNode.getParent();
     portalKonvaNode?.getLayer()?.batchDraw();
 };
 </script>

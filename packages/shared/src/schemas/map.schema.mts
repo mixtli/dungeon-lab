@@ -75,30 +75,26 @@ export const worldCoordinateSystemSchema = z.object({
 
 
 /**
- * Enhanced portal/door schema for modern VTT features
+ * Simplified portal/door schema using line segment geometry like Foundry VTT
+ * Portals are represented as line segments for simplicity and consistency
  */
 export const doorSchema = z.object({
   // Unique identifier for this door
   id: z.string(),
   
-  // Door position and geometry
-  position: coordinateSchema,
-  bounds: z.array(coordinateSchema), // Door frame outline
-  
-  // Door properties
-  rotation: z.number().default(0), // in radians
-  width: z.number().positive(), // door width in world units
-  height: z.number().positive().default(8), // door height (for 3D collision)
+  // Door geometry as line segment [x1, y1, x2, y2] in world units
+  coords: z.array(z.number()).length(4), // [x1, y1, x2, y2] line segment
   
   // Door state and behavior
   state: z.enum(['closed', 'open', 'locked', 'stuck']).default('closed'),
-  material: z.enum(['wood', 'stone', 'metal', 'magic', 'glass']).default('wood'),
+  material: z.enum(['wood', 'stone', 'metal', 'magic', 'glass', 'force']).default('wood'),
+  
+  // Visual properties
+  stroke: z.string().default('#8B4513'), // Door color (brown by default)
+  strokeWidth: z.number().positive().default(3), // Line width for rendering
   
   // Interaction properties
   requiresKey: z.boolean().default(false),
-  keyId: z.string().optional(), // Reference to required key item
-  lockDC: z.number().int().min(0).max(30).optional(), // Difficulty to pick lock
-  breakDC: z.number().int().min(0).max(30).optional(), // Difficulty to break down
   
   // Visual and audio
   openSound: z.string().optional(), // Sound effect when opening
