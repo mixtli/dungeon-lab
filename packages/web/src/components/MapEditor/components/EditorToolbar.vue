@@ -8,15 +8,9 @@
             </button>
 
             <button class="tool-button" :class="{ active: currentTool === 'pan' }" @click="selectTool('pan')"
-                title="Pan Tool: Click and drag to move around the map.">
+                title="Pan & Zoom Tool: Click and drag to move around the map. Use mouse wheel to zoom in and out.">
                 <span class="tool-icon">✋</span>
-                <span class="tool-label">Pan</span>
-            </button>
-
-            <button class="tool-button" :class="{ active: currentTool === 'zoom' }" @click="selectTool('zoom')"
-                title="Zoom Tool: Use mouse wheel to zoom in and out.">
-                <span class="tool-icon">🔍</span>
-                <span class="tool-label">Zoom</span>
+                <span class="tool-label">Pan & Zoom</span>
             </button>
         </div>
 

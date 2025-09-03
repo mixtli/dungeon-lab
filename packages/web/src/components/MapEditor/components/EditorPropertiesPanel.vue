@@ -63,7 +63,7 @@
                         </div>
                         
                         <div class="property-group">
-                            <h4>Position (Grid Coordinates)</h4>
+                            <h4>Position (World Coordinates)</h4>
                             <div class="property-row">
                                 <label>X:</label>
                                 <input type="number" :value="Number((selectedObject as PortalObject).position.x.toFixed(2))" step="0.1"
@@ -77,7 +77,7 @@
                         </div>
 
                         <div class="property-group">
-                            <h4>Bounds (Grid Coordinates)</h4>
+                            <h4>Bounds (World Coordinates)</h4>
                             <div class="bounds-section">
                                 <div class="bounds-point">
                                     <h5>Start Point</h5>
@@ -127,13 +127,13 @@
                                     @change="updateProperty('color', ($event.target as HTMLInputElement).value)" />
                             </div>
                             <div class="property-row">
-                                <label>Range (grid units):</label>
+                                <label>Range (world units):</label>
                                 <input type="number" 
-                                    :value="lightRangeInGridUnits" 
+                                    :value="Number((selectedObject as LightObject).range.toFixed(1))" 
                                     :min="0" 
-                                    :max="props.gridSize > 0 ? 500 / props.gridSize : 10" 
-                                    :step="props.gridSize > 0 ? 10 / props.gridSize : 0.1" 
-                                    @change="updateProperty('range', Math.round(parseFloat(($event.target as HTMLInputElement).value) * props.gridSize))" />
+                                    :max="1000" 
+                                    :step="5" 
+                                    @change="updateProperty('range', parseFloat(($event.target as HTMLInputElement).value))" />
                             </div>
                             <div class="property-row">
                                 <label>Intensity:</label>
@@ -203,12 +203,6 @@ const selectedObject = computed(() => {
     return props.selectedObjects.length > 0 ? props.selectedObjects[0] : null;
 });
 
-const lightRangeInGridUnits = computed(() => {
-    if (selectedObject.value?.objectType === 'light' && props.gridSize > 0) {
-        return (selectedObject.value as LightObject).range / props.gridSize;
-    }
-    return 0;
-});
 
 const objectTypeLabel = computed(() => {
     if (!selectedObject.value) return '';

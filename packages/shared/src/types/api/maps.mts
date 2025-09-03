@@ -3,8 +3,10 @@ import {
   mapSchema, 
   mapCreateSchema, 
   mapSchemaWithVirtuals,
-  mapImportUVTTSchema
 } from '../../schemas/map.schema.mjs';
+import {
+  mapImportUVTTSchema
+} from '../../schemas/uvtt-import-export.schema.mjs';
 import { baseAPIResponseSchema } from './base.mjs';
 
 export type IMapResponse = z.infer<typeof mapSchemaWithVirtuals>;

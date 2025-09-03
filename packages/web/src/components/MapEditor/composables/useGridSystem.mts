@@ -17,8 +17,8 @@ export function useGridSystem(config: GridConfig) {
     if (!config.snap) return { ...point };
 
     return {
-      x: Math.round(point.x / config.size) * config.size,
-      y: Math.round(point.y / config.size) * config.size
+      x: Math.round(point.x / config.worldUnitsPerCell) * config.worldUnitsPerCell,
+      y: Math.round(point.y / config.worldUnitsPerCell) * config.worldUnitsPerCell
     };
   };
 
@@ -32,8 +32,8 @@ export function useGridSystem(config: GridConfig) {
     const result: number[] = [];
 
     for (let i = 0; i < points.length; i += 2) {
-      const x = Math.round(points[i] / config.size) * config.size;
-      const y = Math.round(points[i + 1] / config.size) * config.size;
+      const x = Math.round(points[i] / config.worldUnitsPerCell) * config.worldUnitsPerCell;
+      const y = Math.round(points[i + 1] / config.worldUnitsPerCell) * config.worldUnitsPerCell;
       result.push(x, y);
     }
 
@@ -41,22 +41,22 @@ export function useGridSystem(config: GridConfig) {
   };
 
   /**
-   * Convert from grid coordinates to pixel coordinates
+   * Convert from grid coordinates to world coordinates
    */
-  const gridToPixel = (gridCoord: Point): Point => {
+  const gridToWorld = (gridCoord: Point, offset: Point = { x: 0, y: 0 }): Point => {
     return {
-      x: gridCoord.x * config.size,
-      y: gridCoord.y * config.size
+      x: gridCoord.x * config.worldUnitsPerCell + offset.x,
+      y: gridCoord.y * config.worldUnitsPerCell + offset.y
     };
   };
 
   /**
-   * Convert from pixel coordinates to grid coordinates
+   * Convert from world coordinates to grid coordinates
    */
-  const pixelToGrid = (pixelCoord: Point): Point => {
+  const worldToGrid = (worldCoord: Point, offset: Point = { x: 0, y: 0 }): Point => {
     return {
-      x: pixelCoord.x / config.size,
-      y: pixelCoord.y / config.size
+      x: Math.floor((worldCoord.x - offset.x) / config.worldUnitsPerCell),
+      y: Math.floor((worldCoord.y - offset.y) / config.worldUnitsPerCell)
     };
   };
 
@@ -75,10 +75,10 @@ export function useGridSystem(config: GridConfig) {
   };
 
   /**
-   * Set grid size
+   * Set grid world units per cell
    */
-  const setGridSize = (size: number) => {
-    config.size = size;
+  const setGridSize = (worldUnitsPerCell: number) => {
+    config.worldUnitsPerCell = worldUnitsPerCell;
   };
 
   /**
@@ -99,7 +99,7 @@ export function useGridSystem(config: GridConfig) {
    * Calculate grid line positions for rendering
    * This helps optimize grid rendering by only drawing visible lines
    */
-  const getGridLines = (width: number, height: number, offsetX: number, offsetY: number) => {
+  const getGridLines = (width: number, height: number, offsetX: number, offsetY: number, gridOffset: Point = { x: 0, y: 0 }) => {
     const result = {
       vertical: [] as number[],
       horizontal: [] as number[]
@@ -108,18 +108,19 @@ export function useGridSystem(config: GridConfig) {
     if (!config.visible) return result;
 
     // Calculate grid lines that are visible in the viewport
-    const startX = Math.floor(offsetX / config.size) * config.size;
-    const startY = Math.floor(offsetY / config.size) * config.size;
+    const cellSize = config.worldUnitsPerCell;
+    const startX = Math.floor((offsetX - gridOffset.x) / cellSize) * cellSize + gridOffset.x;
+    const startY = Math.floor((offsetY - gridOffset.y) / cellSize) * cellSize + gridOffset.y;
     const endX = offsetX + width;
     const endY = offsetY + height;
 
     // Vertical lines
-    for (let x = startX; x <= endX; x += config.size) {
+    for (let x = startX; x <= endX; x += cellSize) {
       result.vertical.push(x);
     }
 
     // Horizontal lines
-    for (let y = startY; y <= endY; y += config.size) {
+    for (let y = startY; y <= endY; y += cellSize) {
       result.horizontal.push(y);
     }
 
@@ -130,8 +131,8 @@ export function useGridSystem(config: GridConfig) {
     gridLayerConfig,
     snapToGrid,
     snapPointsToGrid,
-    gridToPixel,
-    pixelToGrid,
+    gridToWorld,
+    worldToGrid,
     toggleGridVisibility,
     toggleGridSnapping,
     setGridSize,

@@ -260,16 +260,6 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      // Validate UVTT data if present
-      if (data.uvtt) {
-        try {
-          data.uvtt = uvttSchema.parse(data.uvtt);
-        } catch (error) {
-          logger.error('UVTT validation failed during map update:', error);
-          throw new Error(`Invalid UVTT data: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-
       // Prepare update data
       const mapUpdateData: IMapUpdateData = { ...data, updatedBy: userId };
 
@@ -305,9 +295,6 @@ export class MapService {
         });
 
         logger.info(`Scheduled thumbnail generation job for updated map ${id}`);
-      } else if (mapUpdateData.uvtt?.resolution?.map_size?.x && existingMap.aspectRatio) {
-        // If no new image, but gridColumns changed, recalculate gridRows based on existing aspect ratio
-        mapUpdateData.uvtt.resolution.map_size.y = Math.floor(mapUpdateData.uvtt?.resolution?.map_size?.x / existingMap.aspectRatio);
       }
 
       // Apply updates
@@ -493,16 +480,6 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      // Validate UVTT data if present
-      if (data.uvtt) {
-        try {
-          data.uvtt = uvttSchema.parse(data.uvtt);
-        } catch (error) {
-          logger.error('UVTT validation failed during map PUT:', error);
-          throw new Error(`Invalid UVTT data: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-
       const userObjectId = new Types.ObjectId(userId);
       const updateData = {
         ...data,
@@ -557,16 +534,6 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      // Validate UVTT data if present
-      if (data.uvtt) {
-        try {
-          data.uvtt = uvttSchema.parse(data.uvtt);
-        } catch (error) {
-          logger.error('UVTT validation failed during map PATCH:', error);
-          throw new Error(`Invalid UVTT data: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-
       const updateData = {
         ...data,
         updatedBy: userId
@@ -598,8 +565,6 @@ export class MapService {
       const obj = map.toObject();
       const newObj = deepMerge(obj, updateData);
       console.log('newObj', newObj);
-      // @ts-expect-error uvtt exists
-      newObj.uvtt = updateData.uvtt;
       map.set(newObj);
       await map.save();
 
@@ -687,12 +652,16 @@ export class MapService {
         aspectRatio = validUvttData.resolution?.map_size?.x / validUvttData.resolution?.map_size?.y;
       }
       
-      // Prepare map data
+      // TODO: Convert UVTT data to InternalMapData format
+      // For now, create a basic map without UVTT data
+      throw new Error('UVTT import needs to be updated to convert to InternalMapData format');
+      
+      // Prepare map data (this code will be updated once conversion is implemented)
       const mapData: IMapCreateData = {
         name: options.name,
         description: options.description,
         aspectRatio,
-        uvtt: validUvttData,
+        // uvtt: validUvttData, // REMOVED - needs conversion to mapData: InternalMapData
         createdBy: userId,
         ownerId: userId, // Set ownerId for new maps
         updatedBy: userId

@@ -101,14 +101,20 @@ export {
 // Map schemas
 export {
   coordinateSchema,
-  resolutionSchema,
-  portalSchema,
-  uvttSchema,
   mapSchema,
   mapSchemaWithVirtuals,
   mapCreateSchema,
-  mapImportUVTTSchema
+  internalMapDataSchema
 } from './map.schema.mjs';
+
+// UVTT import/export schemas
+export {
+  uvttSchema,
+  uvttPortalSchema,
+  uvttLightSchema,
+  mapImportUVTTSchema,
+  uvttExportRequestSchema
+} from './uvtt-import-export.schema.mjs';
 
 // Position schemas
 export {

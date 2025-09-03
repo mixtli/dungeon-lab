@@ -210,7 +210,7 @@ export class MapsClient extends ApiClient {
     };
     
     // Use regular JSON request
-    const response = await this.api.patch<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`, mapData);
+    const response = await this.api.put<BaseAPIResponse<IMap>>(`/api/maps/${mapId}`, mapData);
     if (!response.data || !response.data.success) {
       throw new Error(response.data?.error || 'Failed to update map');
     }

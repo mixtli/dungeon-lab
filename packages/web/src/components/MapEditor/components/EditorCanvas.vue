@@ -34,7 +34,7 @@
             <!-- Wall layer -->
             <v-layer ref="wallLayer">
                 <v-line v-for="wall in visibleWalls" :key="wall.id" 
-                    :config="getWallConfig(wall.points, wall.id.startsWith('object-wall-'))"
+                    :config="getWallConfig(wall)"
                     @click="handleObjectClick($event, wall.id)" 
                     @dragend="handleWallDragEnd($event, wall.id)" />
             </v-layer>
@@ -88,7 +88,11 @@
                 <v-group v-for="light in visibleLights" :key="light.id" :config="getLightGroupConfig(light)"
                     @click="handleObjectClick($event, light.id)" 
                     @dragend="handleLightDragEnd($event, light.id)">
-                    <v-circle :config="getLightRangeConfig(light)" />
+                    <!-- Dim radius (outer circle) -->
+                    <v-circle v-if="light.dimRadius > 0" :config="getLightDimConfig(light)" />
+                    <!-- Bright radius (inner circle) -->
+                    <v-circle v-if="light.brightRadius > 0" :config="getLightRangeConfig(light)" />
+                    <!-- Center marker -->
                     <v-circle :config="getLightMarkerConfig(light)" />
                 </v-group>
             </v-layer>
@@ -137,6 +141,7 @@ import Konva from 'konva';
 // Import KonvaEventObject as a value, not as a type
 import { type KonvaEventObject } from 'konva/lib/Node.js';
 import { useGridSystem } from '../composables/useGridSystem.mjs';
+import { snapToWorldGrid, worldToGrid } from '../../../../../shared/src/utils/coordinate-conversion.mjs';
 import WallTool from './tools/WallTool.vue';
 import SelectionTool from './tools/SelectionTool.vue';
 import type {
@@ -148,7 +153,6 @@ import type {
     Point,
     MapMetadata
 } from '../../../../../shared/src/types/mapEditor.mjs';
-import type { EditorLightObject } from '../composables/useEditorState.mjs';
 
 
 interface KonvaLayer {
@@ -169,7 +173,7 @@ const props = defineProps<{
     walls: WallObject[];
     objectWalls?: WallObject[];
     portals: PortalObject[];
-    lights: EditorLightObject[];
+    lights: LightObject[];
     selectedObjectIds: string[];
     currentTool: EditorToolType;
     gridConfig: GridConfig;
@@ -180,8 +184,8 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
     (e: 'object-selected', id: string | null, addToSelection: boolean): void;
-    (e: 'object-added', object: WallObject | PortalObject | EditorLightObject): void;
-    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | EditorLightObject>): void;
+    (e: 'object-added', object: WallObject | PortalObject | LightObject): void;
+    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | LightObject>): void;
     (e: 'object-removed', id: string): void;
     (e: 'mouse-move', pixelPos: Point, gridPos: Point): void;
 }>();
@@ -283,7 +287,8 @@ const gridDrawingData = computed(() => {
         visibleWorldWidth,
         visibleWorldHeight,
         worldOffsetX,
-        worldOffsetY
+        worldOffsetY,
+        props.mapMetadata.coordinates.offset
     );
 
     return {
@@ -310,31 +315,31 @@ const transformerConfig = computed(() => ({
 }));
 
 // Function to get wall config with the proper color based on wall type
-const getWallConfig = (points: number[], isObjectWall: boolean = false) => {
+const getWallConfig = (wall: WallObject) => {
+    const isObjectWall = wall.id.startsWith('object-wall-');
+    
     return {
-        points,
-        stroke: isObjectWall ? '#3399ff' : '#ff3333', // Blue for object walls, red for regular walls
-        strokeWidth: 3,
+        points: wall.points,
+        stroke: wall.stroke || (isObjectWall ? '#3399ff' : '#ff3333'), // Use wall's stroke color or default
+        strokeWidth: wall.strokeWidth || 3, // Use wall's stroke width or default
         lineCap: 'round',
-        lineJoin: 'round'
+        lineJoin: 'round',
+        draggable: props.currentTool === 'select',
+        id: wall.id
     };
 };
 
 const getPortalGroupConfig = (portal: PortalObject) => {
-    const ppg = props.mapMetadata.resolution.pixels_per_grid;
-    const pixelX = portal.position.x * ppg; // Convert grid to pixel
-    const pixelY = portal.position.y * ppg; // Convert grid to pixel
-    
-    console.log('Portal group config (reverted to grid input logic):', {
+    // Portal positions are now stored in world coordinates (1:1 with pixels)
+    console.log('Portal group config (world coordinates):', {
         portalId: portal.id,
-        gridPos_input: portal.position, // Expecting grid units from props
-        pixelsPerGrid: ppg,
-        finalPixelPos_group: { x: pixelX, y: pixelY }
+        worldPos: portal.position,
+        finalPos: portal.position
     });
     
     return {
-        x: pixelX, // Use converted pixel coordinates
-        y: pixelY, // Use converted pixel coordinates
+        x: portal.position.x, // Direct world coordinate positioning
+        y: portal.position.y, // Direct world coordinate positioning
         draggable: props.currentTool === 'select',
         rotation: portal.rotation,
         id: portal.id
@@ -342,23 +347,19 @@ const getPortalGroupConfig = (portal: PortalObject) => {
 };
 
 const getPortalLineConfig = (portal: PortalObject) => {
-    const ppg = props.mapMetadata.resolution.pixels_per_grid;
-
-    // portal.bounds are absolute GRID coordinates: [{x,y}, {x,y}]
-    // portal.position is absolute GRID coordinates for the group's center (already converted to pixels by getPortalGroupConfig for the group itself)
-    // We need to calculate line points relative to the group's center, in PIXELS.
+    // Portal bounds and position are now in world coordinates (1:1 with pixels)
+    // Calculate line points relative to the group's center
 
     if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1] || !portal.position) {
-        const halfLengthPixels = 0.5 * ppg; // Default to 1 grid unit wide portal centered in the group
-        console.warn('Portal line (default/malformed bounds or missing position - reverted logic):', {
+        const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
+        const halfLength = 0.5 * worldUnitsPerCell; // Default to 1 grid cell wide portal
+        console.warn('Portal line (default/malformed bounds):', {
             portalId: portal.id,
-            portalPos_grid_input: portal.position, // This is grid
-            portalBounds_grid_input: portal.bounds, // This is grid
-            halfLengthPixels: halfLengthPixels,
-            final_points_pixel_relative: [-halfLengthPixels, 0, halfLengthPixels, 0]
+            defaultHalfLength: halfLength,
+            final_points_relative: [-halfLength, 0, halfLength, 0]
         });
         return {
-            points: [-halfLengthPixels, 0, halfLengthPixels, 0],
+            points: [-halfLength, 0, halfLength, 0],
             stroke: '#00FF00', // Bright green for all portals
             strokeWidth: 10, // Match object wall thickness
             lineCap: 'round',
@@ -366,30 +367,28 @@ const getPortalLineConfig = (portal: PortalObject) => {
         };
     }
 
-    // Calculate relative pixel points for the line within the group
-    // portal.position is the group's center in GRID coordinates.
-    const p0_relative_pixel_x = (portal.bounds[0].x - portal.position.x) * ppg;
-    const p0_relative_pixel_y = (portal.bounds[0].y - portal.position.y) * ppg;
-    const p1_relative_pixel_x = (portal.bounds[1].x - portal.position.x) * ppg;
-    const p1_relative_pixel_y = (portal.bounds[1].y - portal.position.y) * ppg;
+    // Calculate relative world coordinate points for the line within the group
+    const p0_relative_x = portal.bounds[0].x - portal.position.x;
+    const p0_relative_y = portal.bounds[0].y - portal.position.y;
+    const p1_relative_x = portal.bounds[1].x - portal.position.x;
+    const p1_relative_y = portal.bounds[1].y - portal.position.y;
 
-    const relativePixelPoints = [
-        p0_relative_pixel_x, p0_relative_pixel_y,
-        p1_relative_pixel_x, p1_relative_pixel_y
+    const relativePoints = [
+        p0_relative_x, p0_relative_y,
+        p1_relative_x, p1_relative_y
     ];
 
-    console.log('Portal line (reverted - calculated from grid bounds relative to grid position):', {
+    console.log('Portal line (world coordinates):', {
         portalId: portal.id,
-        portalPos_grid_input: portal.position,
-        bounds_grid_input: portal.bounds,
-        ppg: ppg,
-        calculated_p0_relative_pixel: {x: p0_relative_pixel_x, y: p0_relative_pixel_y},
-        calculated_p1_relative_pixel: {x: p1_relative_pixel_x, y: p1_relative_pixel_y},
-        final_points_pixel_relative: relativePixelPoints
+        portalPos: portal.position,
+        bounds: portal.bounds,
+        calculated_p0_relative: {x: p0_relative_x, y: p0_relative_y},
+        calculated_p1_relative: {x: p1_relative_x, y: p1_relative_y},
+        final_points_relative: relativePoints
     });
 
     return {
-        points: relativePixelPoints,
+        points: relativePoints,
         stroke: '#00FF00', // Bright green for all portals
         strokeWidth: 10, // Match object wall thickness
         lineCap: 'round',
@@ -398,20 +397,20 @@ const getPortalLineConfig = (portal: PortalObject) => {
 };
 
 const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
-    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+    // Portal bounds and position are in world coordinates (1:1 with pixels)
 
     // If bounds are empty or malformed, position handles relative to the group's (0,0)
-    // (which corresponds to portal.position)
     if (!portal.bounds || portal.bounds.length < 2 || !portal.bounds[0] || !portal.bounds[1]) {
-        const halfLengthPixels = 0.5 * ppg;
-        const handleX_relative = endpointIndex === 0 ? -halfLengthPixels : halfLengthPixels;
+        const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
+        const halfLength = 0.5 * worldUnitsPerCell;
+        const handleX_relative = endpointIndex === 0 ? -halfLength : halfLength;
         const handleY_relative = 0;
 
         console.log('Portal handle (default/new):', {
             portalId: portal.id,
-            portalPos_grid: portal.position,
+            portalPos: portal.position,
             endpointIndex: endpointIndex,
-            handle_pixel_relative: {x: handleX_relative, y: handleY_relative}
+            handle_relative: {x: handleX_relative, y: handleY_relative}
         });
 
         return {
@@ -425,31 +424,23 @@ const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
         };
     }
 
-    // For EXISTING portals with bounds:
-    // Calculate handle positions relative to portal.position (group's center).
-    const groupCenterX_grid = portal.position.x;
-    const groupCenterY_grid = portal.position.y;
-
-    const endpoint_grid = portal.bounds[endpointIndex];
-    const handleX_grid_relative = endpoint_grid.x - groupCenterX_grid;
-    const handleY_grid_relative = endpoint_grid.y - groupCenterY_grid;
-
-    const handleX_pixel_relative = handleX_grid_relative * ppg;
-    const handleY_pixel_relative = handleY_grid_relative * ppg;
+    // For existing portals with bounds:
+    // Calculate handle positions relative to portal.position (group's center)
+    const endpoint = portal.bounds[endpointIndex];
+    const handleX_relative = endpoint.x - portal.position.x;
+    const handleY_relative = endpoint.y - portal.position.y;
     
     console.log('Portal handle (existing with bounds):', {
         portalId: portal.id,
-        portalPos_grid: portal.position,
+        portalPos: portal.position,
         endpointIndex: endpointIndex,
-        endpoint_grid: endpoint_grid,
-        groupCenter_grid: { x: groupCenterX_grid, y: groupCenterY_grid },
-        handle_grid_relative: { x: handleX_grid_relative, y: handleY_grid_relative },
-        handle_pixel_relative: {x: handleX_pixel_relative, y: handleY_pixel_relative}
+        endpoint: endpoint,
+        handle_relative: { x: handleX_relative, y: handleY_relative }
     });
 
     return {
-        x: handleX_pixel_relative,
-        y: handleY_pixel_relative,
+        x: handleX_relative,
+        y: handleY_relative,
         radius: 6,
         fill: '#4CAF50',
         stroke: '#2E7D32',
@@ -458,31 +449,44 @@ const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
     };
 };
 
-const getLightGroupConfig = (light: EditorLightObject) => ({
+const getLightGroupConfig = (light: LightObject) => ({
     x: light.position.x,
     y: light.position.y,
     draggable: props.currentTool === 'select',
     id: light.id
 });
 
-const getLightRangeConfig = (light: EditorLightObject) => ({
+const getLightRangeConfig = (light: LightObject) => ({
     x: 0,
     y: 0,
-    radius: light.range,
+    radius: light.brightRadius,
     fill: light.color || '#FFFF00',
-    opacity: typeof light.opacity === 'number' ? light.opacity : (light.intensity || 0.5) * 0.5,
+    opacity: (light.intensity || 1) * 0.3,
     stroke: light.color || '#FFFF00',
     strokeWidth: 1,
     listening: false,
     perfectDrawEnabled: false
 });
 
-const getLightMarkerConfig = (light: EditorLightObject) => ({
+const getLightDimConfig = (light: LightObject) => ({
+    x: 0,
+    y: 0,
+    radius: light.dimRadius,
+    fill: light.color || '#FFFF00',
+    opacity: (light.intensity || 1) * 0.1,
+    stroke: light.color || '#FFFF00',
+    strokeWidth: 1,
+    dash: [5, 5],
+    listening: false,
+    perfectDrawEnabled: false
+});
+
+const getLightMarkerConfig = (light: LightObject) => ({
     x: 0,
     y: 0,
     radius: 5,
     fill: light.color || '#FFFF00',
-    opacity: typeof light.opacity === 'number' ? light.opacity : 1,
+    opacity: 1,
     stroke: '#000000',
     strokeWidth: 1,
     perfectDrawEnabled: false
@@ -569,11 +573,12 @@ const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
         y: (pos.y - stage.y()) / stage.scaleY()
     };
     
-    // Convert pixel coordinates to grid coordinates
-    const gridPos = {
-        x: worldPos.x / props.mapMetadata.resolution.pixels_per_grid,
-        y: worldPos.y / props.mapMetadata.resolution.pixels_per_grid
-    };
+    // Convert world coordinates to grid coordinates
+    const gridPos = worldToGrid(
+        worldPos,
+        props.mapMetadata.coordinates.worldUnitsPerGridCell,
+        props.mapMetadata.coordinates.offset
+    );
     
     // Emit coordinates for the coordinate display
     emit('mouse-move', worldPos, gridPos);
@@ -662,7 +667,7 @@ const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
                 y: pointer.y - mousePointTo.y * newScale
             }
         }
-    } as unknown as Partial<WallObject | PortalObject | EditorLightObject>; // Using type assertion to match emit type
+    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion to match emit type
 
     // Emit changes for parent component to update viewport transform
     emit('object-modified', 'viewport', updates);
@@ -686,7 +691,7 @@ const handleStageDragEnd = (e: KonvaEventObject<DragEvent>) => {
             scale: props.viewportTransform.scale, // Keep current scale
             position: newPosition
         }
-    } as unknown as Partial<WallObject | PortalObject | EditorLightObject>; // Using type assertion
+    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion
 
     emit('object-modified', 'viewport', updates);
 };
@@ -714,29 +719,27 @@ const handleWallDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
 
 const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     const node = e.target;
-    const newPixelPos = { x: node.x(), y: node.y() };
+    const newWorldPos = { x: node.x(), y: node.y() };
 
-    // Snap the new pixel position if snap is enabled
-    const snappedPixelPos = props.gridConfig.snap ? gridSystem.snapToGrid(newPixelPos) : newPixelPos;
-    
-    // Convert back to grid coordinates since portal positions are stored in grid coordinates
-    const ppg = props.mapMetadata.resolution.pixels_per_grid;
-    const positionToUse = {
-        x: snappedPixelPos.x / ppg,
-        y: snappedPixelPos.y / ppg
-    };
+    // Snap to world grid if snap is enabled
+    const positionToUse = props.gridConfig.snap 
+        ? snapToWorldGrid(
+            newWorldPos, 
+            props.mapMetadata.coordinates.worldUnitsPerGridCell,
+            props.mapMetadata.coordinates.offset
+          )
+        : newWorldPos;
 
     console.log('Portal drag end:', {
         id,
-        originalPixelPos: newPixelPos,
-        snappedPixelPos: snappedPixelPos,
-        finalGridPos: positionToUse,
+        originalWorldPos: newWorldPos,
+        finalPosition: positionToUse,
         snapEnabled: props.gridConfig.snap,
-        ppg: ppg
+        worldUnitsPerCell: props.mapMetadata.coordinates.worldUnitsPerGridCell
     });
 
     emit('object-modified', id, {
-        position: positionToUse, // Position is stored in grid coordinates
+        position: positionToUse, // Position is stored in world coordinates
         rotation: node.rotation()
     });
 };
@@ -870,58 +873,77 @@ const placePortal = (pos: Point) => {
         return;
     }
 
-    const ppg = props.mapMetadata.resolution.pixels_per_grid;
+    // Snap the world position if snap is enabled
+    const snappedWorldPos = props.gridConfig.snap 
+        ? snapToWorldGrid(
+            pos, 
+            props.mapMetadata.coordinates.worldUnitsPerGridCell,
+            props.mapMetadata.coordinates.offset
+          )
+        : pos;
     
-    // 1. Convert the incoming world pixel position to absolute GRID position for the portal's center.
-    // Snap the original pixel pos first if snap is enabled, then convert to grid.
-    const snappedWorldPixelPos = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
-    const portalCenter_grid_x = snappedWorldPixelPos.x / ppg;
-    const portalCenter_grid_y = snappedWorldPixelPos.y / ppg;
-    const portalCenter_grid: Point = { x: portalCenter_grid_x, y: portalCenter_grid_y };
+    // Define portal length in world units. Default to 2 grid cells.
+    const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
+    const portalLength = 2 * worldUnitsPerCell;
 
-    // 2. Define portal length in GRID units. Default to 2 grid units.
-    const portalLength_grid = 2; 
-
-    // 3. Calculate ABSOLUTE GRID coordinates for bounds.
-    // Assuming a horizontal portal centered at portalCenter_grid for simplicity upon creation.
-    // The user can then rotate or adjust endpoints.
-    const bounds_grid: [Point, Point] = [
-        { x: portalCenter_grid_x - portalLength_grid / 2, y: portalCenter_grid_y },
-        { x: portalCenter_grid_x + portalLength_grid / 2, y: portalCenter_grid_y }
+    // Calculate bounds in world coordinates
+    // Assuming a horizontal portal centered at snappedWorldPos for simplicity upon creation
+    const bounds: [Point, Point] = [
+        { x: snappedWorldPos.x - portalLength / 2, y: snappedWorldPos.y },
+        { x: snappedWorldPos.x + portalLength / 2, y: snappedWorldPos.y }
     ];
 
     const newPortal: PortalObject = {
         id: `portal-${Date.now()}`,
         objectType: 'portal',
-        position: portalCenter_grid, // Store position in GRID coordinates
+        position: snappedWorldPos, // Store position in world coordinates
         rotation: 0, // Default rotation
-        bounds: bounds_grid,     // Store bounds in absolute GRID coordinates
+        bounds: bounds,     // Store bounds in world coordinates
         closed: false,
         freestanding: true,
         visible: true,
         locked: false
     };
 
-    console.log('[EditorCanvas] placePortal - Emitting new portal (GRID coordinates):', JSON.parse(JSON.stringify(newPortal)));
+    console.log('[EditorCanvas] placePortal - Emitting new portal (world coordinates):', JSON.parse(JSON.stringify(newPortal)));
     emit('object-added', newPortal);
 };
 
 const placeLight = (pos: Point) => {
-    // const ppg = props.mapMetadata.resolution.pixels_per_grid; // Removed unused variable
-    // Default range in grid units, to be converted to pixels by parent
-    const defaultRangeInGridUnits = 5; 
+    // Default range in world units
+    const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
+    const defaultRange = 5 * worldUnitsPerCell; // 5 grid cells worth of range
 
-    const positionToUse = props.gridConfig.snap ? gridSystem.snapToGrid(pos) : pos;
+    const positionToUse = props.gridConfig.snap 
+        ? snapToWorldGrid(
+            pos,
+            worldUnitsPerCell,
+            props.mapMetadata.coordinates.offset
+          )
+        : pos;
 
-    const newLight: EditorLightObject = {
+    const newLight: LightObject = {
         id: `light-${Date.now()}`,
         objectType: 'light',
         position: { x: positionToUse.x, y: positionToUse.y },
-        range: defaultRangeInGridUnits, // Emitted as grid units
-        intensity: 0.7,
+        type: 'point',
+        brightRadius: defaultRange, // Bright radius in world units
+        dimRadius: defaultRange * 2, // Dim radius (twice the bright radius)
+        intensity: 1,
         color: '#ffdd00',    // Default color yellow
         shadows: true,
-        opacity: 1 // Default opacity
+        shadowQuality: 'medium',
+        falloffType: 'quadratic',
+        animation: {
+            type: 'none',
+            speed: 1,
+            intensity: 0.1
+        },
+        enabled: true,
+        controllable: false,
+        visible: true,
+        locked: false,
+        selected: false
     };
 
     // When emitting, the parent (MapEditorComponent) will be responsible for converting
@@ -1377,7 +1399,6 @@ const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, en
     }
 
     const handleNode = e.target; // This is the handle (Konva.Circle)
-    const ppg = props.mapMetadata.resolution.pixels_per_grid;
 
     // 1. Get the handle's absolute position on the page (as returned by Konva for a dragged node)
     const handleAbsPagePos = handleNode.getAbsolutePosition();
@@ -1386,48 +1407,45 @@ const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, en
       return;
     }
 
-    // 2. Convert absolute page position to world pixel position (accounting for stage pan/zoom)
+    // 2. Convert absolute page position to world coordinates (accounting for stage pan/zoom)
     const stageTx = props.viewportTransform.position.x;
     const stageTy = props.viewportTransform.position.y;
     const stageScale = props.viewportTransform.scale;
 
-    const handleWorldPixelPos = {
+    const handleWorldPos = {
         x: (handleAbsPagePos.x - stageTx) / stageScale,
         y: (handleAbsPagePos.y - stageTy) / stageScale
     };
 
-    // 3. Snap this world pixel position if snap is enabled
-    const snappedHandleWorldPixelPos = props.gridConfig.snap 
-        ? gridSystem.snapToGrid(handleWorldPixelPos) 
-        : handleWorldPixelPos;
+    // 3. Snap this world position if snap is enabled
+    const snappedHandleWorldPos = props.gridConfig.snap 
+        ? snapToWorldGrid(
+            handleWorldPos,
+            props.mapMetadata.coordinates.worldUnitsPerGridCell,
+            props.mapMetadata.coordinates.offset
+          )
+        : handleWorldPos;
 
-    // 4. Convert the snapped world pixel position to an ABSOLUTE GRID coordinate
-    const newEndpoint_grid_x = snappedHandleWorldPixelPos.x / ppg;
-    const newEndpoint_grid_y = snappedHandleWorldPixelPos.y / ppg;
-    const newEndpoint_grid: Point = { x: newEndpoint_grid_x, y: newEndpoint_grid_y };
-
-    // 5. Create a new bounds array with the updated absolute grid coordinate
-    // The portal.bounds from props should already be in absolute grid coordinates.
-    const newBounds_grid: [Point, Point] = [
-        endpointIndex === 0 ? newEndpoint_grid : { ...portal.bounds[0] },
-        endpointIndex === 1 ? newEndpoint_grid : { ...portal.bounds[1] }
+    // 4. Create a new bounds array with the updated world coordinate
+    const newBounds: [Point, Point] = [
+        endpointIndex === 0 ? snappedHandleWorldPos : { ...portal.bounds[0] },
+        endpointIndex === 1 ? snappedHandleWorldPos : { ...portal.bounds[1] }
     ];
     
-    console.log('[EditorCanvas] Portal endpoint drag - GRID focus:', {
+    console.log('[EditorCanvas] Portal endpoint drag - world coordinates:', {
         id, endpointIndex,
         handleAbsPagePos,
         stageTransform: { x: stageTx, y: stageTy, scale: stageScale },
-        calculated_handleWorldPixelPos: handleWorldPixelPos,
-        snappedHandleWorldPixelPos,
-        newEndpoint_grid, // This is the new absolute grid coordinate for the dragged endpoint
-        originalPortalBounds_grid: portal.bounds, // Should be grid
-        newBounds_grid_emitted: newBounds_grid // This is what gets emitted
+        calculated_handleWorldPos: handleWorldPos,
+        snappedHandleWorldPos,
+        originalPortalBounds: portal.bounds,
+        newBounds_emitted: newBounds
     });
 
-    // Emit the object-modified event with the updated bounds in ABSOLUTE GRID coordinates.
+    // Emit the object-modified event with the updated bounds in world coordinates.
     // The portal's main `position` (its group center in grid) remains unchanged by this operation.
     emit('object-modified', id, {
-        bounds: newBounds_grid 
+        bounds: newBounds 
     });
 
     // Redraw the layer containing the portal to ensure the line updates visually.

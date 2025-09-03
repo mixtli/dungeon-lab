@@ -1,7 +1,7 @@
 <template>
   <div class="coordinate-display">
     <div class="coordinate-row">
-      <span class="coordinate-label">Pixel:</span>
+      <span class="coordinate-label">World:</span>
       <span class="coordinate-value">{{ formatPixelCoordinates(pixelCoordinates) }}</span>
     </div>
     <div class="coordinate-row">

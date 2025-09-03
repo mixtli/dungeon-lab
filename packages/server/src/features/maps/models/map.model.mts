@@ -36,8 +36,6 @@ const serverMapSchema = mapSchema.extend({
 const mongooseSchema = createMongoSchema<IMap>(serverMapSchema.merge(baseMongooseZodSchema));
 mongooseSchema.set('minimize', false);
 
-// Override the uvtt field to use Mixed type to avoid _id issues with nested arrays
-mongooseSchema.path('uvtt', mongoose.Schema.Types.Mixed);
 
 // Fix line 31 - properly disable _id for nested array elements
 // if (mongooseSchema.paths.uvtt && mongooseSchema.paths.uvtt.schema) {
@@ -57,8 +55,9 @@ mongooseSchema.path('uvtt', mongoose.Schema.Types.Mixed);
 // }
 
 
-// Override the data field to use Mixed type
+// Override the data fields to use Mixed type
 mongooseSchema.path('userData', mongoose.Schema.Types.Mixed);
+mongooseSchema.path('mapData', mongoose.Schema.Types.Mixed);
 
 mongooseSchema.path('imageId').get(function (value: ObjectId | undefined) {
   return value?.toString();

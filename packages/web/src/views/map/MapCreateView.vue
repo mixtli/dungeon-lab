@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import ImageUpload from '../../components/common/ImageUpload.vue';
@@ -21,8 +21,6 @@ const error = ref<string | null>(null);
 const formData = ref({
   name: '',
   description: '',
-  width: 20,
-  height: 15,
   pixelsPerGrid: 70
 });
 const mapImageFile = ref<File | UploadedImage | null>(null);
@@ -51,16 +49,9 @@ async function handleUvttFileChange(event: Event) {
     const fileContent = await file.text();
     const parsedData = JSON.parse(fileContent) as UVTTData;
     
-    // Extract map dimensions from UVTT data
-    if (parsedData.resolution) {
-      if (parsedData.resolution.map_size) {
-        formData.value.width = parsedData.resolution.map_size.x || 20;
-        formData.value.height = parsedData.resolution.map_size.y || 15;
-      }
-      
-      if (parsedData.resolution.pixels_per_grid) {
-        formData.value.pixelsPerGrid = parsedData.resolution.pixels_per_grid;
-      }
+    // Extract pixels per grid from UVTT data
+    if (parsedData.resolution?.pixels_per_grid) {
+      formData.value.pixelsPerGrid = parsedData.resolution.pixels_per_grid;
     }
     
     // If UVTT has an embedded image, convert to File object and REMOVE from UVTT
@@ -135,14 +126,17 @@ async function handleUvttFileChange(event: Event) {
   target.value = '';
 }
 
-function calculateAndSetMapHeight() {
-  if (originalImagePixelDimensions.value && formData.value.width > 0) {
-    const aspectRatio = originalImagePixelDimensions.value.height / originalImagePixelDimensions.value.width;
-    let newHeight = Math.round(formData.value.width * aspectRatio);
-    if (newHeight < 1) newHeight = 1; // Ensure minimum height of 1
-    formData.value.height = newHeight;
+// Calculate grid dimensions based on image and pixels per grid
+const calculatedGridDimensions = computed(() => {
+  if (!originalImagePixelDimensions.value || !formData.value.pixelsPerGrid) {
+    return { width: 0, height: 0 };
   }
-}
+  
+  return {
+    width: Math.ceil(originalImagePixelDimensions.value.width / formData.value.pixelsPerGrid),
+    height: Math.ceil(originalImagePixelDimensions.value.height / formData.value.pixelsPerGrid)
+  };
+});
 
 watch(mapImageFile, (newFile) => {
   if (newFile instanceof File) {
@@ -150,29 +144,19 @@ watch(mapImageFile, (newFile) => {
     const objectUrl = URL.createObjectURL(newFile);
     img.onload = () => {
       originalImagePixelDimensions.value = { width: img.naturalWidth, height: img.naturalHeight };
-      calculateAndSetMapHeight();
       URL.revokeObjectURL(objectUrl);
     };
     img.onerror = () => {
       originalImagePixelDimensions.value = null;
       URL.revokeObjectURL(objectUrl);
       console.error('Error loading image for dimension calculation.');
-      // Potentially reset height or allow user input if image fails to load
     };
     img.src = objectUrl;
   } else {
     originalImagePixelDimensions.value = null;
-    // When image is cleared, height input becomes enabled.
-    // Consider if we should reset height to a default or previous user value.
-    // For now, it will retain its last calculated or UVTT-set value.
   }
 });
 
-watch(() => formData.value.width, () => {
-  if (originalImagePixelDimensions.value) {
-    calculateAndSetMapHeight();
-  }
-});
 
 async function handleSubmit(event: Event) {
   event.preventDefault();
@@ -181,24 +165,39 @@ async function handleSubmit(event: Event) {
     loading.value = true;
     error.value = null;
     
-    // Prepare the create map request data without the image
+    // Ensure we have actual image dimensions from the uploaded file
+    if (!originalImagePixelDimensions.value) {
+      throw new Error('Image dimensions not available. Please ensure an image is uploaded.');
+    }
+
+    // Calculate grid dimensions from image and pixels per grid
+    const gridWidth = Math.ceil(originalImagePixelDimensions.value.width / formData.value.pixelsPerGrid);
+    const gridHeight = Math.ceil(originalImagePixelDimensions.value.height / formData.value.pixelsPerGrid);
+    
+    // Prepare the create map request data with new coordinate system
     const mapData = {
       name: formData.value.name,
       description: formData.value.description || '',
-      gridColumns: formData.value.width, // Keep for backward compatibility
-      uvtt: {
-        format: 1.0, // Use a simple default format
-        resolution: {
-          map_origin: { x: 0, y: 0 },
-          map_size: { 
-            x: formData.value.width, 
-            y: formData.value.height 
+      gridColumns: gridWidth, // Calculated from image dimensions
+      mapData: {
+        coordinates: {
+          worldUnitsPerGridCell: formData.value.pixelsPerGrid,
+          offset: { x: 0, y: 0 },
+          dimensions: { 
+            width: gridWidth, 
+            height: gridHeight 
           },
-          pixels_per_grid: formData.value.pixelsPerGrid
+          imageDimensions: { 
+            width: originalImagePixelDimensions.value.width, 
+            height: originalImagePixelDimensions.value.height 
+          }
         },
         environment: {
-          baked_lighting: false,
-          ambient_light: '#ffffff'
+          ambientLight: {
+            color: '#ffffff',
+            intensity: 0.1
+          },
+          globalIllumination: false
         }
       }
     };
@@ -303,34 +302,34 @@ async function handleSubmit(event: Event) {
           ></textarea>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
-              Map Width (Squares) <span class="text-error-700">*</span>
-            </label>
-            <input
-              v-model="formData.width"
-              type="number"
-              required
-              min="1"
-              max="100"
-              class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment"
-            />
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
-              Map Height (Squares) <span class="text-error-700">*</span>
-            </label>
-            <input
-              v-model="formData.height"
-              type="number"
-              required
-              min="1"
-              max="100"
-              :disabled="!!originalImagePixelDimensions"
-              class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md focus:outline-none focus:ring-2 focus:ring-dragon bg-parchment dark:bg-stone-600 text-onyx dark:text-parchment disabled:opacity-50"
-            />
+        <!-- Image and Grid Information Display -->
+        <div v-if="originalImagePixelDimensions" class="bg-nature-50 dark:bg-nature-900 rounded-md p-4 border border-nature-200 dark:border-nature-700">
+          <h3 class="text-sm font-medium text-nature-800 dark:text-nature-200 mb-2">Image & Grid Information</h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="text-nature-600 dark:text-nature-400">Image Size:</span>
+              <span class="ml-2 font-mono text-nature-800 dark:text-nature-200">
+                {{ originalImagePixelDimensions.width }} × {{ originalImagePixelDimensions.height }} pixels
+              </span>
+            </div>
+            <div>
+              <span class="text-nature-600 dark:text-nature-400">Aspect Ratio:</span>
+              <span class="ml-2 font-mono text-nature-800 dark:text-nature-200">
+                {{ (originalImagePixelDimensions.width / originalImagePixelDimensions.height).toFixed(2) }}:1
+              </span>
+            </div>
+            <div>
+              <span class="text-nature-600 dark:text-nature-400">Grid Size:</span>
+              <span class="ml-2 font-mono text-nature-800 dark:text-nature-200">
+                {{ calculatedGridDimensions.width }} × {{ calculatedGridDimensions.height }} squares
+              </span>
+            </div>
+            <div>
+              <span class="text-nature-600 dark:text-nature-400">Pixels per Square:</span>
+              <span class="ml-2 font-mono text-nature-800 dark:text-nature-200">
+                {{ formData.pixelsPerGrid }}px
+              </span>
+            </div>
           </div>
         </div>
         

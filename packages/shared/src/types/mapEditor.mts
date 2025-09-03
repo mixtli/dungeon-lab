@@ -11,7 +11,7 @@ export type EditorObjectType = 'wall' | 'portal' | 'light' | 'decoration';
 /**
  * Available tool modes
  */
-export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'pan' | 'zoom';
+export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'pan';
 
 /**
  * Point in 2D space
@@ -41,40 +41,64 @@ export interface EditorObject {
 }
 
 /**
- * Grid configuration
+ * Grid configuration for world coordinate system
  */
 export interface GridConfig {
   visible: boolean;
-  size: number;
+  worldUnitsPerCell: number;  // World units per grid cell (replaces pixels_per_grid)
   color: string;
   snap: boolean;
   opacity: number;
 }
 
 /**
- * Map metadata
+ * Map metadata using world coordinate system
  */
 export interface MapMetadata {
   id?: string;
   name: string;
   description?: string;
-  format: number;
-  resolution: {
-    map_origin: Point;
-    map_size: {
-      x: number;
-      y: number;
+  
+  // World coordinate system (replaces UVTT resolution)
+  coordinates: {
+    worldUnitsPerGridCell: number;  // World units per grid cell
+    offset: Point;                  // Grid alignment offset in world units
+    dimensions: {                   // Grid dimensions in cells
+      width: number;
+      height: number;
     };
-    pixels_per_grid: number;
+    imageDimensions: {             // Source image dimensions in pixels
+      width: number;
+      height: number;
+    };
   };
+  
+  // Environment settings
   environment?: {
-    baked_lighting: boolean;
-    ambient_light: string;
+    ambientLight: {
+      color: string;
+      intensity: number;
+    };
+    globalIllumination: boolean;
   };
+  
+  // Image reference
   image: string;
+  
+  // Timestamps
   created_at?: string;
   updated_at?: string;
   user_id?: string;
+  
+  // Legacy UVTT support (for backward compatibility)
+  uvtt?: {
+    format: number;
+    resolution: {
+      map_origin: Point;
+      map_size: { x: number; y: number };
+      pixels_per_grid: number;
+    };
+  };
 }
 
 /**
@@ -101,24 +125,29 @@ export interface PortalObject extends EditorObject {
 }
 
 /**
- * Light source object
+ * Light source object using enhanced lighting schema
  */
 export interface LightObject extends EditorObject {
   objectType: 'light';
   position: Point;
-  range: number;
+  type: 'point' | 'directional' | 'area' | 'ambient';
+  brightRadius: number;
+  dimRadius: number;
   intensity: number;
-  /**
-   * Opacity for UI editing (0.2–1.0, not saved in UVTT, but used for color conversion)
-   */
-  opacity: number;
-  /**
-   * Color as 8-character hex string: RRGGBBAA (6 for RGB, 2 for alpha channel, no #)
-   * Example: 'ff575112' (RGB: ff5751, Alpha: 12)
-   */
-  color: string;
+  color: string; // Hex color like '#ffffff'
+  temperature?: number; // Color temperature in Kelvin
   shadows: boolean;
+  shadowQuality: 'low' | 'medium' | 'high';
+  falloffType: 'linear' | 'quadratic' | 'exponential';
+  animation: {
+    type: 'none' | 'flicker' | 'pulse' | 'strobe' | 'wave';
+    speed: number;
+    intensity: number;
+  };
+  enabled: boolean;
+  controllable: boolean;
   name?: string;
+  description?: string;
 }
 
 /**

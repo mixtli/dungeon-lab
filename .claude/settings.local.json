@@ -103,7 +103,21 @@
       "mcp__playwright__browser_tab_list",
       "Bash(/dev/null)",
       "mcp__playwright__browser_resize",
-      "Bash(vue-tsc:*)"
+      "Bash(vue-tsc:*)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/client/applications/apps/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/client/documents/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
+      "Read(/tmp/**)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

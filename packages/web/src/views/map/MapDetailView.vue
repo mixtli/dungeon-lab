@@ -12,12 +12,16 @@ const map = ref<IMap | null>(null);
 const formData = ref<IMapUpdateData>({
   name: '',
   description: '',
-  uvtt: {
-    resolution: {
-      map_size: {
-        x: 0,
-        y: 0
-      }
+  mapData: {
+    coordinates: {
+      worldUnitsPerGridCell: 50,
+      offset: { x: 0, y: 0 },
+      dimensions: { width: 30, height: 30 },
+      imageDimensions: { width: 800, height: 600 }
+    },
+    environment: {
+      ambientLight: { color: '#ffffff', intensity: 0.1 },
+      globalIllumination: false
     }
   }
 });
@@ -57,13 +61,23 @@ async function fetchMap() {
       formData.value = {
         name: map.value.name,
         description: map.value.description || '',
-        uvtt: {
-          resolution: {
-            map_size: {
-              x: map.value.uvtt?.resolution?.map_size?.x || 0,
-              y: map.value.uvtt?.resolution?.map_size?.y || 0
-            }
-          }
+        mapData: {
+          coordinates: {
+            worldUnitsPerGridCell: map.value.mapData?.coordinates?.worldUnitsPerGridCell || 50,
+            offset: map.value.mapData?.coordinates?.offset || { x: 0, y: 0 },
+            dimensions: map.value.mapData?.coordinates?.dimensions || { width: 30, height: 30 },
+            imageDimensions: map.value.mapData?.coordinates?.imageDimensions || { width: 800, height: 600 }
+          },
+          environment: map.value.mapData?.environment || {
+            ambientLight: { color: '#ffffff', intensity: 0.1 },
+            globalIllumination: false
+          },
+          walls: map.value.mapData?.walls || [],
+          terrain: map.value.mapData?.terrain || [],
+          objects: map.value.mapData?.objects || [],
+          regions: map.value.mapData?.regions || [],
+          doors: map.value.mapData?.doors || [],
+          lights: map.value.mapData?.lights || []
         }
       };
     }
@@ -136,19 +150,35 @@ onMounted(() => {
               <p class="text-onyx dark:text-parchment">{{ map.description || 'No description provided' }}</p>
             </div>
 
-            <!-- Grid and Aspect Ratio -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Grid, Image, and Scale Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
                 <h3 class="text-sm uppercase text-gold font-bold mb-2">📐 Grid Size</h3>
                 <p class="text-onyx dark:text-parchment font-medium">
-                  {{ map.uvtt?.resolution?.map_size?.x || 0 }} x {{ map.uvtt?.resolution?.map_size?.y || 0 }}
+                  {{ map.mapData?.coordinates?.dimensions?.width || 0 }} x {{ map.mapData?.coordinates?.dimensions?.height || 0 }}
+                </p>
+              </div>
+
+              <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">🖼️ Image Dimensions</h3>
+                <p class="text-onyx dark:text-parchment font-medium">
+                  {{ map.mapData?.coordinates?.imageDimensions?.width || 0 }} x {{ map.mapData?.coordinates?.imageDimensions?.height || 0 }} px
+                </p>
+              </div>
+
+              <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">📏 Grid Scale</h3>
+                <p class="text-onyx dark:text-parchment font-medium">
+                  {{ map.mapData?.coordinates?.worldUnitsPerGridCell || 0 }} units/cell
                 </p>
               </div>
 
               <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
                 <h3 class="text-sm uppercase text-gold font-bold mb-2">📏 Aspect Ratio</h3>
                 <p class="text-onyx dark:text-parchment font-medium">
-                  {{ map.aspectRatio?.toFixed(2) || 'Unknown' }}
+                  {{ map.mapData?.coordinates?.imageDimensions ? 
+                      (map.mapData.coordinates.imageDimensions.width / map.mapData.coordinates.imageDimensions.height).toFixed(2) : 
+                      'Unknown' }}
                 </p>
               </div>
             </div>
@@ -193,20 +223,39 @@ onMounted(() => {
                 ></textarea>
               </div>
 
-              <div>
-                <label class="block text-sm uppercase text-gold font-bold mb-2">
-                  📐 Grid Columns <span class="text-dragon">*</span>
-                </label>
-                <input
-                  v-model="formData!.uvtt!.resolution!.map_size!.x"
-                  type="number"
-                  required
-                  min="1"
-                  max="100"
-                  class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
-                />
-                <div class="text-ash dark:text-stone-300 text-sm mt-1">
-                  Number of columns in the grid. Rows will be calculated based on the image aspect ratio.
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm uppercase text-gold font-bold mb-2">
+                    📐 Grid Width <span class="text-dragon">*</span>
+                  </label>
+                  <input
+                    v-model="formData!.mapData!.coordinates!.dimensions!.width"
+                    type="number"
+                    required
+                    min="1"
+                    max="200"
+                    class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
+                  />
+                  <div class="text-ash dark:text-stone-300 text-sm mt-1">
+                    Number of grid columns
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm uppercase text-gold font-bold mb-2">
+                    📐 Grid Height <span class="text-dragon">*</span>
+                  </label>
+                  <input
+                    v-model="formData!.mapData!.coordinates!.dimensions!.height"
+                    type="number"
+                    required
+                    min="1"
+                    max="200"
+                    class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
+                  />
+                  <div class="text-ash dark:text-stone-300 text-sm mt-1">
+                    Number of grid rows
+                  </div>
                 </div>
               </div>
 

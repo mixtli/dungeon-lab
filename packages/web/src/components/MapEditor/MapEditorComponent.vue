@@ -15,10 +15,7 @@
                     @toggle-snap="handleToggleSnap"
                 />
 
-                <!-- Properties panel (conditional based on selection) -->
-                <EditorPropertiesPanel v-if="editorState.selectedObjectIds.value.length > 0"
-                    :selected-objects="editorState.selectedObjects.value" @property-updated="handlePropertyUpdate"
-                    :grid-size="editorState.gridConfig.size" />
+                <!-- Properties panel removed - using floating inspector window instead -->
 
                 <!-- Layer panel -->
                 <EditorLayerPanel :walls="editorState.walls.value" 
@@ -53,6 +50,18 @@
             </div>
         </div>
 
+        <!-- Floating Inspector Window -->
+        <InspectorWindow
+            :selected-objects="editorState.selectedObjects.value"
+            :grid-size="editorState.gridConfig.worldUnitsPerCell"
+            :visible="inspectorVisible"
+            @property-updated="handlePropertyUpdate"
+            @position-updated="handlePositionUpdate"
+            @delete-objects="handleDeleteObjects"
+            @duplicate-objects="handleDuplicateObjects"
+            @close="handleInspectorClose"
+        />
+
         <!-- Bottom toolbar -->
         <div class="map-editor-footer">
             <div class="map-info">
@@ -64,6 +73,7 @@
                 <button @click="handleSave" class="save-button">Save</button>
                 <button @click="() => handleExport('uvtt')" class="export-button">Export UVTT</button>
                 <button @click="() => handleExport('dd2vtt')" class="export-button export-dd2vtt-button">Export DD2VTT</button>
+                <button @click="toggleInspector" class="inspector-button" :class="{ active: inspectorVisible }">Inspector</button>
             </div>
         </div>
     </div>
@@ -72,20 +82,24 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, ref } from 'vue';
 import { useEditorState } from './composables/useEditorState.mjs';
+// Removed UVTT conversion import - using pure world coordinates
 import type {
     WallObject,
     PortalObject,
     LightObject,
-    UVTTData,
     Point,
     AnyEditorObject
 } from '@dungeon-lab/shared/types/index.mjs';
+import type { internalMapDataSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+import { z } from 'zod';
+
+type InternalMapData = z.infer<typeof internalMapDataSchema>;
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 
 // Import editor components
 import EditorToolbar from './components/EditorToolbar.vue';
 import EditorCanvas from './components/EditorCanvas.vue';
-import EditorPropertiesPanel from './components/EditorPropertiesPanel.vue';
+import InspectorWindow from './components/InspectorWindow.vue';
 import EditorLayerPanel from './components/EditorLayerPanel.vue';
 import CoordinateDisplay from './components/CoordinateDisplay.vue';
 const mapsClient = new MapsClient();
@@ -93,12 +107,13 @@ const mapsClient = new MapsClient();
 // Define props
 const props = defineProps<{
     mapId?: string;
-    initialData?: UVTTData | null;
+    initialData?: InternalMapData | null;
+    imageUrl?: string;
 }>();
 
 // Define emits
 const emit = defineEmits<{
-    (e: 'save', data: UVTTData): void;
+    (e: 'save', data: { mapData: any }): void;
 }>();
 
 // Initialize the editor state
@@ -115,6 +130,9 @@ const mousePosition = ref<{
     pixel: null,
     grid: null
 });
+
+// Inspector window state
+const inspectorVisible = ref(false);
 
 // Helper for flattening wall points for Konva
 const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
@@ -140,28 +158,24 @@ async function fetchImageAsBase64(url: string): Promise<string> {
     });
 }
 
-// Load map data from UVTT
-const loadMapData = (data: UVTTData) => {
+// Load map data from new internal format
+const loadMapData = (data: InternalMapData) => {
     try {
-        console.log('Loading map data:', {
-            format: data.format,
-            resolution: data.resolution,
-            line_of_sight_length: data.line_of_sight?.length || 0,
-            objects_line_of_sight_length: data.objects_line_of_sight?.length || 0,
-            portals_length: data.portals?.length || 0,
+        console.log('Loading map data (new format):', {
+            version: data.version,
+            coordinates: data.coordinates,
+            walls_length: data.walls?.length || 0,
+            terrain_length: data.terrain?.length || 0,
+            doors_length: data.doors?.length || 0,
             lights_length: data.lights?.length || 0
         });
         
-        // Log the first few line_of_sight entries to understand their structure
-        if (data.line_of_sight && data.line_of_sight.length > 0) {
-            console.log('First line_of_sight entry structure:', JSON.stringify(data.line_of_sight[0]));
-            console.log('line_of_sight sample (first 3 entries):', JSON.stringify(data.line_of_sight.slice(0, 3)));
-        }
-
-        // Set the map metadata
+        // Set the map metadata using the new format directly - no conversion needed!
         editorState.mapMetadata = {
-            ...data,
-            name: 'Untitled Map' // Use default name if not provided
+            name: 'Untitled Map', // Use default name - will be set by parent component
+            image: props.imageUrl || '', // Use image URL from props
+            coordinates: data.coordinates, // Use actual image dimensions from data!
+            environment: data.environment
         };
         
         // Update name if it exists in props
@@ -169,103 +183,62 @@ const loadMapData = (data: UVTTData) => {
             editorState.mapMetadata.name = `Map ${props.mapId}`;
         }
 
-        // Update grid size from map data, defaulting if not present
-        if (data.resolution && typeof data.resolution.pixels_per_grid === 'number') {
-            editorState.gridConfig.size = data.resolution.pixels_per_grid;
-            console.log(`Grid size set to: ${editorState.gridConfig.size} from map data`);
-        } else {
-            // Default or keep existing if not specified in map data
-            editorState.gridConfig.size = 50; 
-            console.warn(`pixels_per_grid not found in map data, defaulting grid size to ${editorState.gridConfig.size}`);
-        }
+        // Update grid size from converted metadata
+        editorState.gridConfig.worldUnitsPerCell = editorState.mapMetadata.coordinates.worldUnitsPerGridCell;
+        console.log(`Grid world units per cell set to: ${editorState.gridConfig.worldUnitsPerCell} from converted map data`);
 
-        // Load walls
-        if (data.line_of_sight) {
-            console.log('Loading line_of_sight data:', data.line_of_sight);
-            console.log('line_of_sight type:', typeof data.line_of_sight, Array.isArray(data.line_of_sight));
+        // Load walls from InternalMapData format
+        if (data.walls && Array.isArray(data.walls)) {
+            console.log('Loading walls from InternalMapData format:', data.walls);
             
-            // Ensure line_of_sight is an array
-            if (Array.isArray(data.line_of_sight)) {
-                // Reset the walls array
-                editorState.walls.value = [];
+            // Reset the walls array
+            editorState.walls.value = [];
+            
+            // Convert server Wall format (start/end) to editor WallObject format (points array)
+            data.walls.forEach((serverWall, wallIndex) => {
+                // Convert start/end coordinates to points array for Konva
+                const points = [
+                    serverWall.start.x, serverWall.start.y,
+                    serverWall.end.x, serverWall.end.y
+                ];
                 
-                // Process each wall
-                data.line_of_sight.forEach((wall, wallIndex) => {
-                    if (Array.isArray(wall)) {
-                        // For nested arrays, each wall is an array of points
-                        console.log(`Processing wall ${wallIndex} with ${wall.length} points`);
-                        
-                        // Convert the points to our internal format
-                        const wallPoints = wall.map(point => {
-                            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
-                                return [point.x, point.y];
-                            }
-                            return null;
-                        }).filter(point => point !== null) as [number, number][];
-                        
-                        if (wallPoints.length >= 2) {
-                            // Create a new wall object
-                            editorState.walls.value.push({
-                                id: `wall-${wallIndex}`,
-                                objectType: 'wall',
-                                points: flattenWallPointsForKonva(wallPoints),
-                                visible: true,
-                                locked: false
-                            });
-                        }
-                    } else if (wall && typeof wall.x === 'number' && typeof wall.y === 'number') {
-                        // For flat arrays, each element is a point
-                        console.warn('Unexpected format: line_of_sight contains individual points, not arrays of points');
-                    }
+                editorState.walls.value.push({
+                    id: serverWall.id || `wall-${wallIndex}`,
+                    objectType: 'wall',
+                    points: points,
+                    visible: true,
+                    locked: false
                 });
-                
-                console.log(`Loaded ${editorState.walls.value.length} walls`);
-            }
+            });
+            
+            console.log(`Loaded ${editorState.walls.value.length} walls from InternalMapData`);
         }
         
-        // Load object walls
-        if (data.objects_line_of_sight) {
-            console.log('Loading objects_line_of_sight data:', data.objects_line_of_sight);
-            console.log('objects_line_of_sight type:', typeof data.objects_line_of_sight, Array.isArray(data.objects_line_of_sight));
+        // Load terrain walls (object walls) from InternalMapData format 
+        if (data.terrain && Array.isArray(data.terrain)) {
+            console.log('Loading terrain from InternalMapData format:', data.terrain);
             
-            // Ensure objects_line_of_sight is an array
-            if (Array.isArray(data.objects_line_of_sight)) {
-                // Reset the objectWalls array
-                editorState.objectWalls.value = [];
+            // Reset the objectWalls array
+            editorState.objectWalls.value = [];
+            
+            // Convert server terrain to editor object walls
+            data.terrain.forEach((serverTerrain, terrainIndex) => {
+                const points = [
+                    serverTerrain.start.x, serverTerrain.start.y,
+                    serverTerrain.end.x, serverTerrain.end.y
+                ];
                 
-                // Process each object wall
-                data.objects_line_of_sight.forEach((wall, wallIndex) => {
-                    if (Array.isArray(wall)) {
-                        // For nested arrays, each wall is an array of points
-                        console.log(`Processing object wall ${wallIndex} with ${wall.length} points`);
-                        
-                        // Convert the points to our internal format
-                        const wallPoints = wall.map(point => {
-                            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
-                                return [point.x, point.y];
-                            }
-                            return null;
-                        }).filter(point => point !== null) as [number, number][];
-                        
-                        if (wallPoints.length >= 2) {
-                            // Create a new object wall with blue color
-                            editorState.objectWalls.value.push({
-                                id: `object-wall-${wallIndex}`,
-                                objectType: 'wall',
-                                points: flattenWallPointsForKonva(wallPoints),
-                                visible: true,
-                                locked: false,
-                                stroke: '#3399ff' // Blue color for object walls
-                            });
-                        }
-                    } else if (wall && typeof wall.x === 'number' && typeof wall.y === 'number') {
-                        // For flat arrays, each element is a point
-                        console.warn('Unexpected format: objects_line_of_sight contains individual points, not arrays of points');
-                    }
+                editorState.objectWalls.value.push({
+                    id: serverTerrain.id || `terrain-${terrainIndex}`,
+                    objectType: 'wall',
+                    points: points,
+                    visible: true,
+                    locked: false,
+                    stroke: '#3399ff' // Blue color for terrain walls
                 });
-                
-                console.log(`Loaded ${editorState.objectWalls.value.length} object walls`);
-            }
+            });
+            
+            console.log(`Loaded ${editorState.objectWalls.value.length} terrain walls from InternalMapData`);
         }
 
         // Load portals
@@ -283,10 +256,35 @@ const loadMapData = (data: UVTTData) => {
             }));
         }
 
-        // Load lights
+        // Load lights from enhanced schema format
         if (data.lights) {
-            console.log('[MapEditorComponent] Converting UVTT lights to EditorLightObject using loadLightsFromUVTT');
-            editorState.loadLightsFromUVTT(data.lights);
+            console.log('[MapEditorComponent] Loading lights from enhanced schema format');
+            editorState.lights.value = data.lights.map((light, index) => ({
+                id: light.id || `light-${index}`,
+                objectType: 'light' as const,
+                position: light.position,
+                type: light.type || 'point',
+                brightRadius: light.brightRadius || 0,
+                dimRadius: light.dimRadius || 0,
+                intensity: light.intensity || 1,
+                color: light.color || '#ffffff',
+                temperature: light.temperature,
+                shadows: light.shadows !== undefined ? light.shadows : true,
+                shadowQuality: light.shadowQuality || 'medium',
+                falloffType: light.falloffType || 'quadratic',
+                animation: light.animation || {
+                    type: 'none',
+                    speed: 1,
+                    intensity: 0.1
+                },
+                enabled: light.enabled !== undefined ? light.enabled : true,
+                controllable: light.controllable !== undefined ? light.controllable : false,
+                name: light.name,
+                description: light.description,
+                visible: true,
+                locked: false,
+                selected: false
+            }));
         }
 
         // Reset modification flag
@@ -302,6 +300,13 @@ watch(() => props.initialData, (newData) => {
         loadMapData(newData);
     }
 }, { immediate: true });
+
+// Watch for image URL changes
+watch(() => props.imageUrl, (newImageUrl) => {
+    if (editorState.mapMetadata) {
+        editorState.mapMetadata.image = newImageUrl || '';
+    }
+});
 
 // Event handlers
 const handleObjectSelected = (id: string | null, addToSelection: boolean) => {
@@ -322,16 +327,14 @@ const handleObjectAdded = (object: AnyEditorObject) => {
         editorState.addPortal(object as PortalObject);
     } else if (object.objectType === 'light') {
         const light = object as LightObject;
-        // Convert range from grid units to pixels before adding to state
-        // The range from placeLight in EditorCanvas is in grid units (e.g., 5)
-        const ppg = editorState.mapMetadata.resolution.pixels_per_grid;
-        const rangeInPixels = light.range * ppg;
+        // Light range is now stored in world units directly
+        const rangeInWorldUnits = light.range;
         
-        console.log(`MapEditorComponent: Adding new light. Original range (grid): ${light.range}, Pixels per grid: ${ppg}, Converted range (pixels): ${rangeInPixels}`);
+        console.log(`MapEditorComponent: Adding new light. Range (world units): ${rangeInWorldUnits}`);
 
         editorState.addLight({
             ...light,
-            range: rangeInPixels, // Store range in pixels in the editor state
+            range: rangeInWorldUnits, // Store range in world units in the editor state
             opacity: 0.5 // Default semi-transparent
         });
     }
@@ -386,6 +389,51 @@ const handlePropertyUpdate = (objectId: string, property: string, value: unknown
     handleObjectModified(objectId, updates);
 };
 
+// Inspector window handlers
+const handlePositionUpdate = (objectId: string, x: number, y: number) => {
+    const object = editorState.allObjects.value.find(obj => obj.id === objectId);
+    if (!object) return;
+    
+    let updates;
+    
+    // Lights and portals store position in position.x/y
+    if (object.objectType === 'light' || object.objectType === 'portal') {
+        updates = { position: { x, y } };
+    } else {
+        // Other objects store position directly as x/y
+        updates = { x, y };
+    }
+    
+    handleObjectModified(objectId, updates);
+};
+
+const handleDeleteObjects = (objectIds: string[]) => {
+    objectIds.forEach(id => {
+        handleObjectRemoved(id);
+    });
+};
+
+const handleDuplicateObjects = (objectIds: string[]) => {
+    // TODO: Implement object duplication logic
+    console.log('Duplicate objects:', objectIds);
+    // For now, just log - this can be implemented later
+};
+
+const handleInspectorClose = () => {
+    inspectorVisible.value = false;
+};
+
+const toggleInspector = () => {
+    inspectorVisible.value = !inspectorVisible.value;
+};
+
+// Auto-show inspector when objects are selected
+watch(() => editorState.selectedObjectIds.value.length, (newLength) => {
+    if (newLength > 0 && !inspectorVisible.value) {
+        inspectorVisible.value = true;
+    }
+});
+
 const handleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 'lights', visible: boolean) => {
     // Update visibility for all objects in the layer
     let collection;
@@ -408,11 +456,11 @@ const handleLayerVisibility = (layerType: 'walls' | 'objectWalls' | 'portals' | 
 };
 
 const handleSave = async () => {
-    // Convert editor state to UVTT format
-    const uvttData = await convertEditorStateToUVTT();
+    // Convert editor state to world coordinate system
+    const mapData = convertEditorStateToWorldCoordinates();
     
     // Emit save event with the data
-    emit('save', uvttData);
+    emit('save', mapData);
     
     // Reset modification flag
     editorState.isModified.value = false;
@@ -465,71 +513,125 @@ const handleExport = async (format: 'uvtt' | 'dd2vtt' = 'uvtt') => {
     }
 };
 
-// Convert editor state to UVTT format (async for image base64)
-const convertEditorStateToUVTT = async (): Promise<UVTTData> => {
-    // Convert walls to line_of_sight - each wall becomes an array of points
-    const line_of_sight = editorState.walls.value.map(wall => {
-        const points = [];
-        for (let i = 0; i < wall.points.length; i += 2) {
-            points.push({
-                x: wall.points[i],
-                y: wall.points[i + 1]
-            });
-        }
-        return points;
-    }) as unknown as Point[];
+// Helper function to convert flat points array to wall segments with start/end coordinates
+const convertPointsToWallSegments = (wall: WallObject, wallType: 'wall' | 'terrain' = 'wall') => {
+    const segments = [];
+    const points = wall.points;
     
-    // Convert object walls to objects_line_of_sight - each wall becomes an array of points
-    const objects_line_of_sight = editorState.objectWalls.value.map(wall => {
-        const points = [];
-        for (let i = 0; i < wall.points.length; i += 2) {
-            points.push({
-                x: wall.points[i],
-                y: wall.points[i + 1]
-            });
-        }
-        return points;
-    }) as unknown as Point[];
+    // Convert flat array [x1, y1, x2, y2, x3, y3, ...] to segments
+    for (let i = 0; i < points.length - 2; i += 2) {
+        segments.push({
+            id: `${wall.id}-segment-${i/2}`, // Unique ID for each segment  
+            start: {
+                x: points[i],
+                y: points[i + 1], 
+                z: 0 // Default z-coordinate for 2D walls
+            },
+            end: {
+                x: points[i + 2],
+                y: points[i + 3],
+                z: 0 // Default z-coordinate for 2D walls  
+            },
+            height: wall.height || 10,
+            thickness: 1, // Default thickness
+            material: (wall.material || 'stone') as 'stone' | 'wood' | 'metal' | 'glass' | 'magic' | 'force',
+            blocksMovement: true,
+            blocksLight: wallType === 'wall', // Walls block light, terrain may not
+            blocksSound: wallType === 'wall',
+            transparency: 0, // Opaque by default
+            oneWayVision: false,
+            destructible: false,
+            name: wall.name,
+            description: `${wallType === 'wall' ? 'Wall' : 'Terrain'} segment`,
+            tags: []
+        });
+    }
     
-    // Convert portals
-    const portals = editorState.portals.value.map(portal => ({
-        position: portal.position,
-        bounds: portal.bounds,
-        rotation: portal.rotation,
-        closed: portal.closed,
-        freestanding: portal.freestanding
+    return segments;
+};
+
+// Convert editor state to world coordinate system  
+const convertEditorStateToWorldCoordinates = () => {
+    // Convert walls - from points arrays to start/end segments
+    const walls = editorState.walls.value.flatMap(wall => 
+        convertPointsToWallSegments(wall, 'wall')
+    );
+    
+    // Convert object walls (also go into walls array, but with different properties)
+    const objectWalls = editorState.objectWalls.value.flatMap(wall => 
+        convertPointsToWallSegments(wall, 'terrain')
+    );
+    
+    // Combine all wall segments
+    const allWalls = [...walls, ...objectWalls];
+    
+    // Convert portals (doors)
+    const doors = editorState.portals.value.map(portal => ({
+        id: portal.id,
+        // Convert bounds to polygon format
+        bounds: {
+            type: 'polygon' as const,
+            points: Array.isArray(portal.bounds) ? portal.bounds.map(point => ({
+                x: point.x,
+                y: point.y
+            })) : []
+        },
+        position: {
+            x: portal.position.x,
+            y: portal.position.y,
+            z: 0
+        },
+        rotation: portal.rotation || 0,
+        state: portal.closed ? 'closed' as const : 'open' as const,
+        type: portal.freestanding ? 'freestanding' as const : 'wall-mounted' as const
     }));
     
     // Convert lights
-    const lights = editorState.saveLightsToUVTT();
+    const lights = editorState.lights.value.map(light => ({
+        id: light.id || `light-${Date.now()}`,
+        position: {
+            x: light.position.x,
+            y: light.position.y,
+            z: (light.position as any).z || 5
+        },
+        type: light.type || 'point',
+        brightRadius: light.brightRadius || 0,
+        dimRadius: light.dimRadius || 0,
+        intensity: light.intensity ?? 1,
+        color: light.color || '#ffffff',
+        temperature: light.temperature,
+        shadows: light.shadows ?? true,
+        shadowQuality: light.shadowQuality || 'medium',
+        falloffType: light.falloffType || 'quadratic',
+        animation: light.animation || {
+            type: 'none',
+            speed: 1,
+            intensity: 0.1
+        },
+        enabled: light.enabled ?? true,
+        controllable: light.controllable ?? false,
+        name: light.name,
+        description: light.description
+    }));
     
-    // Handle image: fetch and encode as base64 if it's a URL
-    let image = editorState.mapMetadata.image;
-    if (typeof image === 'string' && image.length > 0) {
-        // If already base64 (data URL), leave as-is
-        if (!image.startsWith('data:')) {
-            try {
-                image = await fetchImageAsBase64(image);
-            } catch (err) {
-                console.warn('Failed to fetch/encode image as base64:', err);
-                // Optionally, leave as original URL or set to empty string
-                image = '';
+    // Return the complete mapData structure
+    return {
+        mapData: {
+            coordinates: editorState.mapMetadata.coordinates,
+            walls: allWalls,
+            terrain: [], // No terrain regions in current editor - terrain walls go in walls array
+            objects: [], // No objects in current editor
+            regions: [], // No regions in current editor
+            doors,
+            lights,
+            environment: {
+                ambientLight: {
+                    color: editorState.mapMetadata.environment?.ambientLight.color || '#ffffff',
+                    intensity: editorState.mapMetadata.environment?.ambientLight.intensity || 0.1
+                },
+                globalIllumination: editorState.mapMetadata.environment?.globalIllumination || false
             }
         }
-    }
-    // Return UVTT data
-    return {
-        format: editorState.mapMetadata.format || 1.0,
-        resolution: editorState.mapMetadata.resolution,
-        line_of_sight,
-        objects_line_of_sight,
-        portals,
-        environment: editorState.mapMetadata.environment || {
-            baked_lighting: false,
-            ambient_light: '#ffffff'
-        },
-        lights,
-        image
     };
 };
 
@@ -595,7 +697,7 @@ onUnmounted(() => {
 }
 
 .map-editor-sidebar {
-    width: 300px;
+    width: 220px;
     border-right: 1px solid var(--stone-300, #ddd);
     display: flex;
     flex-direction: column;
@@ -688,5 +790,37 @@ onUnmounted(() => {
 
 .export-dd2vtt-button {
     background-color: #673AB7 !important;
+}
+
+.inspector-button {
+    background-color: var(--gold-500, #eab308) !important;
+    color: var(--stone-900, #1c1917) !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.inspector-button:hover {
+    background-color: var(--gold-600, #d97706) !important;
+}
+
+.inspector-button.active {
+    background-color: var(--gold-600, #d97706) !important;
+    box-shadow: 0 0 0 2px var(--gold-300, #fcd34d) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    .inspector-button {
+        background-color: var(--gold-600, #d97706) !important;
+        color: var(--stone-100, #f5f5f4) !important;
+    }
+    
+    .inspector-button:hover {
+        background-color: var(--gold-700, #b45309) !important;
+    }
+    
+    .inspector-button.active {
+        background-color: var(--gold-700, #b45309) !important;
+        box-shadow: 0 0 0 2px var(--gold-400, #facc15) !important;
+    }
 }
 </style>

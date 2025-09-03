@@ -3,8 +3,8 @@ import { baseSchema } from './base.schema.mjs';
 import { assetSchema } from './asset.schema.mjs';
 
 /**
- * Schema for 2D coordinates in logical units (not pixels)
- * Used throughout the map system for position data
+ * Schema for 2D coordinates in world units
+ * World units map 1:1 to source image pixels and are game-system agnostic
  */
 export const coordinateSchema = z.object({
   x: z.number(),
@@ -12,55 +12,48 @@ export const coordinateSchema = z.object({
 });
 
 /**
- * Schema for 3D coordinates with elevation
+ * Schema for 3D coordinates with elevation in world units
  * Used for objects that exist at specific heights
  */
 export const coordinate3dSchema = z.object({
   x: z.number(),
   y: z.number(),
-  z: z.number() // Height/elevation in logical units
+  z: z.number() // Height/elevation in world units
 });
 
 /**
- * Schema for 2D polygon (array of coordinate points)
+ * Schema for 2D polygon (array of coordinate points in world units)
  * Used for terrain regions, collision areas, etc.
  */
 const polygonSchema = z.array(coordinateSchema);
 
 /**
- * Schema for 3D polygon with elevation data
+ * Schema for 3D polygon with elevation data in world units
  * Used for elevated terrain, bridges, platforms
  */
-const polygon3dSchema = z.array(coordinate3dSchema);
+export const polygon3dSchema = z.array(coordinate3dSchema);
+
 
 /**
- * Schema for UVTT resolution (kept for backward compatibility)
+ * World coordinate system schema
+ * Defines grid structure using world units that map 1:1 to source image pixels
+ * Game systems interpret world units according to their own scale (e.g. feet, meters, squares)
  */
-export const resolutionSchema = z.object({
-  map_origin: z.object({
-    x: z.number().default(0),
-    y: z.number().default(0).optional()
-  }).optional(),
-  map_size: z.object({
-    x: z.number().positive(),
-    y: z.number().positive()
-  }).optional(),
-  pixels_per_grid: z.number().int().positive().optional()
-});
-
-/**
- * Modern grid system schema
- * Defines the logical grid structure independent of pixel resolution
- */
-export const gridSystemSchema = z.object({
-  // Size of each grid cell in logical units (typically 5 feet for D&D)
-  cellSize: z.number().positive().default(5),
+export const worldCoordinateSystemSchema = z.object({
+  // World units per grid cell (abstract scaling factor)
+  worldUnitsPerGridCell: z.number().positive(),
   
-  // Grid offset from map origin (for aligning with background images)
+  // Grid alignment offset in world units (for aligning with background images)
   offset: coordinateSchema.default({ x: 0, y: 0 }),
   
   // Number of grid cells in each dimension
   dimensions: z.object({
+    width: z.number().int().positive(),
+    height: z.number().int().positive()
+  }),
+  
+  // Source image dimensions in pixels (for rendering calculations)
+  imageDimensions: z.object({
     width: z.number().int().positive(),
     height: z.number().int().positive()
   }),
@@ -71,37 +64,15 @@ export const gridSystemSchema = z.object({
     color: z.string().default('#000000'),
     opacity: z.number().min(0).max(1).default(0.3),
     lineWidth: z.number().positive().default(1)
-  }).optional()
-});
-
-/**
- * Coordinate system for converting between pixels and logical units
- * This allows the same map data to work at different resolutions
- */
-export const coordinateSystemSchema = z.object({
-  // Pixels per logical unit (e.g., 20 pixels = 1 foot)
-  pixelsPerUnit: z.number().positive().default(20),
-  
-  // Origin point in pixels where logical coordinate (0,0) is located
-  origin: coordinateSchema.default({ x: 0, y: 0 }),
-  
-  // Map dimensions in pixels (for image sizing)
-  imageDimensions: z.object({
-    width: z.number().int().positive(),
-    height: z.number().int().positive()
+  }).default({
+    visible: true,
+    color: '#000000',
+    opacity: 0.3,
+    lineWidth: 1
   })
 });
 
-/**
- * Schema for UVTT portal (kept for backward compatibility)
- */
-export const portalSchema = z.object({
-  position: coordinateSchema,
-  bounds: z.array(coordinateSchema),
-  rotation: z.number(), // in radians
-  closed: z.boolean(),
-  freestanding: z.boolean()
-});
+
 
 /**
  * Enhanced portal/door schema for modern VTT features
@@ -116,7 +87,7 @@ export const doorSchema = z.object({
   
   // Door properties
   rotation: z.number().default(0), // in radians
-  width: z.number().positive(), // door width in logical units
+  width: z.number().positive(), // door width in world units
   height: z.number().positive().default(8), // door height (for 3D collision)
   
   // Door state and behavior
@@ -139,21 +110,6 @@ export const doorSchema = z.object({
   tags: z.array(z.string()).default([]) // For AI and automation
 });
 
-/**
- * Schema for UVTT light (kept for backward compatibility)
- */
-export const lightSchema = z.object({
-  position: coordinateSchema,
-  range: z.number(),
-  intensity: z.number(),
-  /**
-   * Color as 8-character hex string: RRGGBBAA (6 for RGB, 2 for alpha channel, no #)
-   * Example: 'ff575112' (RGB: ff5751, Alpha: 12)
-   * This is the format used in the database. Convert to/from other formats as needed for UI libraries.
-   */
-  color: z.string(),
-  shadows: z.boolean()
-});
 
 /**
  * Enhanced lighting schema for modern VTT features
@@ -162,15 +118,15 @@ export const enhancedLightSchema = z.object({
   // Unique identifier for this light source
   id: z.string(),
   
-  // Light position (3D for elevation support)
+  // Light position in world units (3D for elevation support)
   position: coordinate3dSchema,
   
   // Light properties
   type: z.enum(['point', 'directional', 'area', 'ambient']).default('point'),
   
-  // Illumination settings
-  brightRadius: z.number().min(0).default(0), // Bright light radius in logical units
-  dimRadius: z.number().min(0).default(0), // Dim light radius in logical units
+  // Illumination settings  
+  brightRadius: z.number().min(0).default(0), // Bright light radius in world units
+  dimRadius: z.number().min(0).default(0), // Dim light radius in world units
   intensity: z.number().min(0).max(1).default(1), // Light intensity (0-1)
   
   // Color and appearance
@@ -199,13 +155,6 @@ export const enhancedLightSchema = z.object({
   tags: z.array(z.string()).default([]) // For grouping and automation
 });
 
-/**
- * Schema for UVTT environment (kept for backward compatibility)
- */
-const environmentSchema = z.object({
-  baked_lighting: z.boolean().default(false),
-  ambient_light: z.string().default('#ffffff') // hex color code with default white
-});
 
 /**
  * Schema for wall segments in the new internal format
@@ -215,12 +164,12 @@ export const wallSchema = z.object({
   // Unique identifier for this wall
   id: z.string(),
   
-  // Wall geometry (line segment)
+  // Wall geometry (line segment in world units)
   start: coordinate3dSchema, // Start point with elevation
   end: coordinate3dSchema,   // End point with elevation
   
   // Physical properties
-  height: z.number().positive().default(10), // Wall height in logical units
+  height: z.number().positive().default(10), // Wall height in world units
   thickness: z.number().positive().default(1), // Wall thickness for 3D collision
   material: z.enum(['stone', 'wood', 'metal', 'glass', 'magic', 'force']).default('stone'),
   
@@ -246,8 +195,9 @@ export const wallSchema = z.object({
 });
 
 /**
- * Schema for terrain regions
+ * Schema for terrain regions  
  * Defines areas with special movement, visual, or gameplay properties
+ * Uses polygon boundaries for precise collision detection and lighting occlusion
  */
 export const terrainSchema = z.object({
   // Unique identifier for this terrain region
@@ -275,7 +225,7 @@ export const terrainSchema = z.object({
   ]).default('normal'),
   
   // Movement properties
-  movementCost: z.number().positive().default(1), // Movement cost multiplier
+  movementCost: z.number().positive().default(1), // Movement cost multiplier (game-system specific)
   minimumSpeed: z.number().min(0).default(0), // Minimum speed to cross (for pits, etc.)
   
   // Environmental effects
@@ -300,25 +250,34 @@ export const terrainSchema = z.object({
 /**
  * Schema for physical objects on the map
  * These are distinct from walls - they're discrete objects that can be interacted with
+ * All collision bounds are stored as polygons for unified collision detection and lighting
  */
 export const mapObjectSchema = z.object({
   // Unique identifier for this object
   id: z.string(),
   
-  // Object position and dimensions
+  // Object position and dimensions in world units
   position: coordinate3dSchema,
   rotation: z.number().default(0), // Rotation in radians
   
-  // Collision bounds (relative to position)
-  collisionShape: z.enum(['circle', 'rectangle', 'polygon']).default('rectangle'),
-  bounds: z.union([
-    z.number().positive(), // Circle: radius
-    z.object({ width: z.number().positive(), height: z.number().positive() }), // Rectangle
-    polygonSchema // Polygon: array of points relative to position
-  ]),
+  // Collision bounds as polygon (relative to position)
+  // All shapes are converted to polygons for unified collision detection
+  bounds: polygonSchema, // Polygon points relative to position
+  
+  // Original shape metadata for user editing and export
+  shapeType: z.enum(['circle', 'rectangle', 'polygon']).default('rectangle'),
+  shapeData: z.object({
+    // For circles: store original radius for user editing
+    radius: z.number().positive().optional(),
+    // For rectangles: store original width/height for user editing  
+    width: z.number().positive().optional(),
+    height: z.number().positive().optional(),
+    // Number of points used in polygon approximation (for circles/rectangles)
+    polygonPrecision: z.number().int().min(6).max(64).default(16).optional()
+  }).optional(),
   
   // Physical properties
-  height: z.number().positive().default(5), // Object height in logical units
+  height: z.number().positive().default(5), // Object height in world units
   blocksMovement: z.boolean().default(true),
   blocksLight: z.boolean().default(false),
   blocksSound: z.boolean().default(false),
@@ -356,6 +315,7 @@ export const mapObjectSchema = z.object({
 /**
  * Schema for special regions with custom behaviors
  * These define areas that trigger special effects or rules
+ * Polygon boundaries enable precise triggering and collision detection
  */
 export const regionSchema = z.object({
   // Unique identifier for this region
@@ -428,7 +388,13 @@ export const enhancedEnvironmentSchema = z.object({
     windSpeed: z.number().min(0).default(0), // Wind speed in logical units
     temperature: z.number().optional(), // Temperature for environmental effects
     visibility: z.number().min(0).default(1) // Visibility modifier (0-1)
-  }).optional(),
+  }).default({
+    type: 'none',
+    intensity: 0.5,
+    windDirection: 0,
+    windSpeed: 0,
+    visibility: 1
+  }),
   
   // Atmospheric effects
   atmosphere: z.object({
@@ -436,28 +402,22 @@ export const enhancedEnvironmentSchema = z.object({
     fogDensity: z.number().min(0).max(1).default(0),
     skyColor: z.string().optional(), // For outdoor scenes
     horizonColor: z.string().optional()
-  }).optional(),
+  }).default({
+    fogColor: '#cccccc',
+    fogDensity: 0
+  }),
   
   // Audio environment
   audio: z.object({
     ambientTrack: z.string().optional(), // Background music/sounds
     reverbLevel: z.number().min(0).max(1).default(0.3),
     soundOcclusion: z.boolean().default(true) // Whether walls block sound
-  }).optional()
+  }).default({
+    reverbLevel: 0.3,
+    soundOcclusion: true
+  })
 });
 
-/**
- * Schema for the UVTT format data (kept for backward compatibility)
- */
-export const uvttSchema = z.object({
-  format: z.number().default(1.0).optional(), // UVTT version
-  resolution: resolutionSchema.optional(),
-  line_of_sight: z.array(polygonSchema).optional(),
-  objects_line_of_sight: z.array(polygonSchema).optional(),
-  portals: z.array(portalSchema).optional(),
-  environment: environmentSchema.optional(),
-  lights: z.array(lightSchema).optional()
-});
 
 /**
  * New internal map data schema
@@ -467,9 +427,8 @@ export const internalMapDataSchema = z.object({
   // Version for schema evolution
   version: z.string().default('1.0'),
   
-  // Grid and coordinate system
-  grid: gridSystemSchema,
-  coordinates: coordinateSystemSchema,
+  // World coordinate system
+  coordinates: worldCoordinateSystemSchema,
   
   // Geometry layers
   walls: z.array(wallSchema).default([]),
@@ -494,8 +453,19 @@ export const internalMapDataSchema = z.object({
     keywords: []
   }),
   
-  // Extension points for plugins
-  pluginData: z.record(z.string(), z.any()).default({})
+  // Global settings for shape conversion and collision detection
+  conversionSettings: z.object({
+    // Default precision for converting circles/ellipses to polygons
+    defaultPolygonPrecision: z.number().int().min(6).max(64).default(16),
+    // Whether to use adaptive precision based on shape size
+    useAdaptivePrecision: z.boolean().default(true),
+    // Minimum segment length for adaptive precision (in world units)
+    targetSegmentLength: z.number().positive().default(7.5)
+  }).default({
+    defaultPolygonPrecision: 16,
+    useAdaptivePrecision: true,
+    targetSegmentLength: 7.5
+  }),
 });
 
 // Base Map schema (updated to use new internal format)
@@ -515,12 +485,8 @@ export const mapSchema = baseSchema.extend({
   // Legacy grid information (kept for backward compatibility)
   aspectRatio: z.coerce.number().positive().optional(),
 
-  // NEW: Primary map data using internal format
+  // Primary map data using internal format
   mapData: internalMapDataSchema,
-
-  // LEGACY: UVTT format fields (kept for import/export compatibility)
-  // This will be populated during UVTT import and used for UVTT export
-  uvtt: uvttSchema.optional(),
 
   // Additional fields for AI generation
   aiPrompt: z.string().optional(), // Original prompt used to generate the map
@@ -553,14 +519,3 @@ export const mapCreateSchema = mapSchema
     mapData: internalMapDataSchema.optional()
   });
 
-// Schema specifically for importing UVTT files
-export const mapImportUVTTSchema = z.object({
-  // The file will be processed separately, but we need a field for validation
-  uvttFile: z.any(),
-  
-  // Optionally override some fields during import
-  name: z.string().min(1).max(255).optional(),
-  description: z.string().optional(),
-  userData: z.record(z.any()).optional(),
-  campaignId: z.string().optional() // Optional campaign to associate with
-});

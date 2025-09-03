@@ -83,9 +83,13 @@ import { itemSchema, itemCreateSchema, itemSchemaWithVirtuals } from '../schemas
 import { 
   mapSchema, 
   mapCreateSchema, 
+  internalMapDataSchema
+} from '../schemas/map.schema.mjs';
+
+import {
   mapImportUVTTSchema,
   uvttSchema
-} from '../schemas/map.schema.mjs';
+} from '../schemas/uvtt-import-export.schema.mjs';
 
 import {
   vttDocumentSchema
@@ -227,6 +231,7 @@ export const mapUpdateSchema = mapCreateSchema.deepPartial();
 export type IMap = z.infer<typeof mapSchema>;
 export type IMapCreateData = z.infer<typeof mapCreateSchema>;
 export type IMapUpdateData = z.infer<typeof mapUpdateSchema>;
+export type IInternalMapData = z.infer<typeof internalMapDataSchema>;
 export type IMapImportUVTTData = z.infer<typeof mapImportUVTTSchema>;
 export type IUVTT = z.infer<typeof uvttSchema>;
 
