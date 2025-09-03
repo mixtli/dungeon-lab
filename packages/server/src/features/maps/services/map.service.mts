@@ -12,7 +12,8 @@ import { deepMerge } from '@dungeon-lab/shared/utils/index.mjs';
 import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
-import { uvttSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { uvttSchema, type UVTTData } from '@dungeon-lab/shared/schemas/index.mjs';
+import { convertMapDataToUVTT } from '@dungeon-lab/shared/utils/uvtt-converter.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -671,23 +672,23 @@ export class MapService {
       if (options.campaignId) {
         // The MongoDB model supports campaignId even if it's not in the type
         // Use a type assertion to avoid TypeScript errors
-        (mapData as IMapCreateData & { campaignId: string }).campaignId = options.campaignId;
+        (mapData as IMapCreateData & { campaignId?: string }).campaignId = options.campaignId;
       }
       
       // Set image ID if we have one
-      if (imageAsset) {
-        mapData.imageId = imageAsset.id;
+      if ((imageAsset as any) && (imageAsset as any).id) {
+        mapData.imageId = (imageAsset as any).id;
       }
       
       // Create the map
       const map = await MapModel.create(mapData);
       
       // If we have an image, we'll generate a thumbnail
-      if (imageAsset) {
+      if ((imageAsset as any) && (imageAsset as any).id) {
         await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
           mapId: map.id,
           userId,
-          imageAssetId: imageAsset.id
+          imageAssetId: (imageAsset as any).id
         });
         
         logger.info(`Scheduled thumbnail generation job for imported UVTT map ${map.id}`);
@@ -709,7 +710,11 @@ export class MapService {
    * @param id - The ID of the map to retrieve
    * @returns UVTT formatted map data with embedded base64 image
    */
-  async getMapAsUVTT(id: string): Promise<Record<string, unknown>> {
+  /**
+   * Convert map from internal format to UVTT format for export
+   * Uses the new conversion system that transforms internalMapDataSchema to uvttSchema
+   */
+  async exportMapAsUVTT(id: string): Promise<UVTTData> {
     try {
       // Get the map with populated image
       const map = await MapModel.findById(id).populate('image');
@@ -717,14 +722,8 @@ export class MapService {
         throw new Error('Map not found');
       }
 
-      // If there's no UVTT data, throw an error
-      if (!map.uvtt) {
-        throw new Error('Map does not have UVTT data');
-      }
+      let imageBase64: string | undefined;
 
-      // Start with the UVTT data from the map
-      const uvttData = { ...map.uvtt } as Record<string, unknown>;
-      
       // If there's an image, fetch it and convert to base64
       if (map.imageId) {
         try {
@@ -741,21 +740,34 @@ export class MapService {
             // Convert to buffer and then to base64
             const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
             const imageType = imageAsset.type || 'image/jpeg';
-            const base64Image = `data:${imageType};base64,${imageBuffer.toString('base64')}`;
-            
-            // Add the base64 image to the UVTT data
-            uvttData.image = base64Image;
+            imageBase64 = `data:${imageType};base64,${imageBuffer.toString('base64')}`;
           }
         } catch (error) {
           logger.error('Error fetching and converting image:', error);
           // Continue without the image rather than failing completely
         }
       }
-      
+
+      // Check if map has the new internal format data
+      if (!map.mapData) {
+        throw new Error('Map does not have internal map data - cannot convert to UVTT');
+      }
+
+      // Convert from internal format to UVTT format
+      const uvttData = convertMapDataToUVTT(map.mapData, imageBase64);
       return uvttData;
     } catch (error) {
-      logger.error('Error getting map as UVTT:', error);
+      logger.error('Error exporting map as UVTT:', error);
       throw error;
     }
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   * @deprecated Use exportMapAsUVTT instead
+   */
+  async getMapAsUVTT(id: string): Promise<Record<string, unknown>> {
+    // For now, just use the new export method
+    return this.exportMapAsUVTT(id);
   }
 }

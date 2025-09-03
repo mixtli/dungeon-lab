@@ -1,5 +1,6 @@
 import { ApiClient } from './api.client.mjs';
 import type { IMap, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
+import { UVTTData } from '@dungeon-lab/shared/schemas/index.mjs';
 import {
   BaseAPIResponse,
   DeleteAPIResponse,
@@ -254,25 +255,21 @@ export class MapsClient extends ApiClient {
   }
 
   /**
-   * Export a map as UVTT/DD2VTT file
+   * Export a map as UVTT format
    * @param mapId ID of the map to export
-   * @param format The format to export as ('uvtt' or 'dd2vtt', defaults to 'uvtt')
-   * @returns A Blob containing the map data
+   * @returns UVTT data object with embedded base64 image
    */
-  async exportMapAsUVTT(mapId: string, format: 'uvtt' | 'dd2vtt' = 'uvtt'): Promise<Blob> {
-    const response = await this.api.get(`/api/maps/${mapId}`, {
-      headers: {
-        'Accept': 'application/uvtt'
-      },
-      responseType: 'blob'
-    });
+  async exportMapAsUVTT(mapId: string): Promise<UVTTData> {
+    const response = await this.api.get<BaseAPIResponse<UVTTData>>(`/api/maps/${mapId}/export-uvtt`);
     
-    // The response should be a blob with the UVTT data
-    if (response.status !== 200) {
-      throw new Error(`Failed to export map as ${format.toUpperCase()}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to export map as UVTT');
     }
     
-    // The content type remains the same, but the extension changes based on format
-    return new Blob([response.data], { type: 'application/uvtt' });
+    if (!response.data.data) {
+      throw new Error('No UVTT data returned from server');
+    }
+    
+    return response.data.data;
   }
 }

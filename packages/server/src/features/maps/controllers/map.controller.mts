@@ -10,6 +10,7 @@ import {
   searchMapsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { IMap } from '@dungeon-lab/shared/types/index.mjs';
+import { UVTTData } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ZodError } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 import { createSearchParams } from '../../../utils/create.search.params.mjs';
@@ -61,7 +62,7 @@ export class MapController {
     try {
       // Check if the client requests UVTT format
       if (req.accepts('application/uvtt')) {
-        const uvttData = await this.mapService.getMapAsUVTT(req.params.id);
+        const uvttData = await this.mapService.exportMapAsUVTT(req.params.id);
         // Set Content-Type to application/uvtt
         res.setHeader('Content-Type', 'application/uvtt');
         // Return raw UVTT data without wrapping in API response
@@ -94,6 +95,43 @@ export class MapController {
         success: false,
         data: null,
         error: 'Failed to get map'
+      });
+    }
+  };
+
+  /**
+   * Export a map as UVTT format
+   */
+  exportUVTT = async (
+    req: Request,
+    res: Response<BaseAPIResponse<UVTTData>>
+  ): Promise<Response<BaseAPIResponse<UVTTData>> | void> => {
+    try {
+      const uvttData = await this.mapService.exportMapAsUVTT(req.params.id);
+      return res.json({
+        success: true,
+        data: uvttData
+      });
+    } catch (error) {
+      if (isErrorWithMessage(error) && error.message === 'Map not found') {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: 'Map not found'
+        });
+      }
+      if (isErrorWithMessage(error) && error.message.includes('internal map data')) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Map cannot be converted to UVTT format - missing internal data'
+        });
+      }
+      logger.error('Error in exportUVTT controller:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: 'Failed to export map as UVTT'
       });
     }
   };

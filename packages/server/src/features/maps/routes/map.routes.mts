@@ -16,7 +16,7 @@ import {
   importUVTTRequestSchema,
   importUVTTResponseSchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
-import { mapSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { mapSchema, uvttSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { Request, Response, NextFunction } from 'express';
 
 // Initialize controller
@@ -371,6 +371,56 @@ router.patch(
   ),
   validateMultipartRequest(patchMapRequestSchema, 'image'),
   mapController.patchMap
+);
+
+// Export map as UVTT
+router.get(
+  '/:id/export-uvtt',
+  oapi.validPath(
+    createPathSchema({
+      description: 'Export map as UVTT format',
+      requestParams: {
+        path: z.object({ id: z.string() })
+      },
+      responses: {
+        200: {
+          description: 'Map exported as UVTT successfully',
+          content: {
+            'application/json': {
+              schema: baseAPIResponseSchema.extend({
+                data: uvttSchema
+              }).openapi({
+                description: 'Export UVTT response'
+              })
+            }
+          }
+        },
+        400: {
+          description: 'Map cannot be converted to UVTT format',
+          content: {
+            'application/json': {
+              schema: baseAPIResponseSchema.extend({
+                data: z.null(),
+                error: z.string()
+              })
+            }
+          }
+        },
+        404: {
+          description: 'Map not found',
+          content: {
+            'application/json': {
+              schema: baseAPIResponseSchema.extend({
+                data: z.null(),
+                error: z.string()
+              })
+            }
+          }
+        }
+      }
+    })
+  ),
+  mapController.exportUVTT
 );
 
 // Delete map

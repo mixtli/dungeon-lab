@@ -113,7 +113,8 @@ export {
   uvttPortalSchema,
   uvttLightSchema,
   mapImportUVTTSchema,
-  uvttExportRequestSchema
+  uvttExportRequestSchema,
+  type UVTTData
 } from './uvtt-import-export.schema.mjs';
 
 // Position schemas
