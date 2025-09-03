@@ -11,7 +11,7 @@ export type EditorObjectType = 'wall' | 'portal' | 'light' | 'decoration';
 /**
  * Available tool modes
  */
-export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'pan';
+export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'pan' | 'grid-adjust';
 
 /**
  * Point in 2D space

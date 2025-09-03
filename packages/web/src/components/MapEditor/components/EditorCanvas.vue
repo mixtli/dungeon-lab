@@ -29,6 +29,45 @@
                     opacity: gridConfig.opacity,
                     listening: false
                 }" />
+                
+                <!-- Origin marker - only visible in grid-adjust mode -->
+                <v-group v-if="props.currentTool === 'grid-adjust'" :config="originMarkerConfig" @dragend="handleOriginDragEnd">
+                    <!-- Horizontal crosshair line -->
+                    <v-line :config="{
+                        points: [
+                            props.mapMetadata.coordinates.offset.x - 20 / props.viewportTransform.scale,
+                            props.mapMetadata.coordinates.offset.y,
+                            props.mapMetadata.coordinates.offset.x + 20 / props.viewportTransform.scale,
+                            props.mapMetadata.coordinates.offset.y
+                        ],
+                        stroke: '#ff4500',
+                        strokeWidth: 2 / props.viewportTransform.scale,
+                        listening: false
+                    }" />
+                    <!-- Vertical crosshair line -->
+                    <v-line :config="{
+                        points: [
+                            props.mapMetadata.coordinates.offset.x,
+                            props.mapMetadata.coordinates.offset.y - 20 / props.viewportTransform.scale,
+                            props.mapMetadata.coordinates.offset.x,
+                            props.mapMetadata.coordinates.offset.y + 20 / props.viewportTransform.scale
+                        ],
+                        stroke: '#ff4500',
+                        strokeWidth: 2 / props.viewportTransform.scale,
+                        listening: false
+                    }" />
+                    <!-- Center dot (draggable) -->
+                    <v-circle :config="{
+                        x: props.mapMetadata.coordinates.offset.x,
+                        y: props.mapMetadata.coordinates.offset.y,
+                        radius: 6 / props.viewportTransform.scale,
+                        fill: '#ff4500',
+                        stroke: '#ffffff',
+                        strokeWidth: 2 / props.viewportTransform.scale,
+                        draggable: true,
+                        listening: true
+                    }" @dragend="handleOriginDragEnd" />
+                </v-group>
             </v-layer>
 
             <!-- Wall layer -->
@@ -268,6 +307,12 @@ const stageConfig = computed(() => ({
 // Grid layer configuration
 const gridLayerConfig = computed(() => ({
     visible: props.gridConfig.visible
+}));
+
+// Origin marker configuration
+const originMarkerConfig = computed(() => ({
+    visible: props.currentTool === 'grid-adjust',
+    draggable: props.currentTool === 'grid-adjust'
 }));
 
 // Calculate grid lines and the visible world view for drawing
@@ -638,9 +683,19 @@ const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
 };
 
 const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
-    // Handle zooming
     e.evt.preventDefault();
 
+    // Handle grid adjustment when grid-adjust tool is active (fine-tuning with mouse wheel)
+    if (props.currentTool === 'grid-adjust') {
+        const delta = e.evt.deltaY > 0 ? -1 : 1; // Resize grid by 1 unit per wheel tick for fine adjustment
+        const newSize = gridSystem.adjustGridSize(delta);
+        
+        // Emit grid config change so parent component can update the grid
+        emit('object-modified', 'grid-config', { worldUnitsPerCell: newSize });
+        return;
+    }
+
+    // Handle zooming for other tools
     const stageInstance = e.target.getStage();
     const oldScale = props.viewportTransform.scale;
     const pointer = stageInstance?.getPointerPosition();
@@ -694,6 +749,19 @@ const handleStageDragEnd = (e: KonvaEventObject<DragEvent>) => {
     } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion
 
     emit('object-modified', 'viewport', updates);
+};
+
+const handleOriginDragEnd = (e: KonvaEventObject<DragEvent>) => {
+    if (props.currentTool !== 'grid-adjust') return;
+
+    const shape = e.target;
+    const newOffset = {
+        x: shape.x(),
+        y: shape.y()
+    };
+
+    // Emit grid offset change so parent component can update the grid origin
+    emit('object-modified', 'grid-offset', { offset: newOffset });
 };
 
 const handleObjectClick = (e: KonvaEventObject<MouseEvent>, id: string) => {

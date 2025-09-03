@@ -7,10 +7,12 @@
                 <EditorToolbar 
                     :current-tool="editorState.currentTool.value" 
                     :current-wall-type="currentWallType"
+                    :current-grid-size="editorState.gridConfig.worldUnitsPerCell"
                     :grid-visible="editorState.gridConfig.visible"
                     :snap-enabled="editorState.gridConfig.snap"
                     @tool-selected="editorState.setTool" 
                     @wall-type-changed="handleWallTypeChanged"
+                    @grid-size-changed="handleGridSizeChanged"
                     @toggle-grid="handleToggleGrid"
                     @toggle-snap="handleToggleSnap"
                 />
@@ -350,6 +352,25 @@ const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => 
         return;
     }
 
+    // Special case for grid config updates
+    if (id === 'grid-config') {
+        if ('worldUnitsPerCell' in updates && typeof updates.worldUnitsPerCell === 'number') {
+            editorState.gridConfig.worldUnitsPerCell = updates.worldUnitsPerCell;
+            editorState.isModified.value = true;
+        }
+        return;
+    }
+
+    // Special case for grid offset updates
+    if (id === 'grid-offset') {
+        if ('offset' in updates && typeof updates.offset === 'object' && updates.offset) {
+            const offset = updates.offset as { x: number; y: number };
+            editorState.mapMetadata.coordinates.offset = offset;
+            editorState.isModified.value = true;
+        }
+        return;
+    }
+
     // Find object to determine its type
     const object = editorState.allObjects.value.find(obj => obj.id === id);
 
@@ -651,6 +672,13 @@ const handleToggleGrid = () => {
 const handleToggleSnap = () => {
     editorState.gridConfig.snap = !editorState.gridConfig.snap;
     console.log('Grid snap toggled to:', editorState.gridConfig.snap);
+};
+
+// Handle grid size change from toolbar input
+const handleGridSizeChanged = (size: number) => {
+    editorState.gridConfig.worldUnitsPerCell = size;
+    editorState.isModified.value = true;
+    console.log('Grid size changed to:', size);
 };
 
 // Handle mouse move events from canvas

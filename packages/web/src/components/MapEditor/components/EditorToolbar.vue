@@ -64,6 +64,28 @@
                 <span class="tool-icon">⌘</span>
                 <span class="tool-label">Snap</span>
             </button>
+
+            <button class="tool-button" :class="{ active: currentTool === 'grid-adjust' }" @click="selectTool('grid-adjust')"
+                title="Adjust Grid: Set precise grid size and drag to reposition origin. Match your grid to pre-drawn map grids.">
+                <span class="tool-icon">⊞⌘</span>
+                <span class="tool-label">Adjust Grid</span>
+            </button>
+
+            <!-- Grid size input - only visible when grid-adjust tool is active -->
+            <div v-if="currentTool === 'grid-adjust'" class="grid-size-input-container">
+                <label class="grid-size-label">Grid Size:</label>
+                <input 
+                    type="number" 
+                    class="grid-size-input" 
+                    :value="Math.round(props.currentGridSize || 50)"
+                    min="5" 
+                    max="500" 
+                    step="1"
+                    @input="handleGridSizeChange"
+                    title="Grid cell size in pixels/world units"
+                />
+                <span class="grid-size-unit">px</span>
+            </div>
         </div>
     </div>
 </template>
@@ -78,6 +100,7 @@ const props = defineProps<{
     gridVisible?: boolean;
     snapEnabled?: boolean;
     currentWallType?: 'regular' | 'object';
+    currentGridSize?: number;
 }>();
 
 const emit = defineEmits<{
@@ -85,6 +108,7 @@ const emit = defineEmits<{
     (e: 'toggle-grid'): void;
     (e: 'toggle-snap'): void;
     (e: 'wall-type-changed', type: 'regular' | 'object'): void;
+    (e: 'grid-size-changed', size: number): void;
 }>();
 
 // Provide default values for optional props
@@ -106,6 +130,14 @@ const toggleSnap = () => {
 const changeWallType = (type: 'regular' | 'object') => {
     wallType.value = type;
     emit('wall-type-changed', type);
+};
+
+const handleGridSizeChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const size = parseInt(target.value);
+    if (!isNaN(size) && size >= 5 && size <= 500) {
+        emit('grid-size-changed', size);
+    }
 };
 </script>
 
@@ -248,5 +280,78 @@ const changeWallType = (type: 'regular' | 'object') => {
     height: 8px;
     border-radius: 50%;
     display: inline-block;
+}
+
+/* Grid size input styles */
+.grid-size-input-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background-color: var(--stone-100, #f9f9f9);
+    border: 1px solid var(--stone-300, #ddd);
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .grid-size-input-container {
+        background-color: var(--stone-800, #292524);
+        border-color: var(--stone-600, #57534e);
+    }
+}
+
+.grid-size-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--stone-600, #57534e);
+    white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+    .grid-size-label {
+        color: var(--stone-400, #a8a29e);
+    }
+}
+
+.grid-size-input {
+    width: 60px;
+    padding: 2px 4px;
+    border: 1px solid var(--stone-300, #ddd);
+    border-radius: 3px;
+    font-size: 11px;
+    text-align: center;
+    background: var(--stone-50, #fafaf9);
+    color: var(--stone-800, #292524);
+}
+
+.grid-size-input:focus {
+    outline: none;
+    border-color: var(--gold-400, #facc15);
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+    .grid-size-input {
+        border-color: var(--stone-600, #57534e);
+        background: var(--stone-900, #1c1917);
+        color: var(--stone-200, #e7e5e4);
+    }
+    
+    .grid-size-input:focus {
+        border-color: var(--gold-500, #eab308);
+    }
+}
+
+.grid-size-unit {
+    font-size: 11px;
+    color: var(--stone-500, #6b7280);
+    white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+    .grid-size-unit {
+        color: var(--stone-400, #a8a29e);
+    }
 }
 </style>

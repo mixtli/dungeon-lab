@@ -96,6 +96,24 @@ export function useGridSystem(config: GridConfig) {
   };
 
   /**
+   * Adjust grid size by a delta amount
+   */
+  const adjustGridSize = (delta: number) => {
+    const newSize = Math.max(10, Math.min(200, config.worldUnitsPerCell + delta));
+    config.worldUnitsPerCell = newSize;
+    return newSize;
+  };
+
+  /**
+   * Set grid offset for origin positioning
+   */
+  const setGridOffset = (offset: Point) => {
+    // This will be handled at the MapMetadata level since offset is stored there
+    // This function exists for consistency and future use
+    return offset;
+  };
+
+  /**
    * Calculate grid line positions for rendering
    * This helps optimize grid rendering by only drawing visible lines
    */
@@ -138,6 +156,8 @@ export function useGridSystem(config: GridConfig) {
     setGridSize,
     setGridColor,
     setGridOpacity,
+    adjustGridSize,
+    setGridOffset,
     getGridLines
   };
 }
