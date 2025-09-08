@@ -13,7 +13,7 @@ import { Types } from 'mongoose';
 import { UserModel } from '../../../models/user.model.mjs';
 import { IMapCreateData, IMapUpdateData } from '@dungeon-lab/shared/types/index.mjs';
 import { uvttSchema, type UVTTData } from '@dungeon-lab/shared/schemas/index.mjs';
-import { convertMapDataToUVTT } from '@dungeon-lab/shared/utils/uvtt-converter.mjs';
+import { convertMapDataToUVTT, convertUVTTToMapData } from '@dungeon-lab/shared/utils/uvtt-converter.mjs';
 
 // Define a type for map query values
 export type QueryValue = string | number | boolean | RegExp | Date | object;
@@ -565,7 +565,6 @@ export class MapService {
       // Apply partial update using deepMerge (PATCH)
       const obj = map.toObject();
       const newObj = deepMerge(obj, updateData);
-      console.log('newObj', newObj);
       map.set(newObj);
       await map.save();
 
@@ -636,6 +635,18 @@ export class MapService {
         uvttData = uvttWithoutImage;
       }
       
+      // Add debug logging to see what we're getting
+      logger.info('Original UVTT data keys:', Object.keys(uvttData));
+      logger.info('UVTT data summary:', {
+        format: uvttData.format,
+        hasResolution: !!uvttData.resolution,
+        lineOfSightCount: Array.isArray(uvttData.line_of_sight) ? uvttData.line_of_sight.length : 0,
+        objectsLineOfSightCount: Array.isArray(uvttData.objects_line_of_sight) ? uvttData.objects_line_of_sight.length : 0,
+        portalsCount: Array.isArray(uvttData.portals) ? uvttData.portals.length : 0,
+        lightsCount: Array.isArray(uvttData.lights) ? uvttData.lights.length : 0,
+        hasEnvironment: !!uvttData.environment
+      });
+
       // Ensure UVTT data has all required fields
       const validUvttData = {
         format: 1.0, // Default UVTT version
@@ -646,6 +657,17 @@ export class MapService {
         },
         ...uvttSchema.partial().parse(uvttData)
       };
+
+      // Add debug logging to see what we get after validation
+      logger.info('Validated UVTT data summary:', {
+        format: validUvttData.format,
+        hasResolution: !!validUvttData.resolution,
+        lineOfSightCount: validUvttData.line_of_sight?.length || 0,
+        objectsLineOfSightCount: validUvttData.objects_line_of_sight?.length || 0,
+        portalsCount: validUvttData.portals?.length || 0,
+        lightsCount: validUvttData.lights?.length || 0,
+        hasEnvironment: !!validUvttData.environment
+      });
       
       // Extract resolution data for calculating grid dimensions
       let aspectRatio = undefined;
@@ -653,20 +675,26 @@ export class MapService {
         aspectRatio = validUvttData.resolution?.map_size?.x / validUvttData.resolution?.map_size?.y;
       }
       
-      // TODO: Convert UVTT data to InternalMapData format
-      // For now, create a basic map without UVTT data
-      throw new Error('UVTT import needs to be updated to convert to InternalMapData format');
-      
-      // Prepare map data (this code will be updated once conversion is implemented)
-      const mapData: IMapCreateData = {
-        name: options.name,
-        description: options.description,
-        aspectRatio,
-        // uvtt: validUvttData, // REMOVED - needs conversion to mapData: InternalMapData
-        createdBy: userId,
-        ownerId: userId, // Set ownerId for new maps
-        updatedBy: userId
-      };
+      // Convert UVTT data to InternalMapData format using the new converter
+      let mapData: IMapCreateData;
+      try {
+        const internalMapData = convertUVTTToMapData(validUvttData);
+        
+        // Prepare map data with converted internal map data
+        mapData = {
+          name: options.name,
+          description: options.description,
+          aspectRatio,
+          mapData: internalMapData,
+          createdBy: userId,
+          ownerId: userId, // Set ownerId for new maps  
+          updatedBy: userId
+        };
+      } catch (conversionError) {
+        logger.error('Error converting UVTT data to internal format:', conversionError);
+        throw new Error('Failed to convert UVTT data to internal map format: ' + 
+          (conversionError instanceof Error ? conversionError.message : 'Unknown error'));
+      }
       
       // If this map is associated with a campaign and the model supports it
       if (options.campaignId) {

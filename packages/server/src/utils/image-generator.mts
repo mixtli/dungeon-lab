@@ -15,7 +15,10 @@ export async function generateAIImage(
   }
 ): Promise<File> {
   console.log('Generating image with prompt:', prompt);
-  console.log('Data:', data);
+  logger.debug('Image generation data summary:', {
+    dataKeys: Object.keys(data),
+    dataSize: JSON.stringify(data).length
+  });
   try {
     // get summary of data
     const summary = await generateText({

@@ -46,6 +46,7 @@ export interface UsePixiMapReturn {
   addTarget: (tokenId: string) => void;
   removeTarget: (tokenId: string) => void;
   clearTargets: () => void;
+  restoreTokenVisibility: (tokenId: string) => void;
   
   // Grid controls
   enableSnapToGrid: (enabled: boolean) => void;
@@ -66,8 +67,9 @@ export interface UsePixiMapReturn {
   // Wall controls
   setWallHighlights: (visible: boolean) => void;
   setObjectHighlights: (visible: boolean) => void;
-  setPortalHighlights: (visible: boolean) => void;
+  setDoorHighlights: (visible: boolean) => void;
   setLightHighlights: (visible: boolean) => void;
+  setGridHighlights: (visible: boolean) => void;
   
   // Cleanup
   destroy: () => void;
@@ -203,7 +205,7 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
-   * Load map data from Map model (with uvtt field and image asset)
+   * Load map data from Map model (with mapData field and image asset)
    */
   const loadMap = async (mapData: IMapResponse): Promise<void> => {
     if (!mapRenderer) {
@@ -214,8 +216,8 @@ export function usePixiMap(): UsePixiMapReturn {
       await mapRenderer.loadMapFromDatabase(mapData);
       
       // Configure grid size for token renderer based on map data
-      if (tokenRenderer && mapData.uvtt?.resolution?.pixels_per_grid) {
-        const gridSize = mapData.uvtt.resolution.pixels_per_grid;
+      if (tokenRenderer && mapData.mapData?.coordinates?.worldUnitsPerGridCell) {
+        const gridSize = mapData.mapData.coordinates.worldUnitsPerGridCell;
         console.log('[usePixiMap] Setting grid size to:', gridSize);
         tokenRenderer.setGridSize(gridSize);
       }
@@ -227,12 +229,14 @@ export function usePixiMap(): UsePixiMapReturn {
       }
       
       // Set map bounds for viewport constraints
-      if (viewportManager && mapData.uvtt?.resolution) {
+      if (viewportManager && mapData.mapData?.coordinates) {
+        const coordinates = mapData.mapData.coordinates;
+        const gridSize = coordinates.worldUnitsPerGridCell;
         const bounds = {
-          x: 0,
-          y: 0,
-          width: mapData.uvtt.resolution.map_size?.x ? mapData.uvtt.resolution.map_size.x * (mapData.uvtt.resolution.pixels_per_grid || 50) : 1000,
-          height: mapData.uvtt.resolution.map_size?.y ? mapData.uvtt.resolution.map_size.y * (mapData.uvtt.resolution.pixels_per_grid || 50) : 1000
+          x: coordinates.offset.x,
+          y: coordinates.offset.y,
+          width: coordinates.dimensions.width * gridSize,
+          height: coordinates.dimensions.height * gridSize
         };
         viewportManager.setMapBounds(bounds);
       }
@@ -412,11 +416,11 @@ export function usePixiMap(): UsePixiMapReturn {
   };
   
   /**
-   * Set visibility of portal highlights
+   * Set visibility of door highlights
    */
-  const setPortalHighlights = (visible: boolean): void => {
+  const setDoorHighlights = (visible: boolean): void => {
     if (!mapRenderer) return;
-    mapRenderer.setPortalHighlights(visible);
+    mapRenderer.setDoorHighlights(visible);
   };
   
   /**
@@ -425,6 +429,14 @@ export function usePixiMap(): UsePixiMapReturn {
   const setLightHighlights = (visible: boolean): void => {
     if (!mapRenderer) return;
     mapRenderer.setLightHighlights(visible);
+  };
+
+  /**
+   * Set visibility of grid highlights
+   */
+  const setGridHighlights = (visible: boolean): void => {
+    if (!mapRenderer) return;
+    mapRenderer.setGridHighlights(visible);
   };
   
   /**
@@ -646,8 +658,9 @@ export function usePixiMap(): UsePixiMapReturn {
     // Wall controls
     setWallHighlights,
     setObjectHighlights,
-    setPortalHighlights,
+    setDoorHighlights,
     setLightHighlights,
+    setGridHighlights,
     
     // Cleanup
     destroy

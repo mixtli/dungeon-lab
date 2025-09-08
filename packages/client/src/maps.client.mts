@@ -5,7 +5,8 @@ import {
   BaseAPIResponse,
   DeleteAPIResponse,
   CreateMapRequest,
-  IMapResponse
+  IMapResponse,
+  ImportUVTTResponse
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { AssetsClient } from './assets.client.mjs';
 
@@ -53,9 +54,8 @@ export class MapsClient extends ApiClient {
    * Create a new map
    * @param data Map data without the image
    * @param imageFile Optional image file to upload
-   * @param uvttFile Optional UVTT file to use
    */
-  async createMap(data: Omit<CreateMapRequest, 'image'>, imageFile?: File, uvttFile?: File): Promise<IMap> {
+  async createMap(data: Omit<CreateMapRequest, 'image'>, imageFile?: File): Promise<IMap> {
     // Upload the image first if provided
     let imageId: string | undefined;
     
@@ -75,94 +75,8 @@ export class MapsClient extends ApiClient {
         throw new Error('Failed to upload map image: ' + (error instanceof Error ? error.message : 'Unknown error'));
       }
     }
-    console.log("Checking for UVTT file");
     
-    // If a UVTT file was provided, use a different endpoint with proper content type
-    if (uvttFile) {
-      console.log("UVTT file found");
-      try {
-        // Read the UVTT file content
-        const fileContent = await uvttFile.text();
-        
-        // Parse the UVTT data to potentially extract the image
-        try {
-          const uvttData = JSON.parse(fileContent);
-          
-          // If the UVTT has an image embedded and we don't already have an image
-          if (!imageId && uvttData.image && typeof uvttData.image === 'string') {
-            // Determine if the image is a data URL or just base64
-            let base64Data: string;
-            let mimeType = 'image/png'; // Default mime type
-            
-            if (uvttData.image.startsWith('data:image')) {
-              // It's a data URL, extract the mime type and base64 content
-              const imageData = uvttData.image;
-              mimeType = imageData.split(';')[0].split(':')[1];
-              base64Data = imageData.split(',')[1];
-            } else {
-              // It's just a base64 string, use it directly
-              base64Data = uvttData.image;
-            }
-            
-            // Convert base64 to Blob
-            const byteCharacters = atob(base64Data);
-            const byteArrays = [];
-            
-            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-              const slice = byteCharacters.slice(offset, offset + 512);
-              
-              const byteNumbers = new Array(slice.length);
-              for (let i = 0; i < slice.length; i++) {
-                byteNumbers[i] = slice.charCodeAt(i);
-              }
-              
-              const byteArray = new Uint8Array(byteNumbers);
-              byteArrays.push(byteArray);
-            }
-            
-            const blob = new Blob(byteArrays, { type: mimeType });
-            const imageFile = new File([blob], data.name + '.png', { type: mimeType });
-            
-            // Upload the extracted image
-            const formData = new FormData();
-            formData.append('file', imageFile);
-            formData.append('type', 'map');
-            formData.append('name', data.name + ' image');
-            
-            const asset = await this.assetsClient.uploadAsset(formData);
-            imageId = asset.id;
-            
-            // Remove the image from the UVTT data to avoid duplicate storage
-            console.log("Removing image from UVTT data");
-            uvttData.image = undefined;
-          }
-          
-          // Send the modified UVTT data (or raw if we didn't modify it)
-          // Use specialized endpoint for UVTT data
-          const response = await this.api.post<BaseAPIResponse<IMap>>('/api/maps', 
-            {
-              ...data,
-              ...(imageId ? { imageId } : {}),
-              uvtt: uvttData
-            }
-          );
-          
-          if (!response.data || !response.data.success) {
-            throw new Error(response.data?.error || 'Failed to create map from UVTT');
-          }
-          
-          return response.data.data;
-        } catch (parseError) {
-          console.error('Error parsing UVTT data:', parseError);
-          throw new Error('Invalid UVTT file format');
-        }
-      } catch (error) {
-        console.error('Failed to process UVTT file:', error);
-        throw new Error('Failed to process UVTT file: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      }
-    }
-    
-    // Create the map with imageId reference (regular JSON request, no UVTT)
+    // Create the map with imageId reference
     const mapData = {
       ...data,
       ...(imageId ? { imageId } : {})
@@ -268,6 +182,29 @@ export class MapsClient extends ApiClient {
     
     if (!response.data.data) {
       throw new Error('No UVTT data returned from server');
+    }
+    
+    return response.data.data;
+  }
+
+  /**
+   * Import a map from a UVTT file
+   * @param file UVTT file to import
+   * @returns Created map
+   */
+  async importUVTT(file: File): Promise<IMap> {
+    const response = await this.api.post<ImportUVTTResponse>('/api/maps/import-uvtt', file, {
+      headers: {
+        'Content-Type': 'application/uvtt'
+      }
+    });
+    
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Failed to import UVTT file');
+    }
+    
+    if (!response.data.data) {
+      throw new Error('No map data returned from UVTT import');
     }
     
     return response.data.data;

@@ -142,23 +142,47 @@ export class MapController {
     next: NextFunction
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
+      // Debug: Log raw request body to see if uvtt is present
+      logger.info('Raw request body keys:', Object.keys(req.body));
+      logger.info('Has uvtt in raw body:', 'uvtt' in req.body);
+      
       // Validate request body
       const validatedData = createMapRequestSchema.parse(req.body);
+      
+      // Debug: Log validated data to see if uvtt survived validation
+      logger.info('Validated data keys:', Object.keys(validatedData));
+      logger.info('Has uvtt in validated data:', 'uvtt' in validatedData);
 
       // Get the image file from req.assets
       const imageFile = req.assets?.image?.[0];
 
-      // Create the map using the service
-      const map = await this.mapService.createMap(validatedData, req.session.user.id, imageFile);
-
-      return res.status(201).json({
-      success: true,
-      data: map
-    });
-  } catch (error) {
-    next(error)
-  };
-}
+      // Check if UVTT data is provided in the request body
+      if ((validatedData as any).uvtt) {
+        // Handle UVTT import
+        const uvttData = (validatedData as any).uvtt;
+        const options = {
+          name: validatedData.name,
+          description: validatedData.description || ''
+        };
+        
+        // Import using UVTT data
+        const map = await this.mapService.importUVTT(uvttData, req.session.user.id, options);
+        return res.status(201).json({
+          success: true,
+          data: map
+        });
+      } else {
+        // Standard map creation
+        const map = await this.mapService.createMap(validatedData, req.session.user.id, imageFile);
+        return res.status(201).json({
+          success: true,
+          data: map
+        });
+      }
+    } catch (error) {
+      next(error)
+    };
+  }
 
   /**
    * Replace a map completely (PUT)

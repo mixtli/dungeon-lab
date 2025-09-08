@@ -51,8 +51,9 @@
           :platform="deviceConfig.type"
           :show-walls="showWalls"
           :show-objects="showObjects"
-          :show-portals="showPortals"
+          :show-doors="showDoors"
           :show-lights="showLights"
+          :show-grid="showGrid"
           @token-selected="handleTokenSelection"
           @token-moved="handleTokenMoved"
           @viewport-changed="handleViewportChange"
@@ -145,8 +146,9 @@
             :position="contextMenuPosition"
             :show-walls="showWalls"
             :show-objects="showObjects"
-            :show-portals="showPortals"
+            :show-doors="showDoors"
             :show-lights="showLights"
+            :show-grid="showGrid"
             :show-debug-info="showDebugInfo"
             @action="handleMapContextMenuAction"
           />
@@ -483,9 +485,11 @@ const dragEnterCount = ref(0);
 // Wall highlighting state
 const showWalls = ref(false);
 const showObjects = ref(false);
-const showPortals = ref(false);
+const showDoors = ref(false);
 // Light highlighting state
 const showLights = ref(false); // Default: lights hidden
+// Grid highlighting state
+const showGrid = ref(false); // Default: grid hidden
 
 
 // Handle token action from context menu
@@ -601,11 +605,14 @@ const handleMapContextMenuAction = (action: string) => {
     case 'toggle-objects':
       showObjects.value = !showObjects.value;
       break;
-    case 'toggle-portals':
-      showPortals.value = !showPortals.value;
+    case 'toggle-doors':
+      showDoors.value = !showDoors.value;
       break;
     case 'toggle-lights':
       showLights.value = !showLights.value;
+      break;
+    case 'toggle-grid':
+      showGrid.value = !showGrid.value;
       break;
     case 'toggle-debug':
       showDebugInfo.value = !showDebugInfo.value;

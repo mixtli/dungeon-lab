@@ -3,7 +3,6 @@ import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import ImageUpload from '../../components/common/ImageUpload.vue';
-import type { UVTTData } from '@dungeon-lab/shared/types/index.mjs';
 
 interface UploadedImage {
   url: string;
@@ -26,105 +25,6 @@ const formData = ref({
 const mapImageFile = ref<File | UploadedImage | null>(null);
 const originalImagePixelDimensions = ref<{ width: number; height: number } | null>(null);
 
-// UVTT file upload
-const uvttFile = ref<File | null>(null);
-const uvttData = ref<UVTTData | null>(null);
-const uvttLoading = ref(false);
-const uvttError = ref<string | null>(null);
-
-// Handle UVTT file change
-async function handleUvttFileChange(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (!target.files || target.files.length === 0) {
-    return;
-  }
-  
-  const file = target.files[0];
-  uvttFile.value = file;
-  uvttLoading.value = true;
-  uvttError.value = null;
-  
-  try {
-    // Read and parse the UVTT file
-    const fileContent = await file.text();
-    const parsedData = JSON.parse(fileContent) as UVTTData;
-    
-    // Extract pixels per grid from UVTT data
-    if (parsedData.resolution?.pixels_per_grid) {
-      formData.value.pixelsPerGrid = parsedData.resolution.pixels_per_grid;
-    }
-    
-    // If UVTT has an embedded image, convert to File object and REMOVE from UVTT
-    if (parsedData.image && typeof parsedData.image === 'string') {
-      // Extract the map image data
-      let base64Data: string;
-      let mimeType = 'image/png'; // Default mime type
-      
-      if (parsedData.image.startsWith('data:image')) {
-        // It's a data URL, extract the mime type and base64 data
-        const imageData = parsedData.image;
-        mimeType = imageData.split(';')[0].split(':')[1];
-        base64Data = imageData.split(',')[1];
-      } else {
-        // It's just a base64 string, use it directly
-        base64Data = parsedData.image;
-      }
-      
-      // Convert base64 to Blob
-      const byteString = atob(base64Data);
-      const arrayBuffer = new ArrayBuffer(byteString.length);
-      const intArray = new Uint8Array(arrayBuffer);
-      
-      for (let i = 0; i < byteString.length; i++) {
-        intArray[i] = byteString.charCodeAt(i);
-      }
-      
-      const blob = new Blob([arrayBuffer], {type: mimeType});
-      const fileName = `${formData.value.name || 'map'}_image.${mimeType.split('/')[1] || 'png'}`;
-      const imageFile = new File([blob], fileName, {type: mimeType});
-      
-      // Set as the map image
-      mapImageFile.value = imageFile;
-      
-      // IMPORTANT: Remove the image from the UVTT data to reduce payload size
-      const modifiedUvttData = {...parsedData} as UVTTData;
-      // TypeScript-safe way to remove the image property
-      if ('image' in modifiedUvttData) {
-        // @ts-expect-error - We know the property exists, but TypeScript is being strict about deletion
-        delete modifiedUvttData.image;
-      }
-      
-      // Store the modified UVTT data
-      uvttData.value = modifiedUvttData;
-      
-      // Create a new UVTT file without the image
-      const modifiedUvttContent = JSON.stringify(modifiedUvttData);
-      const modifiedUvttBlob = new Blob([modifiedUvttContent], {type: 'application/json'});
-      uvttFile.value = new File([modifiedUvttBlob], file.name, {type: 'application/json'});
-    } else {
-      // If no image, just store the parsed data as is
-      uvttData.value = parsedData;
-    }
-    
-    // Set a default name if not already set
-    if (!formData.value.name && file.name) {
-      formData.value.name = file.name
-        .replace(/\.(uvtt|dd2vtt)$/i, '')
-        .replace(/[_-]/g, ' ');
-    }
-    
-  } catch (err) {
-    console.error('Error parsing UVTT file:', err);
-    uvttError.value = 'Invalid UVTT file format. Please select a valid UVTT file.';
-    uvttFile.value = null;
-    uvttData.value = null;
-  } finally {
-    uvttLoading.value = false;
-  }
-  
-  // Reset the input so the same file can be selected again if needed
-  target.value = '';
-}
 
 // Calculate grid dimensions based on image and pixels per grid
 const calculatedGridDimensions = computed(() => {
@@ -205,8 +105,8 @@ async function handleSubmit(event: Event) {
     // Get the image file if it exists
     const imageFile = mapImageFile.value instanceof File ? mapImageFile.value : undefined;
 
-    // Create the map with the prepared data - if we have a UVTT file, let the client handle it
-    await mapClient.createMap(mapData, imageFile, uvttFile.value || undefined);
+    // Create the map with the prepared data
+    await mapClient.createMap(mapData, imageFile);
 
     // Show success and navigate to map list
     router.push({ name: 'maps' });
@@ -254,29 +154,6 @@ async function handleSubmit(event: Event) {
         </div>
       </div>
 
-      <!-- UVTT Error State -->
-      <div v-if="uvttError" class="bg-error-50 border border-error-200 rounded-md p-4 mb-6 dark:bg-error-900 dark:border-error-700">
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg
-              class="h-5 w-5 text-red-400"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm text-error-700 dark:text-error-200">{{ uvttError }}</p>
-          </div>
-        </div>
-      </div>
 
       <form @submit="handleSubmit" class="space-y-6">
         <div>
@@ -351,33 +228,6 @@ async function handleSubmit(event: Event) {
         </div>
 
         <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">
-              Import from UVTT/DD2VTT
-            </label>
-            <div class="flex items-center">
-              <input 
-                type="file"
-                accept=".uvtt,.dd2vtt"
-                @change="handleUvttFileChange"
-                class="block w-full text-sm text-ash dark:text-stone-300
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-md file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-secondary-50 file:text-secondary-700
-                      hover:file:bg-secondary-100 dark:file:bg-secondary-800 dark:file:text-secondary-200"
-              />
-            </div>
-            <div v-if="uvttFile" class="mt-2 text-sm text-nature-600 dark:text-nature-400 flex items-center">
-              <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
-              UVTT file loaded: {{ uvttFile.name }}
-            </div>
-            <p class="text-ash dark:text-stone-300 text-sm mt-2">
-              Upload a Universal VTT (UVTT/DD2VTT) file to automatically fill map settings. Will also extract any embedded image.
-            </p>
-          </div>
 
           <div>
             <label class="block text-sm font-medium text-onyx dark:text-parchment mb-1">

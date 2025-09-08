@@ -687,7 +687,12 @@ export class GameStateService {
         pluginData: {},
         turnManager: null
       }
-      console.log('result', JSON.stringify(result, null, 2));
+      logger.debug('Game state result summary:', {
+        documentsCount: documents.length,
+        hasCurrentEncounter: !!result.currentEncounter,
+        hasPluginData: Object.keys(result.pluginData).length > 0,
+        hasTurnManager: !!result.turnManager
+      });
 
       return {
         state: result

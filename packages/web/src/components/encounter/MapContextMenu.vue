@@ -34,16 +34,22 @@
         {{ showObjects ? 'Hide Objects' : 'Show Objects' }}
       </button>
       <button 
-        @click="emitAction('toggle-portals')" 
+        @click="emitAction('toggle-doors')" 
         class="block w-full text-left px-3 py-2 text-sm rounded transition-colors hover:bg-gray-800 focus:bg-gray-800 focus:outline-none"
       >
-        {{ showPortals ? 'Hide Portals' : 'Show Portals' }}
+        {{ showDoors ? 'Hide Doors' : 'Show Doors' }}
       </button>
       <button 
         @click="emitAction('toggle-lights')" 
         class="block w-full text-left px-3 py-2 text-sm rounded transition-colors hover:bg-gray-800 focus:bg-gray-800 focus:outline-none"
       >
         {{ showLights ? 'Hide Lights' : 'Show Lights' }}
+      </button>
+      <button 
+        @click="emitAction('toggle-grid')" 
+        class="block w-full text-left px-3 py-2 text-sm rounded transition-colors hover:bg-gray-800 focus:bg-gray-800 focus:outline-none"
+      >
+        {{ showGrid ? 'Hide Grid' : 'Show Grid' }}
       </button>
       <button 
         @click="emitAction('toggle-debug')" 
@@ -68,8 +74,9 @@ defineProps<{
   position: Position;
   showWalls: boolean;
   showObjects: boolean;
-  showPortals: boolean;
+  showDoors: boolean;
   showLights: boolean;
+  showGrid: boolean;
   showDebugInfo: boolean;
 }>();
 

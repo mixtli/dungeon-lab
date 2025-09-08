@@ -214,21 +214,24 @@ const loadMapData = (data: InternalMapData) => {
                 
                 // Convert server objects to editor objects
                 data.objects.forEach((serverObject, objectIndex) => {
-                    // Convert bounds array to flat points array
+                    // Get object center position
+                    const objPosition = {
+                        x: serverObject.position?.x || 0,
+                        y: serverObject.position?.y || 0
+                    };
+                    
+                    // Convert bounds array (absolute coordinates) to flat points array (relative to position)
                     const points: number[] = [];
                     if (serverObject.bounds && Array.isArray(serverObject.bounds)) {
                         serverObject.bounds.forEach(point => {
-                            points.push(point.x, point.y);
+                            points.push(point.x - objPosition.x, point.y - objPosition.y);
                         });
                     }
                     
                     editorState.objects.value.push({
                         id: serverObject.id || `object-${objectIndex}`,
                         objectType: 'object',
-                        position: {
-                            x: serverObject.position?.x || 0,
-                            y: serverObject.position?.y || 0
-                        },
+                        position: objPosition,
                         rotation: serverObject.rotation || 0,
                         points: points,
                         shapeType: serverObject.shapeType || 'polygon',
@@ -636,9 +639,13 @@ const convertEditorStateToWorldCoordinates = () => {
         },
         rotation: obj.rotation || 0,
         // bounds should be a simple array of coordinate objects (polygonSchema)
+        // Convert from relative points to absolute world coordinates by adding object position
         bounds: obj.points ? obj.points.reduce((acc: Array<{x: number, y: number}>, _, i, arr) => {
             if (i % 2 === 0) {
-                acc.push({ x: arr[i], y: arr[i + 1] });
+                acc.push({ 
+                    x: arr[i] + obj.position.x, 
+                    y: arr[i + 1] + obj.position.y 
+                });
             }
             return acc;
         }, []) : [],

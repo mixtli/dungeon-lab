@@ -1,4 +1,4 @@
-import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { IMapResponse } from '@dungeon-lab/shared/types/api/index.mjs';
 
 export interface Point {
   x: number;
@@ -11,12 +11,12 @@ export interface LineSegment {
 }
 
 /**
- * Check if a line segment intersects with any wall polygons in the map
+ * Check if a line segment intersects with any walls or objects in the map
  * @param currentGridPos Current position of the token in grid coordinates
  * @param targetGridPos Target position of the token in grid coordinates
- * @param mapData Map data containing wall polygons
- * @param debug Enable detailed wall segment logging
- * @returns true if movement would intersect with a wall
+ * @param mapData Map data containing walls and objects
+ * @param debug Enable detailed collision logging
+ * @returns true if movement would intersect with a wall or object
  */
 export function checkWallCollision(
   currentGridPos: Point,
@@ -24,83 +24,95 @@ export function checkWallCollision(
   mapData: IMapResponse | null,
   debug: boolean = false
 ): boolean {
-  if (!mapData?.uvtt) {
-    return false; // No UVTT data, movement allowed
+  if (!mapData?.mapData) {
+    if (debug) {
+      console.log('[CollisionDetection] No mapData found, movement allowed');
+    }
+    return false; // No map data, movement allowed
   }
 
+  const coordinates = mapData.mapData.coordinates;
+  if (!coordinates) {
+    if (debug) {
+      console.log('[CollisionDetection] No coordinates found, movement allowed');
+    }
+    return false;
+  }
+
+  // Convert grid positions to world coordinates for collision detection
+  const currentWorldPos = gridToWorld(currentGridPos, coordinates);
+  const targetWorldPos = gridToWorld(targetGridPos, coordinates);
 
   const movementLine: LineSegment = {
-    start: currentGridPos,
-    end: targetGridPos
+    start: currentWorldPos,
+    end: targetWorldPos
   };
 
+  if (debug) {
+    console.log(`[CollisionDetection] Movement in world coords: (${currentWorldPos.x}, ${currentWorldPos.y}) → (${targetWorldPos.x}, ${targetWorldPos.y})`);
+  }
 
-  // Check intersection with line_of_sight walls (polylines)
-  if (mapData.uvtt.line_of_sight && Array.isArray(mapData.uvtt.line_of_sight)) {
+  // Check intersection with walls
+  if (mapData.mapData.walls && Array.isArray(mapData.mapData.walls)) {
     if (debug) {
-      console.log(`[CollisionDetection] 🧱 Checking ${mapData.uvtt.line_of_sight.length} line_of_sight wall polylines`);
+      console.log(`[CollisionDetection] 🧱 Checking ${mapData.mapData.walls.length} walls`);
     }
     
-    for (let polylineIndex = 0; polylineIndex < mapData.uvtt.line_of_sight.length; polylineIndex++) {
-      const wallPolyline = mapData.uvtt.line_of_sight[polylineIndex];
-      if (Array.isArray(wallPolyline) && wallPolyline.length >= 2) {
+    for (let wallIndex = 0; wallIndex < mapData.mapData.walls.length; wallIndex++) {
+      const wall = mapData.mapData.walls[wallIndex];
+      
+      // Skip walls that don't block movement
+      if (!wall.blocksMovement) {
         if (debug) {
-          console.log(`[CollisionDetection] 📏 Polyline ${polylineIndex}: ${wallPolyline.length} points`);
+          console.log(`[CollisionDetection] Skipping wall ${wall.id}: doesn't block movement`);
         }
-        
-        // Create line segments between consecutive points in the polyline
-        for (let i = 0; i < wallPolyline.length - 1; i++) {
-          const wallLine: LineSegment = {
-            start: { x: wallPolyline[i].x, y: wallPolyline[i].y },
-            end: { x: wallPolyline[i + 1].x, y: wallPolyline[i + 1].y }
-          };
-          
-          if (debug) {
-            console.log(`[CollisionDetection] 🔍 Checking wall segment ${i}: (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
-          }
-          
-          if (lineSegmentsIntersect(movementLine, wallLine)) {
-            console.log(`[CollisionDetection] ❌ COLLISION! Movement line (${movementLine.start.x}, ${movementLine.start.y}) → (${movementLine.end.x}, ${movementLine.end.y}) intersects line_of_sight wall segment (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
-            return true;
-          }
-        }
+        continue;
+      }
+      
+      const wallLine: LineSegment = {
+        start: { x: wall.start.x, y: wall.start.y },
+        end: { x: wall.end.x, y: wall.end.y }
+      };
+      
+      if (debug) {
+        console.log(`[CollisionDetection] 🔍 Checking wall ${wall.id}: (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
+      }
+      
+      if (lineSegmentsIntersect(movementLine, wallLine)) {
+        console.log(`[CollisionDetection] ❌ COLLISION! Movement blocked by wall ${wall.id}`);
+        return true;
       }
     }
   }
 
-  // Check intersection with objects_line_of_sight walls (polylines)
-  if (mapData.uvtt.objects_line_of_sight && Array.isArray(mapData.uvtt.objects_line_of_sight)) {
+  // Check intersection with objects
+  if (mapData.mapData.objects && Array.isArray(mapData.mapData.objects)) {
     if (debug) {
-      console.log(`[CollisionDetection] 🧱 Checking ${mapData.uvtt.objects_line_of_sight.length} objects_line_of_sight wall polylines`);
+      console.log(`[CollisionDetection] 📦 Checking ${mapData.mapData.objects.length} objects`);
     }
     
-    for (let polylineIndex = 0; polylineIndex < mapData.uvtt.objects_line_of_sight.length; polylineIndex++) {
-      const wallPolyline = mapData.uvtt.objects_line_of_sight[polylineIndex];
-      if (Array.isArray(wallPolyline) && wallPolyline.length >= 2) {
+    for (let objectIndex = 0; objectIndex < mapData.mapData.objects.length; objectIndex++) {
+      const object = mapData.mapData.objects[objectIndex];
+      
+      // Skip objects that don't block movement
+      if (!object.blocksMovement) {
         if (debug) {
-          console.log(`[CollisionDetection] 📏 Polyline ${polylineIndex}: ${wallPolyline.length} points`);
+          console.log(`[CollisionDetection] Skipping object ${object.id}: doesn't block movement`);
         }
-        
-        // Create line segments between consecutive points in the polyline
-        for (let i = 0; i < wallPolyline.length - 1; i++) {
-          const wallLine: LineSegment = {
-            start: { x: wallPolyline[i].x, y: wallPolyline[i].y },
-            end: { x: wallPolyline[i + 1].x, y: wallPolyline[i + 1].y }
-          };
-          
-          if (debug) {
-            console.log(`[CollisionDetection] 🔍 Checking wall segment ${i}: (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
-          }
-          
-          if (lineSegmentsIntersect(movementLine, wallLine)) {
-            // console.log(`[CollisionDetection] ❌ COLLISION! Movement line (${movementLine.start.x}, ${movementLine.start.y}) → (${movementLine.end.x}, ${movementLine.end.y}) intersects objects_line_of_sight wall segment (${wallLine.start.x}, ${wallLine.start.y}) → (${wallLine.end.x}, ${wallLine.end.y})`);
-            return true;
-          }
-        }
+        continue;
+      }
+      
+      // Check if movement line intersects with object polygon
+      if (lineIntersectsPolygon(movementLine, object.bounds, object.position)) {
+        console.log(`[CollisionDetection] ❌ COLLISION! Movement blocked by object ${object.id}`);
+        return true;
       }
     }
   }
 
+  if (debug) {
+    console.log('[CollisionDetection] ✅ No collision detected, movement allowed');
+  }
   return false; // No collision detected
 }
 
@@ -159,6 +171,52 @@ function direction(p: Point, q: Point, r: Point): number {
 function onSegment(p: Point, q: Point, r: Point): boolean {
   return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
          q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+}
+
+/**
+ * Convert grid coordinates to world coordinates using map coordinate system
+ * @param gridPos Grid position
+ * @param coordinates Map coordinate system
+ * @returns World position
+ */
+function gridToWorld(gridPos: Point, coordinates: any): Point {
+  const gridSize = coordinates.worldUnitsPerGridCell;
+  const offset = coordinates.offset;
+  
+  return {
+    x: offset.x + (gridPos.x * gridSize),
+    y: offset.y + (gridPos.y * gridSize)
+  };
+}
+
+/**
+ * Check if a line segment intersects with a polygon
+ * @param line Line segment to test
+ * @param polygon Array of polygon points (relative to position)
+ * @param position Absolute position of the polygon
+ * @returns true if line intersects with polygon
+ */
+function lineIntersectsPolygon(line: LineSegment, polygon: Point[], position: Point): boolean {
+  // Convert polygon points from relative to absolute coordinates
+  const absolutePolygon = polygon.map(point => ({
+    x: position.x + point.x,
+    y: position.y + point.y
+  }));
+  
+  // Check intersection with each edge of the polygon
+  for (let i = 0; i < absolutePolygon.length; i++) {
+    const nextIndex = (i + 1) % absolutePolygon.length;
+    const polygonEdge: LineSegment = {
+      start: absolutePolygon[i],
+      end: absolutePolygon[nextIndex]
+    };
+    
+    if (lineSegmentsIntersect(line, polygonEdge)) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 /**

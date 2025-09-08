@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router';
 import type { IMap, IAsset } from '@dungeon-lab/shared/types/index.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import UVTTImportModal from '@/components/maps/UVTTImportModal.vue';
 
 const router = useRouter();
 const maps = ref<IMap[]>([]);
 const loading = ref(true);
 const showDeleteModal = ref(false);
 const mapToDelete = ref<string | null>(null);
+const importModal = ref<InstanceType<typeof UVTTImportModal>>();
 const mapClient = new MapsClient();
 
 
@@ -64,6 +66,19 @@ function showNotification(message: string) {
   alert(message);
 }
 
+function openImportModal() {
+  importModal.value?.open();
+}
+
+function onImportSuccess(map: IMap) {
+  showNotification('Map imported successfully!');
+  fetchMaps(); // Refresh the maps list
+}
+
+function onImportError(message: string) {
+  showNotification(`Import failed: ${message}`);
+}
+
 onMounted(() => {
   fetchMaps();
 });
@@ -82,6 +97,12 @@ onMounted(() => {
             <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5v1.5H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-10a1 1 0 00-1-1h-.5V5.5A4.5 4.5 0 0010 1zm3 6v-.5a3 3 0 10-6 0V7h6zm-6 2h6v8H7V9z" clip-rule="evenodd" />
           </svg>
           🤖 AI Map Builder
+        </button>
+        <button
+          @click="openImportModal"
+          class="btn btn-accent shadow-lg"
+        >
+          📤 Import UVTT
         </button>
         <button
           @click="router.push({ name: 'map-create' })"
@@ -242,6 +263,13 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- UVTT Import Modal -->
+  <UVTTImportModal
+    ref="importModal"
+    @success="onImportSuccess"
+    @error="onImportError"
+  />
 </template>
 
 <style scoped>

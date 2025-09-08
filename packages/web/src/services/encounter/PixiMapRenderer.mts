@@ -19,32 +19,10 @@ export interface PixiRenderConfig {
   backgroundColor: number;
 }
 
-// Define types for UVTT data structure
+// Define types for coordinate points
 interface Point {
   x: number;
   y: number;
-}
-
-interface Resolution {
-  map_origin?: { x: number; y?: number };
-  map_size?: { x: number; y: number };
-  pixels_per_grid?: number;
-}
-
-interface Portal {
-  position: Point;
-  bounds: Point[];
-  rotation: number;
-  closed: boolean;
-  freestanding: boolean;
-}
-
-interface Light {
-  position: Point;
-  range: number;
-  intensity: number;
-  color: string;
-  shadows: boolean;
 }
 
 /**
@@ -57,8 +35,9 @@ export class EncounterMapRenderer {
   private backgroundSprite: PIXI.Sprite | null = null;
   private wallGraphics: PIXI.Graphics[] = [];
   private objectGraphics: PIXI.Graphics[] = [];
-  private portalGraphics: PIXI.Graphics[] = [];
+  private doorGraphics: PIXI.Graphics[] = [];
   private lightGraphics: PIXI.Graphics[] = [];
+  private gridGraphics: PIXI.Graphics[] = [];
   
   // Platform-specific configuration
   private renderConfig: PixiRenderConfig;
@@ -124,7 +103,7 @@ export class EncounterMapRenderer {
   }
   
   /**
-   * Load map from database Map model (with uvtt field and image asset)
+   * Load map from database Map model (with mapData field and image asset)
    */
   async loadMapFromDatabase(mapData: IMapResponse): Promise<void> {
     try {
@@ -138,39 +117,44 @@ export class EncounterMapRenderer {
         await this.loadBackground(mapData.image.url);
       }
       
-      // Render UVTT elements if present
-      if (mapData.uvtt) {
-        const uvtt = mapData.uvtt;
+      // Render map elements from new mapData format
+      if (mapData.mapData) {
+        const internalMapData = mapData.mapData;
         
-        // Render walls from line_of_sight data (blue) and objects_line_of_sight (black)
-        if (uvtt.resolution) {
-          // Render line_of_sight walls in blue
-          if (uvtt.line_of_sight) {
-            console.log(`[PixiMapRenderer] Loading ${uvtt.line_of_sight.length} line_of_sight walls`);
-            uvtt.line_of_sight.forEach(wall => {
-              this.renderWallSegment(wall, uvtt.resolution!, 0x0000FF, 'walls');
-            });
-          }
-          
-          // Render objects_line_of_sight walls in red
-          if (uvtt.objects_line_of_sight) {
-            console.log(`[PixiMapRenderer] Loading ${uvtt.objects_line_of_sight.length} objects_line_of_sight walls`);
-            uvtt.objects_line_of_sight.forEach(wall => {
-              this.renderWallSegment(wall, uvtt.resolution!, 0xFF0000, 'objects');
-            });
-          }
+        // Render walls (blue)
+        if (internalMapData.walls && internalMapData.walls.length > 0) {
+          console.log(`[PixiMapRenderer] Loading ${internalMapData.walls.length} walls`);
+          internalMapData.walls.forEach(wall => {
+            this.renderWall(wall, 0x0000FF);
+          });
         }
         
-        // Render portals
-        if (uvtt.portals && uvtt.resolution) {
-          console.log(`[PixiMapRenderer] Loading ${uvtt.portals.length} portals`);
-          this.renderPortals(uvtt.portals, uvtt.resolution);
+        // Render objects (red)
+        if (internalMapData.objects && internalMapData.objects.length > 0) {
+          console.log(`[PixiMapRenderer] Loading ${internalMapData.objects.length} objects`);
+          internalMapData.objects.forEach(object => {
+            this.renderObject(object, 0xFF0000);
+          });
+        }
+        
+        // Render doors (green)
+        if (internalMapData.doors && internalMapData.doors.length > 0) {
+          console.log(`[PixiMapRenderer] Loading ${internalMapData.doors.length} doors`);
+          internalMapData.doors.forEach(door => {
+            this.renderDoor(door, 0x00FF00);
+          });
         }
         
         // Render lights
-        if (uvtt.lights && uvtt.resolution) {
-          this.renderLights(uvtt.lights, uvtt.resolution);
+        if (internalMapData.lights && internalMapData.lights.length > 0) {
+          console.log(`[PixiMapRenderer] Loading ${internalMapData.lights.length} lights`);
+          internalMapData.lights.forEach(light => {
+            this.renderLight(light);
+          });
         }
+
+        // Render grid
+        this.renderGrid();
       }
       
       this.isLoaded = true;
@@ -253,165 +237,232 @@ export class EncounterMapRenderer {
 
   
   /**
-   * Render portals from UVTT data
+   * Render a single wall from new mapData format
    */
-  private renderPortals(portals: Portal[], resolution: Resolution): void {
-    if (!resolution.pixels_per_grid) return;
+  private renderWall(wall: any, color: number): void {
+    const wallGraphic = new PIXI.Graphics();
+    wallGraphic.label = `wall-${wall.id}`;
+    wallGraphic.visible = false; // Hide walls by default
     
-    portals.forEach((portal, index) => {
-      const portalGraphic = new PIXI.Graphics();
-      portalGraphic.label = `portal-${index}`;
-      portalGraphic.visible = false; // Hide portals by default
-      
-      // Draw portal bounds
-      if (portal.bounds && portal.bounds.length > 0) {
-        const startPoint = this.gridToPixel(portal.bounds[0], resolution);
-        portalGraphic.moveTo(startPoint.x, startPoint.y);
-        
-        portal.bounds.slice(1).forEach(point => {
-          const pixelPoint = this.gridToPixel(point, resolution);
-          portalGraphic.lineTo(pixelPoint.x, pixelPoint.y);
-        });
-        
-        // Apply stroke style after drawing - this is required in PIXI.js v8
-        const color = 0x00FF00; // Bright green
-        portalGraphic.stroke({
-          width: 4,
-          color: color,
-          alpha: 1.0
-        });
-      }
-      
-      this.mapContainer.addChild(portalGraphic);
-      this.portalGraphics.push(portalGraphic);
+    // Draw wall line from start to end (already in world coordinates)
+    wallGraphic.moveTo(wall.start.x, wall.start.y);
+    wallGraphic.lineTo(wall.end.x, wall.end.y);
+    
+    // Apply stroke style
+    wallGraphic.stroke({
+      width: wall.thickness || 4,
+      color: color,
+      alpha: 1.0
     });
+    
+    this.mapContainer.addChild(wallGraphic);
+    this.wallGraphics.push(wallGraphic);
   }
   
   /**
-   * Render lights from UVTT data
+   * Render a single object from new mapData format
    */
-  private renderLights(lights: Light[], resolution: Resolution): void {
-    if (!resolution.pixels_per_grid) return;
+  private renderObject(object: any, color: number): void {
+    const objectGraphic = new PIXI.Graphics();
+    objectGraphic.label = `object-${object.id}`;
+    objectGraphic.visible = false; // Hide objects by default
     
-    lights.forEach((light, index) => {
+    // Draw object polygon using bounds (already in world coordinates)
+    if (object.bounds && object.bounds.length > 0) {
+      const startPoint = object.bounds[0];
+      objectGraphic.moveTo(startPoint.x, startPoint.y);
+      
+      object.bounds.slice(1).forEach((point: Point) => {
+        objectGraphic.lineTo(point.x, point.y);
+      });
+      
+      // Close the polygon
+      objectGraphic.closePath();
+      
+      // Apply stroke style
+      objectGraphic.stroke({
+        width: 2,
+        color: color,
+        alpha: 1.0
+      });
+    }
+    
+    this.mapContainer.addChild(objectGraphic);
+    this.objectGraphics.push(objectGraphic);
+  }
+  
+  /**
+   * Render a single door from new mapData format
+   */
+  private renderDoor(door: any, color: number): void {
+    const doorGraphic = new PIXI.Graphics();
+    doorGraphic.label = `door-${door.id}`;
+    doorGraphic.visible = false; // Hide doors by default
+    
+    // Door coords are [x1, y1, x2, y2] in world units
+    const [x1, y1, x2, y2] = door.coords;
+    
+    // Draw door line
+    doorGraphic.moveTo(x1, y1);
+    doorGraphic.lineTo(x2, y2);
+    
+    // Apply stroke style - use different style if door is open vs closed
+    const strokeWidth = door.state === 'open' ? 2 : 4;
+    const alpha = door.state === 'open' ? 0.5 : 1.0;
+    
+    doorGraphic.stroke({
+      width: strokeWidth,
+      color: color,
+      alpha: alpha
+    });
+    
+    this.mapContainer.addChild(doorGraphic);
+    this.doorGraphics.push(doorGraphic);
+  }
+  
+  /**
+   * Render a single light from new mapData format
+   */
+  private renderLight(light: any): void {
+    try {
+      const lightGraphic = new PIXI.Graphics();
+      lightGraphic.label = `light-${light.id}`;
+      lightGraphic.visible = false; // Hide lights by default
+      
+      // Light position is already in world coordinates
+      const worldPos = light.position;
+      
+      // Use the larger of brightRadius or dimRadius for rendering
+      const lightRange = Math.max(light.brightRadius || 0, light.dimRadius || 0);
+      
+      // Parse color safely with fallback
+      let color;
+      let alpha;
       try {
-        const lightGraphic = new PIXI.Graphics();
-        lightGraphic.label = `light-${index}`;
-        lightGraphic.visible = false; // Hide lights by default
-        
-        // Convert light position to pixels
-        const pixelPos = this.gridToPixel(light.position, resolution);
-        const pixelRange = light.range * (resolution.pixels_per_grid || 50);
-        
-        // Parse color safely with fallback
-        let color;
-        let alpha;
-        try {
-          if (typeof light.color === 'string') {
-            // Handle 8-character hex (RRGGBBAA)
-            if (/^[0-9a-fA-F]{8}$/.test(light.color)) {
-              color = parseInt(light.color.slice(0, 6), 16);
-              alpha = parseInt(light.color.slice(6, 8), 16) / 255;
-              // Clamp to minimum alpha for visibility
-              const MIN_ALPHA = 0.2;
-              alpha = Math.max(alpha, MIN_ALPHA);
-              // Optionally combine with light.intensity
-              alpha = alpha * (light.intensity ?? 1);
-              //console.log(`[PixiMapRenderer] Light ${index}: 8-char hex`, { original: light.color, color, alpha });
-            } else if (light.color.startsWith('#')) {
-              color = parseInt(light.color.replace('#', ''), 16);
-              alpha = (light.intensity ?? 1) * 0.3;
-              // Clamp to minimum alpha for visibility
-              const MIN_ALPHA = 0.2;
-              alpha = Math.max(alpha, MIN_ALPHA);
-              console.log(`[PixiMapRenderer] Light ${index}: #RRGGBB`, { original: light.color, color, alpha });
-            } else if (/^[0-9a-fA-F]{6}$/.test(light.color)) {
-              color = parseInt(light.color, 16);
-              alpha = (light.intensity ?? 1) * 0.3;
-              // Clamp to minimum alpha for visibility
-              const MIN_ALPHA = 0.2;
-              alpha = Math.max(alpha, MIN_ALPHA);
-              console.log(`[PixiMapRenderer] Light ${index}: 6-char hex`, { original: light.color, color, alpha });
-            } else {
-              console.warn(`[PixiMapRenderer] Invalid light color format for light ${index}, using default`, { original: light.color });
-              color = 0xFFFFFF;
-              alpha = (light.intensity ?? 1) * 0.3;
-              // Clamp to minimum alpha for visibility
-              const MIN_ALPHA = 0.2;
-              alpha = Math.max(alpha, MIN_ALPHA);
-            }
-          } else if (typeof light.color === 'number') {
-            // Convert number to hex string first to ensure valid format
-            const hexColor = (light.color as number).toString(16).padStart(6, '0');
-            color = parseInt(hexColor, 16);
+        if (typeof light.color === 'string') {
+          if (light.color.startsWith('#')) {
+            color = parseInt(light.color.replace('#', ''), 16);
             alpha = (light.intensity ?? 1) * 0.3;
             // Clamp to minimum alpha for visibility
             const MIN_ALPHA = 0.2;
             alpha = Math.max(alpha, MIN_ALPHA);
-            console.log(`[PixiMapRenderer] Light ${index}: numeric color`, { original: light.color, color, alpha });
+          } else if (/^[0-9a-fA-F]{6}$/.test(light.color)) {
+            color = parseInt(light.color, 16);
+            alpha = (light.intensity ?? 1) * 0.3;
+            const MIN_ALPHA = 0.2;
+            alpha = Math.max(alpha, MIN_ALPHA);
           } else {
-            console.warn(`[PixiMapRenderer] Invalid light color format for light ${index}, using default`, { original: light.color });
+            console.warn(`[PixiMapRenderer] Invalid light color format for light ${light.id}, using default`);
             color = 0xFFFFFF;
             alpha = (light.intensity ?? 1) * 0.3;
-            // Clamp to minimum alpha for visibility
             const MIN_ALPHA = 0.2;
             alpha = Math.max(alpha, MIN_ALPHA);
           }
-        } catch (colorError) {
-          console.warn(`Error parsing light color for light ${index}, using default:`, colorError);
+        } else {
           color = 0xFFFFFF;
           alpha = (light.intensity ?? 1) * 0.3;
-          // Clamp to minimum alpha for visibility
           const MIN_ALPHA = 0.2;
           alpha = Math.max(alpha, MIN_ALPHA);
         }
-        
-        // Draw light as a circle with gradient effect
-        lightGraphic.circle(pixelPos.x, pixelPos.y, pixelRange)
-          .fill({ color: color, alpha: alpha });
-        
-        // Add a bright center (use higher alpha, but clamp to 1)
-        const centerAlpha = Math.min(alpha * 2.5, 1);
-        lightGraphic.circle(pixelPos.x, pixelPos.y, pixelRange * 0.1)
-          .fill({ color: color, alpha: centerAlpha });
-        
-        this.mapContainer.addChild(lightGraphic);
-        this.lightGraphics.push(lightGraphic);
-      } catch (error) {
-        console.error(`Failed to render light ${index}:`, error);
-        // Continue to next light instead of breaking the entire map
+      } catch (colorError) {
+        console.warn(`Error parsing light color for light ${light.id}, using default:`, colorError);
+        color = 0xFFFFFF;
+        alpha = (light.intensity ?? 1) * 0.3;
+        const MIN_ALPHA = 0.2;
+        alpha = Math.max(alpha, MIN_ALPHA);
       }
-    });
+      
+      // Draw light as a circle with gradient effect
+      lightGraphic.circle(worldPos.x, worldPos.y, lightRange)
+        .fill({ color: color, alpha: alpha });
+      
+      // Add a bright center (use higher alpha, but clamp to 1)
+      const centerAlpha = Math.min(alpha * 2.5, 1);
+      lightGraphic.circle(worldPos.x, worldPos.y, lightRange * 0.1)
+        .fill({ color: color, alpha: centerAlpha });
+      
+      this.mapContainer.addChild(lightGraphic);
+      this.lightGraphics.push(lightGraphic);
+    } catch (error) {
+      console.error(`Failed to render light ${light.id}:`, error);
+      // Continue to next light instead of breaking the entire map
+    }
+  }
+
+  /**
+   * Render grid based on map coordinates
+   */
+  private renderGrid(): void {
+    if (!this.currentMapData?.mapData?.coordinates) {
+      console.warn('[PixiMapRenderer] No coordinates found for grid rendering');
+      return;
+    }
+
+    const coordinates = this.currentMapData.mapData.coordinates;
+    const gridSize = coordinates.worldUnitsPerGridCell;
+    const offset = coordinates.offset;
+    const dimensions = coordinates.dimensions;
+
+    // Calculate grid bounds in world coordinates
+    const startX = offset.x;
+    const startY = offset.y;
+    const endX = offset.x + (dimensions.width * gridSize);
+    const endY = offset.y + (dimensions.height * gridSize);
+
+    const gridGraphic = new PIXI.Graphics();
+    gridGraphic.label = 'grid-lines';
+    gridGraphic.visible = false; // Initially hidden
+
+    // Draw vertical lines
+    for (let x = startX; x <= endX; x += gridSize) {
+      gridGraphic.moveTo(x, startY);
+      gridGraphic.lineTo(x, endY);
+    }
+
+    // Draw horizontal lines
+    for (let y = startY; y <= endY; y += gridSize) {
+      gridGraphic.moveTo(startX, y);
+      gridGraphic.lineTo(endX, y);
+    }
+
+    // Apply black stroke
+    gridGraphic.stroke({ width: 1, color: 0x000000, alpha: 0.5 });
+
+    this.mapContainer.addChild(gridGraphic);
+    this.gridGraphics.push(gridGraphic);
   }
   
   /**
-   * Convert grid coordinates to pixel coordinates
+   * Convert world coordinates to grid coordinates
    */
-  private gridToPixel(gridPos: Point, resolution: Resolution): Point {
-    const mapOrigin = resolution.map_origin || { x: 0, y: 0 };
-    const pixelsPerGrid = resolution.pixels_per_grid || 50;
+  public worldToGrid(worldPos: Point): Point {
+    if (!this.currentMapData?.mapData?.coordinates) {
+      throw new Error('No map data loaded');
+    }
+    
+    const coordinates = this.currentMapData.mapData.coordinates;
+    const gridSize = coordinates.worldUnitsPerGridCell;
     
     return {
-      x: (gridPos.x - mapOrigin.x) * pixelsPerGrid,
-      y: (gridPos.y - (mapOrigin.y || 0)) * pixelsPerGrid
+      x: Math.floor(worldPos.x / gridSize),
+      y: Math.floor(worldPos.y / gridSize)
     };
   }
   
   /**
-   * Convert pixel coordinates to grid coordinates
+   * Convert grid coordinates to world coordinates
    */
-  public pixelToGrid(pixelPos: Point): Point {
-    if (!this.currentMapData?.uvtt?.resolution) {
+  public gridToWorld(gridPos: Point): Point {
+    if (!this.currentMapData?.mapData?.coordinates) {
       throw new Error('No map data loaded');
     }
     
-    const resolution = this.currentMapData.uvtt.resolution;
-    const mapOrigin = resolution.map_origin || { x: 0, y: 0 };
-    const pixelsPerGrid = resolution.pixels_per_grid || 50;
+    const coordinates = this.currentMapData.mapData.coordinates;
+    const gridSize = coordinates.worldUnitsPerGridCell;
     
     return {
-      x: Math.round(pixelPos.x / pixelsPerGrid + mapOrigin.x),
-      y: Math.round(pixelPos.y / pixelsPerGrid + (mapOrigin.y || 0))
+      x: gridPos.x * gridSize,
+      y: gridPos.y * gridSize
     };
   }
   
@@ -453,15 +504,17 @@ export class EncounterMapRenderer {
       this.backgroundSprite.destroy();
       this.backgroundSprite = null;
     }
-    // Remove all wall, object, portal, and light graphics
+    // Remove all wall, object, door, and light graphics
     for (const g of this.wallGraphics) this.mapContainer.removeChild(g);
     for (const g of this.objectGraphics) this.mapContainer.removeChild(g);
-    for (const g of this.portalGraphics) this.mapContainer.removeChild(g);
+    for (const g of this.doorGraphics) this.mapContainer.removeChild(g);
     for (const g of this.lightGraphics) this.mapContainer.removeChild(g);
+    for (const g of this.gridGraphics) this.mapContainer.removeChild(g);
     this.wallGraphics = [];
     this.objectGraphics = [];
-    this.portalGraphics = [];
+    this.doorGraphics = [];
     this.lightGraphics = [];
+    this.gridGraphics = [];
     // Tokens are managed by TokenRenderer, which uses mapContainer
   }
   
@@ -549,11 +602,11 @@ export class EncounterMapRenderer {
   }
   
   /**
-   * Set visibility of portal highlights
+   * Set visibility of door highlights
    */
-  public setPortalHighlights(visible: boolean): void {
-    console.log('[PixiMapRenderer] setPortalHighlights called with:', visible, 'portalGraphics count:', this.portalGraphics.length);
-    this.portalGraphics.forEach(graphic => {
+  public setDoorHighlights(visible: boolean): void {
+    console.log('[PixiMapRenderer] setDoorHighlights called with:', visible, 'doorGraphics count:', this.doorGraphics.length);
+    this.doorGraphics.forEach(graphic => {
       graphic.visible = visible;
     });
   }
@@ -567,14 +620,24 @@ export class EncounterMapRenderer {
       graphic.visible = visible;
     });
   }
+
+  /**
+   * Set visibility of grid highlights
+   */
+  public setGridHighlights(visible: boolean): void {
+    console.log('[PixiMapRenderer] setGridHighlights called with:', visible, 'gridGraphics count:', this.gridGraphics.length);
+    this.gridGraphics.forEach(graphic => {
+      graphic.visible = visible;
+    });
+  }
   
   /**
    * Update wall rendering styles and colors
    */
-  public updateWallStyles(lineOfSightColor: number = 0x0000FF, objectsLineOfSightColor: number = 0xFF0000): void {
-    if (!this.currentMapData?.uvtt?.resolution) return;
+  public updateWallStyles(wallColor: number = 0x0000FF, objectColor: number = 0xFF0000): void {
+    if (!this.currentMapData?.mapData) return;
     
-    const resolution = this.currentMapData.uvtt.resolution;
+    const internalMapData = this.currentMapData.mapData;
     
     // Clear existing wall graphics
     this.wallGraphics.forEach(graphic => graphic.destroy());
@@ -584,63 +647,21 @@ export class EncounterMapRenderer {
     this.objectGraphics.forEach(graphic => graphic.destroy());
     this.objectGraphics = [];
     
-    // Re-render line_of_sight walls in blue
-    if (this.currentMapData.uvtt.line_of_sight) {
-      this.currentMapData.uvtt.line_of_sight.forEach(wall => {
-        this.renderWallSegment(wall, resolution, lineOfSightColor, 'walls');
+    // Re-render walls
+    if (internalMapData.walls) {
+      internalMapData.walls.forEach(wall => {
+        this.renderWall(wall, wallColor);
       });
     }
     
-    // Re-render objects_line_of_sight walls in red
-    if (this.currentMapData.uvtt.objects_line_of_sight) {
-      this.currentMapData.uvtt.objects_line_of_sight.forEach(wall => {
-        this.renderWallSegment(wall, resolution, objectsLineOfSightColor, 'objects');
+    // Re-render objects
+    if (internalMapData.objects) {
+      internalMapData.objects.forEach(object => {
+        this.renderObject(object, objectColor);
       });
     }
   }
   
-  /**
-   * Render a single wall segment with specified color
-   */
-  private renderWallSegment(walls: Point[], resolution: Resolution, color: number, type: 'walls' | 'objects' = 'walls'): void {
-    if (walls.length < 2 || !resolution.pixels_per_grid) return;
-    
-    //console.log(`[PixiMapRenderer] renderWallSegment called for ${type} with ${walls.length} points, color: 0x${color.toString(16)}`);
-    
-    // Create graphics object for walls
-    const wallGraphic = new PIXI.Graphics();
-    wallGraphic.label = type;
-    wallGraphic.visible = false; // Hide walls/objects by default
-    
-    // Draw wall segments
-    for (let i = 0; i < walls.length - 1; i++) {
-      const startPoint = this.gridToPixel(walls[i], resolution);
-      const endPoint = this.gridToPixel(walls[i + 1], resolution);
-      
-      // console.log(`[PixiMapRenderer] Drawing line from (${startPoint.x}, ${startPoint.y}) to (${endPoint.x}, ${endPoint.y})`);
-      
-      wallGraphic.moveTo(startPoint.x, startPoint.y);
-      wallGraphic.lineTo(endPoint.x, endPoint.y);
-    }
-    
-    // Apply stroke style after drawing - this is required in PIXI.js v8
-    wallGraphic.stroke({
-      width: 4,
-      color: color,
-      alpha: 1.0
-    });
-    
-    this.mapContainer.addChild(wallGraphic);
-    
-    //console.log(`[PixiMapRenderer] Added ${type} graphic to mapContainer, bounds:`, wallGraphic.getBounds());
-    
-    // Store in appropriate array based on type
-    if (type === 'walls') {
-      this.wallGraphics.push(wallGraphic);
-    } else {
-      this.objectGraphics.push(wallGraphic);
-    }
-  }
   
   /**
    * Destroy the renderer and clean up resources

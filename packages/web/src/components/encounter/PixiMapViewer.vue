@@ -51,7 +51,6 @@ import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import { playerActionService } from '@/services/player-action.service.mjs';
 import type { MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
-import type { IUVTT } from '@dungeon-lab/shared/types/index.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
@@ -172,7 +171,7 @@ const previousMapData = ref<{
   id?: string;
   name?: string;
   imageUrl?: string;
-  uvttData?: IUVTT;
+  mapData?: any;
 } | null>(null);
 
 // Props
@@ -188,8 +187,9 @@ interface Props {
   autoResize?: boolean;
   showWalls?: boolean;
   showObjects?: boolean;
-  showPortals?: boolean;
-  showLights?: boolean; // <-- Add this line
+  showDoors?: boolean;
+  showLights?: boolean;
+  showGrid?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -197,8 +197,9 @@ const props = withDefaults(defineProps<Props>(), {
   autoResize: true,
   showWalls: false,
   showObjects: false,
-  showPortals: false,
-  showLights: false // <-- Add this line
+  showDoors: false,
+  showLights: false,
+  showGrid: false
 });
 
 // Emits
@@ -257,8 +258,9 @@ const {
   worldToScreen,
   setWallHighlights,
   setObjectHighlights,
-  setPortalHighlights,
+  setDoorHighlights,
   setLightHighlights,
+  setGridHighlights,
   tokenRenderer,
   destroy
 } = usePixiMap();
@@ -456,11 +458,12 @@ const loadMapData = async (mapData: IMapResponse) => {
     await nextTick();
     fitToScreen();
     
-    // Set initial wall, object, portal, and light highlights visibility
+    // Set initial wall, object, door, light, and grid highlights visibility
     setWallHighlights(props.showWalls || false);
     setObjectHighlights(props.showObjects || false);
-    setPortalHighlights(props.showPortals || false);
+    setDoorHighlights(props.showDoors || false);
     setLightHighlights(props.showLights || false);
+    setGridHighlights(props.showGrid || false);
     
   } catch (err) {
     const errorDetails = {
@@ -892,7 +895,7 @@ watch(() => props.mapData, async (newMapData) => {
     previousMapData.value.id !== newMapData.id ||
     previousMapData.value.name !== newMapData.name ||
     previousMapData.value.imageUrl !== newMapData.image?.url ||
-    JSON.stringify(previousMapData.value.uvttData) !== JSON.stringify(newMapData.uvtt);
+    JSON.stringify(previousMapData.value.mapData) !== JSON.stringify(newMapData.mapData);
   
   if (hasMapChanged) {
     console.info('[PixiMapViewer] Map content changed, reloading:', newMapData.name);
@@ -900,7 +903,7 @@ watch(() => props.mapData, async (newMapData) => {
       id: newMapData.id,
       name: newMapData.name,
       imageUrl: newMapData.image?.url,
-      uvttData: newMapData.uvtt
+      mapData: newMapData.mapData
     };
     await loadMapData(newMapData);
   }
@@ -1032,10 +1035,10 @@ watch(() => props.showObjects, (newValue) => {
   }
 }, { immediate: true });
 
-// Watch for changes to portal highlights prop
-watch(() => props.showPortals, (newValue) => {
+// Watch for changes to door highlights prop
+watch(() => props.showDoors, (newValue) => {
   if (isInitialized.value) {
-    setPortalHighlights(newValue || false);
+    setDoorHighlights(newValue || false);
   }
 }, { immediate: true });
 
@@ -1043,6 +1046,13 @@ watch(() => props.showPortals, (newValue) => {
 watch(() => props.showLights, (newValue) => {
   if (isInitialized.value) {
     setLightHighlights(newValue || false);
+  }
+}, { immediate: true });
+
+// Watch for showGrid prop changes and update grid visibility
+watch(() => props.showGrid, (newValue) => {
+  if (isInitialized.value) {
+    setGridHighlights(newValue || false);
   }
 }, { immediate: true });
 
@@ -1119,7 +1129,7 @@ onMounted(async () => {
       id: props.mapData.id,
       name: props.mapData.name,
       imageUrl: props.mapData.image?.url,
-      uvttData: props.mapData.uvtt
+      mapData: props.mapData.mapData
     };
   }
   

@@ -94,7 +94,7 @@ export async function login(
   req: Request<object, object, LoginRequest>,
   res: Response<LoginResponse>
 ): Promise<void> {
-  console.log('login', req.body);
+  logger.debug('Login attempt for user:', req.body?.email || 'unknown');
   try {
     const { email, password } = loginRequestSchema.parse(req.body);
     // Find user by email

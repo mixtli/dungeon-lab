@@ -117,7 +117,8 @@
       "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
       "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
       "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
-      "Read(/tmp/**)"
+      "Read(/tmp/**)",
+      "mcp__playwright__browser_file_upload"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
