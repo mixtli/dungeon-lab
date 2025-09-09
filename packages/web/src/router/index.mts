@@ -565,7 +565,7 @@ router.beforeEach(async (to, from, next) => {
       }
       
       if (to.name === 'mobile-actors' || to.path.startsWith('/mobile-actors')) {
-        const query: any = { tab: 'actors' };
+        const query: Record<string, string> = { tab: 'actors' };
         
         // Preserve actor ID if navigating to specific actor sheet
         if (to.name === 'mobile-actor-sheet' && to.params.id) {

@@ -1,17 +1,17 @@
 /**
  * Map Editor Type Definitions
- * Types for the map editor and UVTT format integration
+ * Types for the map editor using new mapData schema format
  */
 
 /**
- * Editor object types
+ * Editor object types - aligned with new mapData schema
  */
-export type EditorObjectType = 'wall' | 'portal' | 'light' | 'object' | 'decoration';
+export type EditorObjectType = 'wall' | 'door' | 'light' | 'object' | 'terrain' | 'region';
 
 /**
- * Available tool modes
+ * Available tool modes - aligned with new object types
  */
-export type EditorToolType = 'select' | 'wall' | 'portal' | 'light' | 'object' | 'pan' | 'grid-adjust';
+export type EditorToolType = 'select' | 'wall' | 'door' | 'light' | 'object' | 'terrain' | 'region' | 'pan' | 'grid-adjust';
 
 /**
  * Point in 2D space
@@ -52,14 +52,14 @@ export interface GridConfig {
 }
 
 /**
- * Map metadata using world coordinate system
+ * Map metadata using world coordinate system - aligned with mapData schema
  */
 export interface MapMetadata {
   id?: string;
   name: string;
   description?: string;
   
-  // World coordinate system (replaces UVTT resolution)
+  // World coordinate system (matches worldCoordinateSystemSchema)
   coordinates: {
     worldUnitsPerGridCell: number;  // World units per grid cell
     offset: Point;                  // Grid alignment offset in world units
@@ -71,15 +71,42 @@ export interface MapMetadata {
       width: number;
       height: number;
     };
+    display: {                      // Grid display options
+      visible: boolean;
+      color: string;
+      opacity: number;
+      lineWidth: number;
+    };
   };
   
-  // Environment settings
-  environment?: {
+  // Environment settings (matches enhancedEnvironmentSchema)
+  environment: {
     ambientLight: {
       color: string;
       intensity: number;
+      temperature?: number;
     };
     globalIllumination: boolean;
+    darkvisionRange: number;
+    weather: {
+      type: 'none' | 'rain' | 'snow' | 'fog' | 'storm' | 'sandstorm';
+      intensity: number;
+      windDirection: number;
+      windSpeed: number;
+      temperature?: number;
+      visibility: number;
+    };
+    atmosphere: {
+      fogColor: string;
+      fogDensity: number;
+      skyColor?: string;
+      horizonColor?: string;
+    };
+    audio: {
+      ambientTrack?: string;
+      reverbLevel: number;
+      soundOcclusion: boolean;
+    };
   };
   
   // Image reference
@@ -89,16 +116,6 @@ export interface MapMetadata {
   created_at?: string;
   updated_at?: string;
   user_id?: string;
-  
-  // Legacy UVTT support (for backward compatibility)
-  uvtt?: {
-    format: number;
-    resolution: {
-      map_origin: Point;
-      map_size: { x: number; y: number };
-      pixels_per_grid: number;
-    };
-  };
 }
 
 /**
@@ -112,27 +129,21 @@ export interface WallObject extends EditorObject {
 }
 
 /**
- * Portal/Door object using simplified line segment geometry
+ * Door object using simplified line segment geometry (matches doorSchema)
  */
-export interface PortalObject extends EditorObject {
-  objectType: 'portal';
+export interface DoorObject extends EditorObject {
+  objectType: 'door';
   coords: number[]; // [x1, y1, x2, y2] line segment coordinates
-  state: 'open' | 'closed' | 'locked' | 'stuck'; // Door/portal state
-  material?: 'wood' | 'metal' | 'stone' | 'glass' | 'magic' | 'force'; // Door material
-  stroke?: string; // Portal color
-  strokeWidth?: number; // Portal line width
-  requiresKey?: boolean; // Whether portal requires a key to open
+  state: 'open' | 'closed' | 'locked' | 'stuck'; // Door state
+  material: 'wood' | 'stone' | 'metal' | 'magic' | 'glass' | 'force'; // Door material
+  stroke: string; // Door color
+  strokeWidth: number; // Door line width
+  requiresKey: boolean; // Whether door requires a key to open
   openSound?: string; // Sound effect when opening
   closeSound?: string; // Sound effect when closing
-  name?: string; // Portal name
-  description?: string; // Portal description
-  
-  // Legacy support for backward compatibility
-  position?: Point; // Deprecated: derived from coords
-  rotation?: number; // Deprecated: not needed with line segments
-  bounds?: Point[]; // Deprecated: use coords instead
-  freestanding?: boolean; // Deprecated: all portals are line segments
-  closed?: boolean; // Deprecated: use 'state' instead
+  name?: string; // Door name
+  description?: string; // Door description
+  tags: string[]; // For AI and automation
 }
 
 /**
@@ -162,7 +173,7 @@ export interface LightObject extends EditorObject {
 }
 
 /**
- * Polygon/Object using simplified editor format
+ * Map object using simplified editor format (matches mapObjectSchema)
  */
 export interface ObjectEditorObject extends EditorObject {
   objectType: 'object';
@@ -171,34 +182,83 @@ export interface ObjectEditorObject extends EditorObject {
   points: number[]; // Flat array of [x1, y1, x2, y2, ...] relative to position for compatibility with Konva
   shapeType: 'circle' | 'rectangle' | 'polygon';
   type: 'furniture' | 'container' | 'decoration' | 'mechanism' | 'trap' | 'treasure' | 'altar' | 'pillar' | 'door' | 'other';
-  height?: number;
-  blocking?: {
-    movement: boolean;
-    sight: boolean;
-    light: boolean;
-  };
-  fill?: string;
-  stroke?: string;
-  strokeWidth?: number;
+  height: number;
+  blocksMovement: boolean;
+  blocksLight: boolean;
+  blocksSound: boolean;
+  interactable: boolean;
+  searchable: boolean;
+  moveable: boolean;
+  sprite?: string;
+  color: string;
+  opacity: number;
   name?: string;
   description?: string;
-  tags?: string[];
+  tags: string[];
 }
 
 /**
- * Any editor object union type
+ * Terrain region object (matches terrainSchema)
  */
-export type AnyEditorObject = WallObject | PortalObject | LightObject | ObjectEditorObject;
+export interface TerrainObject extends EditorObject {
+  objectType: 'terrain';
+  points: number[]; // Polygon boundary points as flat array
+  type: 'normal' | 'difficult' | 'hazardous' | 'impassable' | 'water' | 'swamp' | 'ice' | 'sand' | 'lava' | 'pit' | 'stairs' | 'ramp' | 'teleporter';
+  elevation: number;
+  movementCost: number;
+  minimumSpeed: number;
+  damagePerRound: number;
+  damageType?: 'fire' | 'cold' | 'acid' | 'poison' | 'necrotic' | 'radiant';
+  color?: string;
+  opacity: number;
+  texture?: string;
+  teleportDestination?: Point;
+  elevationChange: number;
+  name?: string;
+  description?: string;
+  tags: string[];
+}
 
 /**
- * Complete editor state
+ * Special region object (matches regionSchema)
+ */
+export interface RegionObject extends EditorObject {
+  objectType: 'region';
+  points: number[]; // Polygon boundary points as flat array
+  type: 'teleport' | 'trap' | 'aura' | 'sanctuary' | 'antimagic' | 'silence' | 'darkness' | 'weather' | 'script' | 'spawn';
+  elevationRange?: {
+    min: number;
+    max: number;
+  };
+  triggerOn: 'enter' | 'exit' | 'presence' | 'interaction';
+  affectedTypes: ('player' | 'npc' | 'monster' | 'object' | 'all')[];
+  teleportDestination?: Point;
+  teleportMapId?: string;
+  effectData?: Record<string, any>;
+  visible: boolean;
+  color: string;
+  opacity: number;
+  name?: string;
+  description?: string;
+  tags: string[];
+}
+
+/**
+ * Any editor object union type - updated for new schema
+ */
+export type AnyEditorObject = WallObject | DoorObject | LightObject | ObjectEditorObject | TerrainObject | RegionObject;
+
+/**
+ * Complete editor state - updated for new schema
  */
 export interface EditorState {
   currentTool: EditorToolType;
   walls: WallObject[];
-  portals: PortalObject[];
+  doors: DoorObject[];
   lights: LightObject[];
   objects: ObjectEditorObject[];
+  terrain: TerrainObject[];
+  regions: RegionObject[];
   selectedObjectIds: string[];
   gridConfig: GridConfig;
   mapMetadata: MapMetadata;
@@ -219,58 +279,7 @@ export interface EditorCommand {
   description: string;
 }
 
-/**
- * Universal VTT format structure
- */
-export interface UVTTData {
-  format: number;
-  resolution: {
-    map_origin: {
-      x: number;
-      y: number;
-    };
-    map_size: {
-      x: number;
-      y: number;
-    };
-    pixels_per_grid: number;
-  };
-  line_of_sight: Point[];
-  objects_line_of_sight?: Point[];
-  portals: UVTTPortal[];
-  environment: {
-    baked_lighting: boolean;
-    ambient_light: string;
-  };
-  lights: UVTTLight[];
-  image: string;
-}
-
-/**
- * UVTT Portal definition
- */
-export interface UVTTPortal {
-  position: Point;
-  bounds: Point[];
-  rotation: number;
-  closed: boolean;
-  freestanding: boolean;
-}
-
-/**
- * UVTT Light definition
- */
-export interface UVTTLight {
-  position: Point;
-  range: number;
-  intensity: number;
-  /**
-   * Color as 8-character hex string: RRGGBBAA (6 for RGB, 2 for alpha channel, no #)
-   * Example: 'ff575112' (RGB: ff5751, Alpha: 12)
-   */
-  color: string;
-  shadows: boolean;
-}
+// UVTT types removed - they now only exist in uvtt-import-export.schema.mts for import/export operations
 
 /**
  * Wall tool state

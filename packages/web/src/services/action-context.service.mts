@@ -138,8 +138,8 @@ export class ActionContextImpl implements AsyncActionContext {
       }
 
       // Determine recipient based on recipients setting
-      let recipientType: 'session' | 'user' = 'session';
-      let recipientId: string | undefined = gameSessionStore.currentSession?.id;
+      const recipientType: 'session' | 'user' = 'session';
+      const recipientId: string | undefined = gameSessionStore.currentSession?.id;
       
       const recipients = rollResultData.recipients || 'public';
       

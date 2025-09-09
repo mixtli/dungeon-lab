@@ -141,9 +141,10 @@ export function shapeToPolygon(
         precision: undefined // Already a polygon
       };
       
-    default:
+    default: {
       const _exhaustive: never = shape;
       throw new Error(`Unknown shape type: ${JSON.stringify(_exhaustive)}`);
+    }
   }
 }
 

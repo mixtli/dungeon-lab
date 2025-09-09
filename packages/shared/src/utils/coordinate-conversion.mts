@@ -2,7 +2,8 @@
  * Coordinate conversion utilities for compatibility between world coordinates and UVTT format
  */
 
-import type { Point, MapMetadata, UVTTData } from '../types/mapEditor.mjs';
+import type { Point, MapMetadata } from '../types/mapEditor.mjs';
+import type { UVTTData } from '../schemas/uvtt-import-export.schema.mjs';
 
 /**
  * Legacy UVTT resolution structure
@@ -27,6 +28,12 @@ export function uvttToWorldCoordinates(uvttRes: UVTTResolution, imageWidth: numb
     imageDimensions: {
       width: imageWidth,
       height: imageHeight
+    },
+    display: {
+      visible: true,
+      color: '#000000',
+      opacity: 0.3,
+      lineWidth: 1
     }
   };
 }
@@ -137,29 +144,42 @@ export function isPointWithinBounds(point: Point, imageDimensions: { width: numb
 export function convertUVTTToNewSchema(uvttData: UVTTData, imageWidth: number, imageHeight: number): Partial<MapMetadata> {
   const coordinates = uvttData.resolution 
     ? uvttToWorldCoordinates(uvttData.resolution, imageWidth, imageHeight)
-    : calculateOptimalGridDimensions(imageWidth, imageHeight).dimensions && {
+    : {
         worldUnitsPerGridCell: 50,
         offset: { x: 0, y: 0 },
         dimensions: calculateOptimalGridDimensions(imageWidth, imageHeight).dimensions,
-        imageDimensions: { width: imageWidth, height: imageHeight }
+        imageDimensions: { width: imageWidth, height: imageHeight },
+        display: {
+          visible: true,
+          color: '#000000',
+          opacity: 0.3,
+          lineWidth: 1
+        }
       };
 
   return {
-    coordinates: coordinates!,
+    coordinates,
     environment: {
       ambientLight: {
         color: uvttData.environment?.ambient_light || '#ffffff',
         intensity: 0.1
       },
-      globalIllumination: uvttData.environment?.baked_lighting || false
-    },
-    // Keep original UVTT data for backward compatibility
-    uvtt: {
-      format: uvttData.format || 1.0,
-      resolution: uvttData.resolution || {
-        map_origin: { x: 0, y: 0 },
-        map_size: { x: 30, y: 30 },
-        pixels_per_grid: 50
+      globalIllumination: uvttData.environment?.baked_lighting || false,
+      darkvisionRange: 60,
+      weather: {
+        type: 'none' as const,
+        intensity: 0.5,
+        windDirection: 0,
+        windSpeed: 0,
+        visibility: 1
+      },
+      atmosphere: {
+        fogColor: '#cccccc',
+        fogDensity: 0
+      },
+      audio: {
+        reverbLevel: 0.3,
+        soundOcclusion: true
       }
     }
   };

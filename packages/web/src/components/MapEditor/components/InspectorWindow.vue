@@ -56,17 +56,17 @@
             </div>
           </template>
 
-          <template v-else-if="selectedObject?.objectType === 'portal'">
+          <template v-else-if="selectedObject?.objectType === 'door'">
             <div class="property-group">
-              <h4 class="group-title">Portal Geometry</h4>
+              <h4 class="group-title">Door Geometry</h4>
               <div class="property-row">
                 <label class="property-label">Start X:</label>
                 <input 
                   type="number" 
                   class="property-input number-input"
-                  :value="Math.round(getPortalStartPoint(selectedObject as PortalObject).x || 0)"
+                  :value="Math.round((selectedObject as DoorObject).coords[0] || 0)"
                   step="1"
-                  @change="updatePortalEndpoint(0, 'x', parseInt(($event.target as HTMLInputElement).value))" 
+                  @change="updateDoorCoord(0, parseInt(($event.target as HTMLInputElement).value))" 
                 />
               </div>
               <div class="property-row">
@@ -74,9 +74,9 @@
                 <input 
                   type="number" 
                   class="property-input number-input"
-                  :value="Math.round(getPortalStartPoint(selectedObject as PortalObject).y || 0)"
+                  :value="Math.round((selectedObject as DoorObject).coords[1] || 0)"
                   step="1"
-                  @change="updatePortalEndpoint(0, 'y', parseInt(($event.target as HTMLInputElement).value))" 
+                  @change="updateDoorCoord(1, parseInt(($event.target as HTMLInputElement).value))" 
                 />
               </div>
               <div class="property-row">
@@ -84,9 +84,9 @@
                 <input 
                   type="number" 
                   class="property-input number-input"
-                  :value="Math.round(getPortalEndPoint(selectedObject as PortalObject).x || 0)"
+                  :value="Math.round((selectedObject as DoorObject).coords[2] || 0)"
                   step="1"
-                  @change="updatePortalEndpoint(1, 'x', parseInt(($event.target as HTMLInputElement).value))" 
+                  @change="updateDoorCoord(2, parseInt(($event.target as HTMLInputElement).value))" 
                 />
               </div>
               <div class="property-row">
@@ -94,26 +94,26 @@
                 <input 
                   type="number" 
                   class="property-input number-input"
-                  :value="Math.round(getPortalEndPoint(selectedObject as PortalObject).y || 0)"
+                  :value="Math.round((selectedObject as DoorObject).coords[3] || 0)"
                   step="1"
-                  @change="updatePortalEndpoint(1, 'y', parseInt(($event.target as HTMLInputElement).value))" 
+                  @change="updateDoorCoord(3, parseInt(($event.target as HTMLInputElement).value))" 
                 />
               </div>
               <div class="property-row">
                 <label class="property-label">Length:</label>
                 <span class="property-value">
-                  {{ Math.round(getPortalLength(selectedObject as PortalObject)) }}
+                  {{ Math.round(getDoorLength(selectedObject as DoorObject)) }}
                 </span>
               </div>
             </div>
 
             <div class="property-group">
-              <h4 class="group-title">Portal Properties</h4>
+              <h4 class="group-title">Door Properties</h4>
               <div class="property-row">
                 <label class="property-label">State:</label>
                 <select 
                   class="property-input select-input"
-                  :value="(selectedObject as PortalObject).state || 'closed'"
+                  :value="(selectedObject as DoorObject).state || 'closed'"
                   @change="updateProperty('state', ($event.target as HTMLSelectElement).value)"
                 >
                   <option value="open">Open</option>
@@ -126,7 +126,7 @@
                 <label class="property-label">Material:</label>
                 <select 
                   class="property-input select-input"
-                  :value="(selectedObject as PortalObject).material || 'wood'"
+                  :value="(selectedObject as DoorObject).material || 'wood'"
                   @change="updateProperty('material', ($event.target as HTMLSelectElement).value)"
                 >
                   <option value="wood">Wood</option>
@@ -142,7 +142,7 @@
                 <input 
                   type="color" 
                   class="property-input color-input"
-                  :value="(selectedObject as PortalObject).stroke || '#8B4513'"
+                  :value="(selectedObject as DoorObject).stroke || '#8B4513'"
                   @change="updateProperty('stroke', ($event.target as HTMLInputElement).value)" 
                 />
               </div>
@@ -151,7 +151,7 @@
                 <input 
                   type="number" 
                   class="property-input number-input"
-                  :value="(selectedObject as PortalObject).strokeWidth || 3" 
+                  :value="(selectedObject as DoorObject).strokeWidth || 3" 
                   min="1" max="20"
                   @change="updateProperty('strokeWidth', parseInt(($event.target as HTMLInputElement).value))" 
                 />
@@ -161,7 +161,7 @@
                 <input 
                   type="checkbox" 
                   class="property-input checkbox-input"
-                  :checked="(selectedObject as PortalObject).requiresKey || false"
+                  :checked="(selectedObject as DoorObject).requiresKey || false"
                   @change="updateProperty('requiresKey', ($event.target as HTMLInputElement).checked)" 
                 />
               </div>
@@ -432,19 +432,20 @@ import { ref, computed, watch } from 'vue';
 import FloatingWindow from '../../common/FloatingWindow.vue';
 import type { 
   WallObject, 
-  PortalObject, 
+  DoorObject, 
   LightObject, 
-  MapEditorObject 
+  AnyEditorObject,
+  ObjectEditorObject 
 } from '@dungeon-lab/shared/types/index.mjs';
 
 interface Props {
-  selectedObjects: MapEditorObject[];
+  selectedObjects: AnyEditorObject[];
   gridSize?: number;
   visible?: boolean;
 }
 
 interface Emits {
-  (e: 'property-updated', objectId: string, property: string, value: any): void;
+  (e: 'property-updated', objectId: string, property: string, value: string | number | boolean | number[] | Record<string, unknown>): void;
   (e: 'position-updated', objectId: string, x: number, y: number): void;
   (e: 'delete-objects', objectIds: string[]): void;
   (e: 'duplicate-objects', objectIds: string[]): void;
@@ -488,28 +489,35 @@ const objectTypeLabel = computed(() => {
   
   const typeLabels: Record<string, string> = {
     wall: 'Wall',
-    portal: 'Portal/Door',
+    door: 'Door',
     light: 'Light Source',
-    objectWall: 'Object Wall'
+    object: 'Object',
+    terrain: 'Terrain',
+    region: 'Region'
   };
   
   return typeLabels[selectedObject.value.objectType] || selectedObject.value.objectType;
 });
 
 // Position helpers for different object types
-function getObjectX(object: MapEditorObject | null): number {
+function getObjectX(object: AnyEditorObject | null): number {
   if (!object) return 0;
   
-  // Lights and portals store position in position.x/y
-  if (object.objectType === 'light' || object.objectType === 'portal') {
+  // Lights store position in position.x/y
+  if (object.objectType === 'light') {
     return (object as any).position?.x || 0;
+  }
+  
+  // Doors store position in coords array [x1, y1, x2, y2]
+  if (object.objectType === 'door') {
+    return (object as any).coords?.[0] || 0;
   }
   
   // Walls might store position differently or have points array
   return (object as any).x || 0;
 }
 
-function getObjectY(object: MapEditorObject | null): number {
+function getObjectY(object: AnyEditorObject | null): number {
   if (!object) return 0;
   
   // Lights and portals store position in position.x/y  
@@ -552,35 +560,15 @@ function getWallAngle(wall: WallObject): number {
   return (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
 }
 
-// Portal-specific geometry helpers
-function getPortalStartPoint(portal: PortalObject): { x: number; y: number } {
-  if (portal.coords && portal.coords.length >= 4) {
-    return { x: portal.coords[0], y: portal.coords[1] };
+// Door-specific geometry helpers
+function getDoorLength(door: DoorObject): number {
+  if (door.coords && door.coords.length >= 4) {
+    const [x1, y1, x2, y2] = door.coords;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return Math.sqrt(dx * dx + dy * dy);
   }
-  // Fallback to legacy bounds
-  if (portal.bounds && portal.bounds.length >= 1 && portal.bounds[0]) {
-    return { x: portal.bounds[0].x, y: portal.bounds[0].y };
-  }
-  return { x: 0, y: 0 };
-}
-
-function getPortalEndPoint(portal: PortalObject): { x: number; y: number } {
-  if (portal.coords && portal.coords.length >= 4) {
-    return { x: portal.coords[2], y: portal.coords[3] };
-  }
-  // Fallback to legacy bounds
-  if (portal.bounds && portal.bounds.length >= 2 && portal.bounds[1]) {
-    return { x: portal.bounds[1].x, y: portal.bounds[1].y };
-  }
-  return { x: 0, y: 0 };
-}
-
-function getPortalLength(portal: PortalObject): number {
-  const start = getPortalStartPoint(portal);
-  const end = getPortalEndPoint(portal);
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  return Math.sqrt(dx * dx + dy * dy);
+  return 0;
 }
 
 // Property updates
@@ -626,44 +614,18 @@ function updateWallPoint(point: 'start' | 'end', axis: 'x' | 'y', value: number)
   }
 }
 
-function updatePortalEndpoint(endpointIndex: number, axis: 'x' | 'y', value: number) {
-  if (selectedObject.value && selectedObject.value.objectType === 'portal') {
-    const portal = selectedObject.value as PortalObject;
-    let newCoords: number[];
+function updateDoorCoord(coordIndex: number, value: number) {
+  if (selectedObject.value && selectedObject.value.objectType === 'door') {
+    const door = selectedObject.value as DoorObject;
+    const newCoords = [...(door.coords || [0, 0, 0, 0])];
     
-    if (portal.coords && portal.coords.length >= 4) {
-      // Use existing coords array
-      newCoords = [...portal.coords];
-    } else if (portal.bounds && portal.bounds.length >= 2) {
-      // Convert from legacy bounds to coords
-      newCoords = [
-        portal.bounds[0].x, portal.bounds[0].y,
-        portal.bounds[1].x, portal.bounds[1].y
-      ];
-    } else {
-      // Default fallback
-      newCoords = [0, 0, 100, 0];
+    // Ensure coords array has 4 elements [x1, y1, x2, y2]
+    while (newCoords.length < 4) {
+      newCoords.push(0);
     }
     
-    const coordIndex = endpointIndex * 2 + (axis === 'x' ? 0 : 1);
     newCoords[coordIndex] = value;
-    
-    // Update both new coords and legacy fields for compatibility
-    const updates = {
-      coords: newCoords,
-      bounds: [
-        { x: newCoords[0], y: newCoords[1] },
-        { x: newCoords[2], y: newCoords[3] }
-      ],
-      position: {
-        x: (newCoords[0] + newCoords[2]) / 2,
-        y: (newCoords[1] + newCoords[3]) / 2
-      }
-    };
-    
-    emit('property-updated', portal.id, 'coords', newCoords);
-    emit('property-updated', portal.id, 'bounds', updates.bounds);
-    emit('property-updated', portal.id, 'position', updates.position);
+    emit('property-updated', door.id, 'coords', newCoords);
   }
 }
 

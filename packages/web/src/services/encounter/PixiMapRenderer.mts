@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { WallObject, ObjectEditorObject, DoorObject, LightObject } from '@dungeon-lab/shared/types/index.mjs';
 import { initDevtools } from '@pixi/devtools';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
@@ -238,22 +239,40 @@ export class EncounterMapRenderer {
   
   /**
    * Render a single wall from new mapData format
+   * Note: WallObject in mapEditor uses points array, but mapData schema uses start/end
+   * This method handles both formats for compatibility
    */
   private renderWall(wall: any, color: number): void {
     const wallGraphic = new PIXI.Graphics();
     wallGraphic.label = `wall-${wall.id}`;
     wallGraphic.visible = false; // Hide walls by default
     
-    // Draw wall line from start to end (already in world coordinates)
-    wallGraphic.moveTo(wall.start.x, wall.start.y);
-    wallGraphic.lineTo(wall.end.x, wall.end.y);
-    
-    // Apply stroke style
-    wallGraphic.stroke({
-      width: wall.thickness || 4,
-      color: color,
-      alpha: 1.0
-    });
+    // Handle different wall formats
+    if (wall.start && wall.end) {
+      // Schema format (from mapData)
+      wallGraphic.moveTo(wall.start.x, wall.start.y);
+      wallGraphic.lineTo(wall.end.x, wall.end.y);
+      
+      wallGraphic.stroke({
+        width: wall.thickness || 4,
+        color: color,
+        alpha: 1.0
+      });
+    } else if (wall.points && wall.points.length >= 4) {
+      // Editor format (from mapEditor components)
+      const points = wall.points;
+      wallGraphic.moveTo(points[0], points[1]);
+      
+      for (let i = 2; i < points.length; i += 2) {
+        wallGraphic.lineTo(points[i], points[i + 1]);
+      }
+      
+      wallGraphic.stroke({
+        width: wall.strokeWidth || 4,
+        color: color,
+        alpha: 1.0
+      });
+    }
     
     this.mapContainer.addChild(wallGraphic);
     this.wallGraphics.push(wallGraphic);
@@ -261,14 +280,16 @@ export class EncounterMapRenderer {
   
   /**
    * Render a single object from new mapData format
+   * Handles both schema format (bounds polygon) and editor format (points array)
    */
   private renderObject(object: any, color: number): void {
     const objectGraphic = new PIXI.Graphics();
     objectGraphic.label = `object-${object.id}`;
     objectGraphic.visible = false; // Hide objects by default
     
-    // Draw object polygon using bounds (already in world coordinates)
+    // Handle different object formats
     if (object.bounds && object.bounds.length > 0) {
+      // Schema format (from mapData) - bounds is array of {x,y} points
       const startPoint = object.bounds[0];
       objectGraphic.moveTo(startPoint.x, startPoint.y);
       
@@ -276,10 +297,22 @@ export class EncounterMapRenderer {
         objectGraphic.lineTo(point.x, point.y);
       });
       
-      // Close the polygon
       objectGraphic.closePath();
+      objectGraphic.stroke({
+        width: 2,
+        color: color,
+        alpha: 1.0
+      });
+    } else if (object.points && object.points.length >= 6) {
+      // Editor format (from mapEditor components) - points is flat array [x1,y1,x2,y2,...]
+      const points = object.points;
+      objectGraphic.moveTo(object.position.x + points[0], object.position.y + points[1]);
       
-      // Apply stroke style
+      for (let i = 2; i < points.length; i += 2) {
+        objectGraphic.lineTo(object.position.x + points[i], object.position.y + points[i + 1]);
+      }
+      
+      objectGraphic.closePath();
       objectGraphic.stroke({
         width: 2,
         color: color,
@@ -294,7 +327,7 @@ export class EncounterMapRenderer {
   /**
    * Render a single door from new mapData format
    */
-  private renderDoor(door: any, color: number): void {
+  private renderDoor(door: DoorObject, color: number): void {
     const doorGraphic = new PIXI.Graphics();
     doorGraphic.label = `door-${door.id}`;
     doorGraphic.visible = false; // Hide doors by default
@@ -323,7 +356,7 @@ export class EncounterMapRenderer {
   /**
    * Render a single light from new mapData format
    */
-  private renderLight(light: any): void {
+  private renderLight(light: LightObject): void {
     try {
       const lightGraphic = new PIXI.Graphics();
       lightGraphic.label = `light-${light.id}`;

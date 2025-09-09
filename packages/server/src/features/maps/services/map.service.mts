@@ -609,7 +609,7 @@ export class MapService {
    * @param options - Additional options (name, description, campaignId)
    */
   async importUVTT(
-    uvttData: Record<string, unknown>,
+    uvttData: UVTTData,
     userId: string,
     options: UVTTImportOptions
   ): Promise<IMap> {
@@ -704,19 +704,19 @@ export class MapService {
       }
       
       // Set image ID if we have one
-      if ((imageAsset as any) && (imageAsset as any).id) {
-        mapData.imageId = (imageAsset as any).id;
+      if (imageAsset?.id) {
+        mapData.imageId = imageAsset.id;
       }
       
       // Create the map
       const map = await MapModel.create(mapData);
       
       // If we have an image, we'll generate a thumbnail
-      if ((imageAsset as any) && (imageAsset as any).id) {
+      if (imageAsset?.id) {
         await backgroundJobService.scheduleJob('now', MAP_THUMBNAIL_GENERATION_JOB, {
           mapId: map.id,
           userId,
-          imageAssetId: (imageAsset as any).id
+          imageAssetId: imageAsset.id
         });
         
         logger.info(`Scheduled thumbnail generation job for imported UVTT map ${map.id}`);

@@ -7,13 +7,19 @@ import {
   createMapRequestSchema,
   putMapRequestSchema,
   patchMapRequestSchema,
-  searchMapsQuerySchema
+  searchMapsQuerySchema,
+  CreateMapRequest
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { IMap } from '@dungeon-lab/shared/types/index.mjs';
-import { UVTTData } from '@dungeon-lab/shared/schemas/index.mjs';
+import { UVTTData, uvttSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ZodError } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 import { createSearchParams } from '../../../utils/create.search.params.mjs';
+
+// Type guard to check if request includes UVTT data
+function isMapCreateRequestWithUVTT(data: CreateMapRequest): data is CreateMapRequest & { uvtt: UVTTData } {
+  return 'uvtt' in data && typeof data.uvtt === 'object' && data.uvtt !== null;
+}
 
 export class MapController {
   constructor(private mapService: MapService) {}
@@ -157,9 +163,9 @@ export class MapController {
       const imageFile = req.assets?.image?.[0];
 
       // Check if UVTT data is provided in the request body
-      if ((validatedData as any).uvtt) {
+      if (isMapCreateRequestWithUVTT(validatedData)) {
         // Handle UVTT import
-        const uvttData = (validatedData as any).uvtt;
+        const uvttData = validatedData.uvtt;
         const options = {
           name: validatedData.name,
           description: validatedData.description || ''
@@ -512,9 +518,12 @@ export class MapController {
         });
       }
 
+      // Validate the UVTT data before processing
+      const validatedUVTTData = uvttSchema.parse(uvttData);
+
       // Process the UVTT map data
       const map = await this.mapService.importUVTT(
-        uvttData,
+        validatedUVTTData,
         req.session.user.id,
         { name, description, campaignId }
       );

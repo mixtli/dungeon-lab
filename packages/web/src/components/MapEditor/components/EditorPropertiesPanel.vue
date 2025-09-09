@@ -37,63 +37,56 @@
                         </div>
                     </template>
 
-                    <template v-else-if="selectedObject?.objectType === 'portal'">
+                    <template v-else-if="selectedObject?.objectType === 'door'">
                         <div class="property-group">
-                            <h4>Portal Properties</h4>
+                            <h4>Door Properties</h4>
                             <div class="property-row">
                                 <label>State:</label>
-                                <select :value="(selectedObject as PortalObject).closed ? 'closed' : 'open'"
-                                    @change="updateProperty('closed', ($event.target as HTMLSelectElement).value === 'closed')">
+                                <select :value="(selectedObject as DoorObject).state"
+                                    @change="updateProperty('state', ($event.target as HTMLSelectElement).value)">
                                     <option value="closed">Closed</option>
                                     <option value="open">Open</option>
+                                    <option value="locked">Locked</option>
+                                    <option value="stuck">Stuck</option>
                                 </select>
                             </div>
                             <div class="property-row">
-                                <label>Rotation:</label>
-                                <input type="number" :value="Math.round((selectedObject as PortalObject).rotation)" min="0"
-                                    max="359" step="1"
-                                    @change="updateProperty('rotation', parseInt(($event.target as HTMLInputElement).value))" />
-                                <span class="unit">°</span>
+                                <label>Material:</label>
+                                <select :value="(selectedObject as DoorObject).material"
+                                    @change="updateProperty('material', ($event.target as HTMLSelectElement).value)">
+                                    <option value="wood">Wood</option>
+                                    <option value="stone">Stone</option>
+                                    <option value="metal">Metal</option>
+                                    <option value="magic">Magic</option>
+                                    <option value="glass">Glass</option>
+                                    <option value="force">Force</option>
+                                </select>
                             </div>
                             <div class="property-row">
-                                <label>Freestanding:</label>
-                                <input type="checkbox" :checked="(selectedObject as PortalObject).freestanding"
-                                    @change="updateProperty('freestanding', ($event.target as HTMLInputElement).checked)" />
+                                <label>Requires Key:</label>
+                                <input type="checkbox" :checked="(selectedObject as DoorObject).requiresKey"
+                                    @change="updateProperty('requiresKey', ($event.target as HTMLInputElement).checked)" />
                             </div>
                         </div>
                         
                         <div class="property-group">
-                            <h4>Position (World Coordinates)</h4>
-                            <div class="property-row">
-                                <label>X:</label>
-                                <input type="number" :value="Number((selectedObject as PortalObject).position.x.toFixed(2))" step="0.1"
-                                    @change="updatePositionProperty('x', parseFloat(($event.target as HTMLInputElement).value))" />
-                            </div>
-                            <div class="property-row">
-                                <label>Y:</label>
-                                <input type="number" :value="Number((selectedObject as PortalObject).position.y.toFixed(2))" step="0.1"
-                                    @change="updatePositionProperty('y', parseFloat(($event.target as HTMLInputElement).value))" />
-                            </div>
-                        </div>
-
-                        <div class="property-group">
-                            <h4>Bounds (World Coordinates)</h4>
+                            <h4>Door Coordinates (Line Segment)</h4>
                             <div class="bounds-section">
                                 <div class="bounds-point">
                                     <h5>Start Point</h5>
                                     <div class="property-row">
                                         <label>X1:</label>
                                         <input type="number" 
-                                            :value="(selectedObject as PortalObject).bounds[0]?.x?.toFixed(2) || '0'" 
+                                            :value="((selectedObject as DoorObject).coords[0] || 0).toFixed(2)" 
                                             step="0.1"
-                                            @change="updateBoundsProperty(0, 'x', parseFloat(($event.target as HTMLInputElement).value))" />
+                                            @change="updateCoordsProperty(0, parseFloat(($event.target as HTMLInputElement).value))" />
                                     </div>
                                     <div class="property-row">
                                         <label>Y1:</label>
                                         <input type="number" 
-                                            :value="(selectedObject as PortalObject).bounds[0]?.y?.toFixed(2) || '0'" 
+                                            :value="((selectedObject as DoorObject).coords[1] || 0).toFixed(2)" 
                                             step="0.1"
-                                            @change="updateBoundsProperty(0, 'y', parseFloat(($event.target as HTMLInputElement).value))" />
+                                            @change="updateCoordsProperty(1, parseFloat(($event.target as HTMLInputElement).value))" />
                                     </div>
                                 </div>
                                 
@@ -102,16 +95,16 @@
                                     <div class="property-row">
                                         <label>X2:</label>
                                         <input type="number" 
-                                            :value="(selectedObject as PortalObject).bounds[1]?.x?.toFixed(2) || '0'" 
+                                            :value="((selectedObject as DoorObject).coords[2] || 0).toFixed(2)" 
                                             step="0.1"
-                                            @change="updateBoundsProperty(1, 'x', parseFloat(($event.target as HTMLInputElement).value))" />
+                                            @change="updateCoordsProperty(2, parseFloat(($event.target as HTMLInputElement).value))" />
                                     </div>
                                     <div class="property-row">
                                         <label>Y2:</label>
                                         <input type="number" 
-                                            :value="(selectedObject as PortalObject).bounds[1]?.y?.toFixed(2) || '0'" 
+                                            :value="((selectedObject as DoorObject).coords[3] || 0).toFixed(2)" 
                                             step="0.1"
-                                            @change="updateBoundsProperty(1, 'y', parseFloat(($event.target as HTMLInputElement).value))" />
+                                            @change="updateCoordsProperty(3, parseFloat(($event.target as HTMLInputElement).value))" />
                                     </div>
                                 </div>
                             </div>
@@ -127,13 +120,13 @@
                                     @change="updateProperty('color', ($event.target as HTMLInputElement).value)" />
                             </div>
                             <div class="property-row">
-                                <label>Range (world units):</label>
+                                <label>Bright Radius (world units):</label>
                                 <input type="number" 
-                                    :value="Number((selectedObject as LightObject).range.toFixed(1))" 
+                                    :value="Number((selectedObject as LightObject).brightRadius.toFixed(1))" 
                                     :min="0" 
                                     :max="1000" 
                                     :step="5" 
-                                    @change="updateProperty('range', parseFloat(($event.target as HTMLInputElement).value))" />
+                                    @change="updateProperty('brightRadius', parseFloat(($event.target as HTMLInputElement).value))" />
                             </div>
                             <div class="property-row">
                                 <label>Intensity:</label>
@@ -144,13 +137,12 @@
                                     }}</span>
                             </div>
                             <div class="property-row">
-                                <label>Opacity:</label>
-                                <input type="range"
-                                    :value="(selectedObject as LightObject).opacity ?? 0.5"
-                                    min="0.2" max="1" step="0.01"
-                                    @input="updateProperty('opacity', parseFloat(($event.target as HTMLInputElement).value))"
+                                <label>Dim Radius:</label>
+                                <input type="number"
+                                    :value="(selectedObject as LightObject).dimRadius"
+                                    min="0" max="2000" step="5"
+                                    @input="updateProperty('dimRadius', parseFloat(($event.target as HTMLInputElement).value))"
                                 />
-                                <span class="range-value">{{ Math.round(((selectedObject as LightObject).opacity ?? 0.5) * 100) }}%</span>
                             </div>
                             <div class="property-row">
                                 <label>Shadows:</label>
@@ -182,7 +174,7 @@
 import { computed } from 'vue';
 import type {
     WallObject,
-    PortalObject,
+    DoorObject,
     LightObject,
     AnyEditorObject
 } from '../../../../../shared/src/types/mapEditor.mjs';
@@ -209,8 +201,11 @@ const objectTypeLabel = computed(() => {
 
     switch (selectedObject.value.objectType) {
         case 'wall': return 'Wall';
-        case 'portal': return 'Portal/Door';
+        case 'door': return 'Door';
         case 'light': return 'Light Source';
+        case 'object': return 'Object';
+        case 'terrain': return 'Terrain';
+        case 'region': return 'Region';
         default: return 'Unknown';
     }
 });
@@ -222,25 +217,18 @@ const updateProperty = (property: string, value: unknown) => {
     }
 };
 
-const updatePositionProperty = (axis: 'x' | 'y', value: number) => {
-    if (selectedObject.value && selectedObject.value.objectType === 'portal') {
-        const currentPosition = (selectedObject.value as PortalObject).position;
-        const newPosition = { ...currentPosition, [axis]: value };
-        emit('property-updated', selectedObject.value.id, 'position', newPosition);
-    }
-};
-
-const updateBoundsProperty = (pointIndex: number, axis: 'x' | 'y', value: number) => {
-    if (selectedObject.value && selectedObject.value.objectType === 'portal') {
-        const currentBounds = [...((selectedObject.value as PortalObject).bounds || [])];
+// Update coords array for doors [x1, y1, x2, y2]
+const updateCoordsProperty = (index: number, value: number) => {
+    if (selectedObject.value && selectedObject.value.objectType === 'door') {
+        const currentCoords = [...((selectedObject.value as DoorObject).coords || [0, 0, 0, 0])];
         
-        // Ensure the bounds array has the right structure
-        if (!currentBounds[pointIndex]) {
-            currentBounds[pointIndex] = { x: 0, y: 0 };
+        // Ensure the coords array has the right length
+        while (currentCoords.length < 4) {
+            currentCoords.push(0);
         }
         
-        currentBounds[pointIndex] = { ...currentBounds[pointIndex], [axis]: value };
-        emit('property-updated', selectedObject.value.id, 'bounds', currentBounds);
+        currentCoords[index] = value;
+        emit('property-updated', selectedObject.value.id, 'coords', currentCoords);
     }
 };
 

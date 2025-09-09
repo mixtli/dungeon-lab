@@ -267,7 +267,6 @@ const objectTool = ref<InstanceType<typeof ObjectTool> | null>(null);
 const selectionTool = ref<InstanceType<typeof SelectionTool> | null>(null);
 const selectionRect = ref<Konva.Rect | null>(null);
 const verticesLayer = ref<KonvaLayer | null>(null);
-const objectWallLayer = ref<KonvaLayer | null>(null);
 
 // Canvas state
 const canvasSize = reactive({
@@ -584,32 +583,6 @@ const getLightMarkerConfig = (light: LightObject) => ({
 });
 
 // Add config for object walls with blue color
-const getObjectWallConfig = (wall: WallObject) => {
-    console.log('Rendering object wall ID:', wall.id);
-    
-    // Ensure all points are valid numbers
-    const validPoints = Array.isArray(wall.points) ? 
-        wall.points.map((p, index) => {
-            const isValid = typeof p === 'number' && !isNaN(p);
-            if (!isValid) {
-                console.warn(`Invalid point at index ${index}, value:`, p);
-            }
-            return isValid ? p : 0;
-        }) : [];
-    
-    const config = {
-        points: validPoints,
-        stroke: wall.stroke || '#0000ff',
-        strokeWidth: wall.strokeWidth || 10,
-        lineCap: 'round',
-        lineJoin: 'round',
-        draggable: props.currentTool === 'select',
-        id: wall.id
-    };
-    console.log(config)
-
-    return config;
-};
 
 // Object configuration methods
 const getObjectGroupConfig = (object: ObjectEditorObject) => ({
@@ -1461,8 +1434,8 @@ const handleSelectionEnded = (rect: { start: Point; end: Point }) => {
     for (const portal of props.portals) {
         if (portal.visible === false) continue;
         
-        const portalX = portal.position.x;
-        const portalY = portal.position.y;
+        const portalX = portal.position?.x || 0;
+        const portalY = portal.position?.y || 0;
         
         if (portalX >= x && portalX <= x + width && portalY >= y && portalY <= y + height) {
             selectedIds.push(portal.id);
