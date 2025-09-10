@@ -80,6 +80,7 @@ async function handleSubmit(event: Event) {
       description: formData.value.description || '',
       gridColumns: gridWidth, // Calculated from image dimensions
       mapData: {
+        version: "1.0",
         coordinates: {
           worldUnitsPerGridCell: formData.value.pixelsPerGrid,
           offset: { x: 0, y: 0 },
@@ -90,14 +91,51 @@ async function handleSubmit(event: Event) {
           imageDimensions: { 
             width: originalImagePixelDimensions.value.width, 
             height: originalImagePixelDimensions.value.height 
+          },
+          display: {
+            visible: true,
+            color: "#000000",
+            opacity: 1.0,
+            lineWidth: 2
           }
         },
+        walls: [],
+        terrain: [],
+        objects: [],
+        regions: [],
+        doors: [],
+        lights: [],
         environment: {
+          audio: {
+            reverbLevel: 0.5,
+            soundOcclusion: true
+          },
+          weather: {
+            type: "none" as const,
+            intensity: 0,
+            windDirection: 0,
+            windSpeed: 0,
+            visibility: 1.0
+          },
           ambientLight: {
             color: '#ffffff',
             intensity: 0.1
           },
-          globalIllumination: false
+          globalIllumination: false,
+          darkvisionRange: 60,
+          atmosphere: {
+            fogColor: "#808080",
+            fogDensity: 0
+          }
+        },
+        semanticData: {
+          mapType: "other" as const,
+          keywords: []
+        },
+        conversionSettings: {
+          defaultPolygonPrecision: 16,
+          useAdaptivePrecision: true,
+          targetSegmentLength: 10
         }
       }
     };

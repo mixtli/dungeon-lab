@@ -249,12 +249,14 @@ export const useGameStateStore = defineStore(
                     if (documentDiffs.length > 0) {
                       console.log('📄 Document-related differences:', documentDiffs.length);
                       documentDiffs.forEach((diff, i) => {
+                        // deep-diff type is incomplete, add properties that exist at runtime
+                        const diffWithValues = diff as typeof diff & { lhs?: unknown; rhs?: unknown; item?: unknown };
                         console.log(`  ${i+1}. [${diff.kind}] ${diff.path?.join('.')}:`, {
                           kind: diff.kind,
                           path: diff.path,
-                          oldValue: diff.lhs,
-                          newValue: diff.rhs,
-                          item: diff.item
+                          oldValue: diffWithValues.lhs,
+                          newValue: diffWithValues.rhs,
+                          item: diffWithValues.item
                         });
                       });
                     }
@@ -266,12 +268,14 @@ export const useGameStateStore = defineStore(
                     console.log('🔍 Detailed differences (first 20):');
                     diffsToShow.forEach((diff, i) => {
                       const pathStr = Array.isArray(diff.path) ? diff.path.join('.') : 'root';
+                      // deep-diff type is incomplete, add properties that exist at runtime
+                      const diffWithValues = diff as typeof diff & { lhs?: unknown; rhs?: unknown; item?: unknown };
                       console.log(`  ${i+1}. [${diff.kind}] ${pathStr}:`, {
                         kind: diff.kind,
                         path: diff.path,
-                        oldValue: diff.lhs,
-                        newValue: diff.rhs,
-                        item: diff.item
+                        oldValue: diffWithValues.lhs,
+                        newValue: diffWithValues.rhs,
+                        item: diffWithValues.item
                       });
                     });
                     

@@ -1,4 +1,8 @@
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/index.mjs';
+import { z } from 'zod';
+import { worldCoordinateSystemSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+
+type WorldCoordinateSystem = z.infer<typeof worldCoordinateSystemSchema>;
 
 export interface Point {
   x: number;
@@ -179,7 +183,7 @@ function onSegment(p: Point, q: Point, r: Point): boolean {
  * @param coordinates Map coordinate system
  * @returns World position
  */
-function gridToWorld(gridPos: Point, coordinates: any): Point {
+function gridToWorld(gridPos: Point, coordinates: WorldCoordinateSystem): Point {
   const gridSize = coordinates.worldUnitsPerGridCell;
   const offset = coordinates.offset;
   

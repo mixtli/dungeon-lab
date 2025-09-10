@@ -2,8 +2,10 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../stores/game-state.store.mjs';
-import { transformAssetUrl } from '../utils/asset-utils.mjs';
+import type { IActor, ICharacter } from '@dungeon-lab/shared/types/index.mjs';
 import defaultTokenUrl from '@/assets/images/default_token.svg';
+
+type ActorWithType = (IActor & { type: 'actor' }) | (ICharacter & { type: 'character' });
 
 const router = useRouter();
 const gameStateStore = useGameStateStore();
@@ -26,15 +28,19 @@ const allActors = computed(() => {
 });
 
 // Get actor avatar URL
-function getActorAvatarUrl(actor: any): string {
+function getActorAvatarUrl(actor: ActorWithType): string {
   try {
-    if (actor.avatar && typeof actor.avatar === 'object' && actor.avatar.url) {
-      return transformAssetUrl(actor.avatar.url);
+    // Check if it's a character with avatar property
+    if (actor.type === 'character' && 'avatarId' in actor) {
+      const assetId = actor.avatarId || actor.imageId;
+      if (assetId && typeof assetId === 'string') {
+        // For now, use default token - in production you'd fetch the asset
+        return defaultTokenUrl;
+      }
     }
     
-    const assetId = actor.avatarId || actor.imageId;
-    if (assetId && typeof assetId === 'string') {
-      // For now, use default token - in production you'd fetch the asset
+    // For actors, check imageId property
+    if (actor.type === 'actor' && actor.imageId) {
       return defaultTokenUrl;
     }
   } catch (err) {
@@ -45,7 +51,7 @@ function getActorAvatarUrl(actor: any): string {
 }
 
 // Navigate to actor sheet
-function openActorSheet(actor: any) {
+function openActorSheet(actor: ActorWithType) {
   router.push({
     name: 'mobile-actor-sheet',
     params: { id: actor.id }

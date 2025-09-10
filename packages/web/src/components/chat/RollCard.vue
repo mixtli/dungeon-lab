@@ -85,8 +85,9 @@ const props = defineProps<Props>();
  */
 function calculateTotal(): number {
   // Use plugin-calculated total if available (from D&D handler, etc.)
-  if (typeof (props.rollData as any).calculatedTotal === 'number') {
-    return (props.rollData as any).calculatedTotal;
+  const rollDataWithExtensions = props.rollData as RollServerResult & { calculatedTotal?: number };
+  if (typeof rollDataWithExtensions.calculatedTotal === 'number') {
+    return rollDataWithExtensions.calculatedTotal;
   }
   
   // Fallback to generic calculation for non-plugin rolls

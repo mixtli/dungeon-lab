@@ -1,7 +1,7 @@
 import { ref, computed, reactive } from 'vue';
 import type {
   WallObject,
-  PortalObject,
+  DoorObject,
   LightObject,
   ObjectEditorObject,
   EditorToolType,
@@ -18,7 +18,7 @@ export function useEditorState() {
   // Core editor state
   const walls = ref<WallObject[]>([]);
   const objects = ref<ObjectEditorObject[]>([]);
-  const portals = ref<PortalObject[]>([]);
+  const doors = ref<DoorObject[]>([]);
   const lights = ref<LightObject[]>([]);
   const selectedObjectIds = ref<string[]>([]);
   const currentTool = ref<EditorToolType>('select');
@@ -41,7 +41,13 @@ export function useEditorState() {
       worldUnitsPerGridCell: 50,
       offset: { x: 0, y: 0 },
       dimensions: { width: 30, height: 30 },
-      imageDimensions: { width: 800, height: 600 }  // Reasonable default - will be overwritten by real data
+      imageDimensions: { width: 800, height: 600 }, // Reasonable default - will be overwritten by real data
+      display: {
+        visible: true,
+        color: 'rgba(0, 0, 0, 0.6)',
+        opacity: 0.8,
+        lineWidth: 1
+      }
     },
     image: '',
     environment: {
@@ -49,15 +55,22 @@ export function useEditorState() {
         color: '#ffffff',
         intensity: 0.1
       },
-      globalIllumination: false
-    },
-    // UVTT data for backward compatibility - values mirror world coordinate system
-    uvtt: {
-      format: 1.0,
-      resolution: {
-        map_origin: { x: 0, y: 0 },
-        map_size: { x: 30, y: 30 },
-        pixels_per_grid: 50  // Matches worldUnitsPerGridCell
+      globalIllumination: false,
+      darkvisionRange: 60,
+      weather: {
+        type: 'none',
+        intensity: 0,
+        windDirection: 0,
+        windSpeed: 0,
+        visibility: 1
+      },
+      atmosphere: {
+        fogColor: '#ffffff',
+        fogDensity: 0
+      },
+      audio: {
+        reverbLevel: 0.5,
+        soundOcclusion: false
       }
     }
   });
@@ -70,7 +83,7 @@ export function useEditorState() {
 
   // Computed state
   const allObjects = computed<AnyEditorObject[]>(() => {
-    return [...walls.value, ...objects.value, ...portals.value, ...lights.value];
+    return [...walls.value, ...objects.value, ...doors.value, ...lights.value];
   });
 
   const selectedObjects = computed(() => {
@@ -105,17 +118,17 @@ export function useEditorState() {
     }
   };
 
-  const addPortal = (portal: PortalObject) => {
-    console.log('[useEditorState] addPortal. Received portal object:', JSON.parse(JSON.stringify(portal)));
-    portals.value.push(portal);
-    console.log('[useEditorState] addPortal. Portals count after push:', portals.value.length);
+  const addDoor = (door: DoorObject) => {
+    console.log('[useEditorState] addDoor. Received door object:', JSON.parse(JSON.stringify(door)));
+    doors.value.push(door);
+    console.log('[useEditorState] addDoor. Doors count after push:', doors.value.length);
     isModified.value = true;
   };
 
-  const updatePortal = (id: string, updates: Partial<PortalObject>) => {
-    const index = portals.value.findIndex((p) => p.id === id);
+  const updateDoor = (id: string, updates: Partial<DoorObject>) => {
+    const index = doors.value.findIndex((p) => p.id === id);
     if (index >= 0) {
-      portals.value[index] = { ...portals.value[index], ...updates };
+      doors.value[index] = { ...doors.value[index], ...updates };
       isModified.value = true;
     }
   };
@@ -157,9 +170,9 @@ export function useEditorState() {
       removed = true;
     }
 
-    const portalIndex = portals.value.findIndex((p) => p.id === id);
-    if (portalIndex >= 0) {
-      portals.value.splice(portalIndex, 1);
+    const doorIndex = doors.value.findIndex((p) => p.id === id);
+    if (doorIndex >= 0) {
+      doors.value.splice(doorIndex, 1);
       removed = true;
     }
 
@@ -218,7 +231,7 @@ export function useEditorState() {
   const resetState = () => {
     walls.value = [];
     objects.value = [];
-    portals.value = [];
+    doors.value = [];
     lights.value = [];
     selectedObjectIds.value = [];
     isDrawing.value = false;
@@ -238,7 +251,7 @@ export function useEditorState() {
     newMapMetadata: MapMetadata,
     newWalls: WallObject[] = [],
     newObjects: ObjectEditorObject[] = [],
-    newPortals: PortalObject[] = [],
+    newDoors: DoorObject[] = [],
     newLights: LightObject[] = []
   ) => {
     // Update map metadata
@@ -247,7 +260,7 @@ export function useEditorState() {
     // Replace objects
     walls.value = newWalls;
     objects.value = newObjects;
-    portals.value = newPortals;
+    doors.value = newDoors;
     lights.value = newLights;
 
     // Reset selection and modified state
@@ -260,7 +273,7 @@ export function useEditorState() {
     // State
     walls,
     objects,
-    portals,
+    doors,
     lights,
     selectedObjectIds,
     currentTool,
@@ -279,8 +292,8 @@ export function useEditorState() {
     updateWall,
     addObject,
     updateObject,
-    addPortal,
-    updatePortal,
+    addDoor,
+    updateDoor,
     addLight,
     updateLight,
     removeObject,

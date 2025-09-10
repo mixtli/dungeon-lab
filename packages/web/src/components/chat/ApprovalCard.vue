@@ -96,7 +96,7 @@ const chatStore = useChatStore();
 // Component state
 const isLoading = ref(false);
 const loadingAction = ref<'approve' | 'deny' | null>(null);
-const autoHideTimer = ref<NodeJS.Timeout | null>(null);
+const autoHideTimer = ref<number | null>(null);
 
 // Computed properties that read from persisted approval data
 const isProcessed = computed(() => !!props.approvalData.approvalStatus);
@@ -104,7 +104,7 @@ const approvalStatus = computed(() => props.approvalData.approvalStatus || null)
 
 // Cleanup timer on component unmount
 onUnmounted(() => {
-  if (autoHideTimer.value) {
+  if (autoHideTimer.value !== null) {
     clearTimeout(autoHideTimer.value);
   }
 });
@@ -136,7 +136,7 @@ function startAutoHideTimer(): void {
     return;
   }
 
-  autoHideTimer.value = setTimeout(() => {
+  autoHideTimer.value = window.setTimeout(() => {
     console.log(`[ApprovalCard] Auto-hiding approval card for message: ${messageId}`);
     chatStore.removeMessage(messageId);
   }, 3000);

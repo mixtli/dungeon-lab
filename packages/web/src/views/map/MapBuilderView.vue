@@ -9,6 +9,7 @@ import { useSocketStore } from '../../stores/socket.store.mts';
 import type { MapGenerationResponse, MapEditResponse, MapFeatureDetectionResponse } from '@dungeon-lab/shared/types/socket/index.mjs';
 import axios from 'axios';
 import { MapsClient } from '@dungeon-lab/client/maps.client.mjs';
+import { convertUVTTToMapData } from '@dungeon-lab/shared/utils/uvtt-converter.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 const router = useRouter();
@@ -478,23 +479,67 @@ const proceedToEdit = async () => {
     const imageBlob = await imageResponse.blob();
     const imageFile = new File([imageBlob], `${mapName.value}.png`, { type: imageBlob.type });
 
-    // Create the map using the MapsClient with proper UVTT structure
+    // Create the map using the MapsClient with proper mapData structure
     const map = await mapsClient.createMap({
       name: mapName.value,
       description: description.value || `AI Generated Map: ${parameters.style} style`,
-      uvtt: {
-        format: 1.0,
-        resolution: {
-          map_origin: { x: 0, y: 0 },
-          map_size: { 
-            x: parameters.width, 
-            y: parameters.height 
+      mapData: {
+        version: "1.0",
+        coordinates: {
+          worldUnitsPerGridCell: parameters.pixelsPerGrid,
+          offset: { x: 0, y: 0 },
+          dimensions: { 
+            width: parameters.width, 
+            height: parameters.height 
           },
-          pixels_per_grid: parameters.pixelsPerGrid
+          imageDimensions: { 
+            width: parameters.width, 
+            height: parameters.height 
+          },
+          display: {
+            visible: true,
+            color: "#000000",
+            opacity: 1.0,
+            lineWidth: 2
+          }
         },
+        walls: [],
+        terrain: [],
+        objects: [],
+        regions: [],
+        doors: [],
+        lights: [],
         environment: {
-          baked_lighting: false,
-          ambient_light: '#ffffff'
+          audio: {
+            reverbLevel: 0.5,
+            soundOcclusion: true
+          },
+          weather: {
+            type: "none",
+            intensity: 0,
+            windDirection: 0,
+            windSpeed: 0,
+            visibility: 1.0
+          },
+          ambientLight: {
+            color: "#ffffff",
+            intensity: 1.0
+          },
+          globalIllumination: false,
+          darkvisionRange: 60,
+          atmosphere: {
+            fogColor: "#808080",
+            fogDensity: 0
+          }
+        },
+        semanticData: {
+          mapType: "other",
+          keywords: [`AI-generated`, parameters.style]
+        },
+        conversionSettings: {
+          defaultPolygonPrecision: 16,
+          useAdaptivePrecision: true,
+          targetSegmentLength: 10
         }
       }
     }, imageFile);
@@ -608,11 +653,14 @@ const createMapFromUvtt = async () => {
     const imageBlob = await imageResponse.blob();
     const imageFile = new File([imageBlob], `${mapName.value}.png`, { type: imageBlob.type });
 
-    // Create the map using the MapsClient with the UVTT data and original image
+    // Convert UVTT data to new mapData schema format
+    const convertedMapData = convertUVTTToMapData(uvttData);
+    
+    // Create the map using the MapsClient with the converted mapData and original image
     const map = await mapsClient.createMap({
       name: mapName.value,
       description: description.value || `AI Generated Map with detected features: ${parameters.style} style`,
-      uvtt: uvttData
+      mapData: convertedMapData
     }, imageFile);
 
     // Store the map ID for future reference

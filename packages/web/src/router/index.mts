@@ -569,7 +569,7 @@ router.beforeEach(async (to, from, next) => {
         
         // Preserve actor ID if navigating to specific actor sheet
         if (to.name === 'mobile-actor-sheet' && to.params.id) {
-          query.actor = to.params.id;
+          query.actor = Array.isArray(to.params.id) ? to.params.id[0] : to.params.id;
         }
         
         next({ 

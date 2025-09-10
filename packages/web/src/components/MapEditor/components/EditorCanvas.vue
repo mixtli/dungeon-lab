@@ -90,7 +90,7 @@
                         <!-- Object vertex handles (only show when selected AND in select mode) -->
                         <template v-if="props.selectedObjectIds.includes(object.id) && props.currentTool === 'select'">
                             <v-circle v-for="(vertex, index) in getObjectVertices(object)" :key="`object-vertex-${object.id}-${index}`"
-                                :config="getObjectVertexHandleConfig(object, vertex, index)"
+                                :config="getObjectVertexHandleConfig(object, vertex)"
                                 @dragend="handleObjectVertexDrag($event, object.id, index)" />
                         </template>
                     </v-group>
@@ -114,22 +114,22 @@
                     @dragend="handleVertexDragEnd($event, vertex.wallId, vertex.index)" />
             </v-layer>
 
-            <!-- Portal layer -->
-            <v-layer ref="portalLayer">
-                <template v-for="portal in portals" :key="portal.id">
-                    <v-group v-bind="getPortalGroupConfig(portal)">
+            <!-- Door layer -->
+            <v-layer ref="doorLayer">
+                <template v-for="door in doors" :key="door.id">
+                    <v-group v-bind="getDoorGroupConfig(door)">
                         
-                        <!-- Portal line segment (draggable for whole portal movement) -->
-                        <v-line v-bind="getPortalLineConfig(portal)" 
-                            @click="(e: KonvaEventObject<MouseEvent>) => handleObjectClick(e, portal.id)"
-                            @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalDragEnd(e, portal.id)" />
+                        <!-- Door line segment (draggable for whole door movement) -->
+                        <v-line v-bind="getDoorLineConfig(door)" 
+                            @click="(e: KonvaEventObject<MouseEvent>) => handleObjectClick(e, door.id)"
+                            @dragend="(e: KonvaEventObject<DragEvent>) => handleDoorDragEnd(e, door.id)" />
                         
-                        <!-- Portal endpoint handles (only show when selected AND in select mode) -->
-                        <template v-if="props.selectedObjectIds.includes(portal.id) && props.currentTool === 'select'">
-                            <v-circle v-bind="getPortalHandleConfig(portal, 0)"
-                                @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalEndpointDrag(e, portal.id, 0)" />
-                            <v-circle v-bind="getPortalHandleConfig(portal, 1)"
-                                @dragend="(e: KonvaEventObject<DragEvent>) => handlePortalEndpointDrag(e, portal.id, 1)" />
+                        <!-- Door endpoint handles (only show when selected AND in select mode) -->
+                        <template v-if="props.selectedObjectIds.includes(door.id) && props.currentTool === 'select'">
+                            <v-circle v-bind="getDoorHandleConfig(door, 0)"
+                                @dragend="(e: KonvaEventObject<DragEvent>) => handleDoorEndpointDrag(e, door.id, 0)" />
+                            <v-circle v-bind="getDoorHandleConfig(door, 1)"
+                                @dragend="(e: KonvaEventObject<DragEvent>) => handleDoorEndpointDrag(e, door.id, 1)" />
                         </template>
                     </v-group>
                 </template>
@@ -205,7 +205,7 @@ import ObjectTool from './tools/ObjectTool.vue';
 import SelectionTool from './tools/SelectionTool.vue';
 import type {
     WallObject,
-    PortalObject,
+    DoorObject,
     LightObject,
     ObjectEditorObject,
     EditorToolType,
@@ -214,6 +214,28 @@ import type {
     MapMetadata
 } from '../../../../../shared/src/types/mapEditor.mjs';
 
+// Specific update types for non-object updates
+interface ViewportUpdate {
+    viewportTransform?: {
+        scale: number;
+        position: Point;
+    };
+}
+
+interface GridConfigUpdate {
+    worldUnitsPerCell?: number;
+}
+
+interface GridOffsetUpdate {
+    offset?: Point;
+}
+
+// Union type for all possible updates
+type EditorUpdatePayload = 
+    | Partial<WallObject | DoorObject | LightObject | ObjectEditorObject>
+    | ViewportUpdate 
+    | GridConfigUpdate 
+    | GridOffsetUpdate;
 
 interface KonvaLayer {
     getNode(): Konva.Layer
@@ -232,7 +254,7 @@ interface KonvaTransformer {
 const props = defineProps<{
     walls: WallObject[];
     objects: ObjectEditorObject[];
-    portals: PortalObject[];
+    doors: DoorObject[];
     lights: LightObject[];
     selectedObjectIds: string[];
     currentTool: EditorToolType;
@@ -244,8 +266,8 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
     (e: 'object-selected', id: string | null, addToSelection: boolean): void;
-    (e: 'object-added', object: WallObject | PortalObject | LightObject | ObjectEditorObject): void;
-    (e: 'object-modified', id: string, updates: Partial<WallObject | PortalObject | LightObject | ObjectEditorObject> | { viewportTransform?: any; worldUnitsPerCell?: number; offset?: Point; }): void;
+    (e: 'object-added', object: WallObject | DoorObject | LightObject | ObjectEditorObject): void;
+    (e: 'object-modified', id: string, updates: EditorUpdatePayload): void;
     (e: 'object-removed', id: string): void;
     (e: 'mouse-move', pixelPos: Point, gridPos: Point): void;
     (e: 'selection-cleared'): void;
@@ -258,7 +280,7 @@ const bgLayer = ref<KonvaLayer | null>(null);
 const gridLayer = ref<KonvaLayer | null>(null);
 const wallLayer = ref<KonvaLayer | null>(null);
 const objectsLayer = ref<KonvaLayer | null>(null);
-const portalLayer = ref<KonvaLayer | null>(null);
+const doorLayer = ref<KonvaLayer | null>(null);
 const lightLayer = ref<KonvaLayer | null>(null);
 const selectionLayer = ref<KonvaLayer | null>(null);
 const transformer = ref<KonvaTransformer | null>(null);
@@ -297,7 +319,7 @@ const backgroundImageConfig = computed(() => ({
     y: 0
 }));
 
-// Initialize grid system for local use (e.g. placing portals/lights)
+// Initialize grid system for local use (e.g. placing doors/lights)
 const gridSystem = useGridSystem(props.gridConfig);
 
 // Filtered objects by visibility
@@ -371,16 +393,16 @@ const gridDrawingData = computed(() => {
     };
 });
 
-// Selected objects excluding walls and portals (they use endpoint handles instead of transformer)
+// Selected objects excluding walls and doors (they use endpoint handles instead of transformer)
 const selectedNonWallObjectIds = computed(() => {
     return props.selectedObjectIds.filter(id => {
         // Check if this ID belongs to a wall
         const isWall = props.walls.some(wall => wall.id === id);
-        // Check if this ID belongs to a portal
-        const isPortal = props.portals.some(portal => portal.id === id);
+        // Check if this ID belongs to a door
+        const isDoor = props.doors.some(door => door.id === id);
         // Check if this ID belongs to an object
         const isObject = props.objects.some(object => object.id === id);
-        return !isWall && !isPortal && !isObject;
+        return !isWall && !isDoor && !isObject;
     });
 });
 
@@ -410,118 +432,92 @@ const getWallConfig = (wall: WallObject) => {
     };
 };
 
-const getPortalGroupConfig = (portal: PortalObject) => {
-    // Portals use endpoint handles for all manipulation (like walls)
+const getDoorGroupConfig = (door: DoorObject) => {
+    // Doors use endpoint handles for all manipulation (like walls)
     // Group is just for organizing the line and handles, not for dragging
     
-    console.log('Portal group config (endpoint handles only):', {
-        portalId: portal.id,
-        coords: portal.coords
+    console.log('Door group config (endpoint handles only):', {
+        doorId: door.id,
+        coords: door.coords
     });
     
     return {
-        x: 0, // Portal line and handles use absolute coordinates
-        y: 0, // Portal line and handles use absolute coordinates  
+        x: 0, // Door line and handles use absolute coordinates
+        y: 0, // Door line and handles use absolute coordinates  
         draggable: false, // No group dragging - all manipulation via endpoint handles
-        id: portal.id
+        id: door.id
     };
 };
 
-const getPortalLineConfig = (portal: PortalObject) => {
+const getDoorLineConfig = (door: DoorObject) => {
     // Use coords array directly for line segment coordinates
     let points: number[];
     
-    if (portal.coords && portal.coords.length >= 4) {
+    if (door.coords && door.coords.length >= 4) {
         // Use new coords format directly [x1, y1, x2, y2]
-        points = [...portal.coords];
-        console.log('Portal line (coords format):', {
-            portalId: portal.id,
-            coords: portal.coords,
+        points = [...door.coords];
+        console.log('Door line (coords format):', {
+            doorId: door.id,
+            coords: door.coords,
             final_points: points
-        });
-    } else if (portal.bounds && portal.bounds.length >= 2 && portal.bounds[0] && portal.bounds[1]) {
-        // Legacy support: convert from bounds format
-        points = [
-            portal.bounds[0].x, portal.bounds[0].y,
-            portal.bounds[1].x, portal.bounds[1].y
-        ];
-        console.warn('Portal line (legacy bounds):', {
-            portalId: portal.id,
-            bounds: portal.bounds,
-            converted_points: points
         });
     } else {
         // Default fallback: horizontal line segment
         const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
-        const portalLength = worldUnitsPerCell;
-        const centerX = portal.position?.x || 0;
-        const centerY = portal.position?.y || 0;
+        const doorLength = worldUnitsPerCell;
         
         points = [
-            centerX - portalLength / 2, centerY,
-            centerX + portalLength / 2, centerY
+            0, 0,
+            doorLength, 0
         ];
-        console.warn('Portal line (default fallback):', {
-            portalId: portal.id,
-            center: { x: centerX, y: centerY },
-            length: portalLength,
+        console.warn('Door line (default fallback):', {
+            doorId: door.id,
+            length: doorLength,
             final_points: points
         });
     }
 
     return {
         points: points,
-        stroke: portal.stroke || '#8B4513', // Brown default to match schema
-        strokeWidth: portal.strokeWidth || 3, // Default width to match schema
+        stroke: door.stroke || '#8B4513', // Brown default to match schema
+        strokeWidth: door.strokeWidth || 3, // Default width to match schema
         lineCap: 'round',
         lineJoin: 'round',
         draggable: props.currentTool === 'select', // Make line draggable like walls
-        id: portal.id
+        id: door.id
     };
 };
 
-const getPortalHandleConfig = (portal: PortalObject, endpointIndex: number) => {
+const getDoorHandleConfig = (door: DoorObject, endpointIndex: number) => {
     // Get endpoint coordinates from coords array or fallback to legacy bounds
     let handleX: number, handleY: number;
     
-    if (portal.coords && portal.coords.length >= 4) {
+    if (door.coords && door.coords.length >= 4) {
         // Use coords array directly [x1, y1, x2, y2]
         const coordIndex = endpointIndex * 2; // 0 for start (x1,y1), 2 for end (x2,y2)
-        handleX = portal.coords[coordIndex];
-        handleY = portal.coords[coordIndex + 1];
+        handleX = door.coords[coordIndex];
+        handleY = door.coords[coordIndex + 1];
         
-        console.log('Portal handle (coords format):', {
-            portalId: portal.id,
+        console.log('Door handle (coords format):', {
+            doorId: door.id,
             endpointIndex: endpointIndex,
-            coords: portal.coords,
-            handle_absolute: { x: handleX, y: handleY }
-        });
-    } else if (portal.bounds && portal.bounds.length >= 2 && portal.bounds[endpointIndex]) {
-        // Legacy bounds support
-        const endpoint = portal.bounds[endpointIndex];
-        handleX = endpoint.x;
-        handleY = endpoint.y;
-        
-        console.warn('Portal handle (legacy bounds):', {
-            portalId: portal.id,
-            endpointIndex: endpointIndex,
-            endpoint: endpoint,
+            coords: door.coords,
             handle_absolute: { x: handleX, y: handleY }
         });
     } else {
-        // Default fallback
+        // Fallback: create a default door handle position based on coords center
+        const centerX = door.coords?.length >= 4 ? (door.coords[0] + door.coords[2]) / 2 : 0;
+        const centerY = door.coords?.length >= 4 ? (door.coords[1] + door.coords[3]) / 2 : 0;
         const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
-        const portalLength = worldUnitsPerCell;
-        const centerX = portal.position?.x || 0;
-        const centerY = portal.position?.y || 0;
+        const doorLength = Math.max(worldUnitsPerCell / 2, 25); // Minimum handle distance
         
         handleX = endpointIndex === 0 ? 
-            centerX - portalLength / 2 : 
-            centerX + portalLength / 2;
+            centerX - doorLength / 2 : 
+            centerX + doorLength / 2;
         handleY = centerY;
         
-        console.warn('Portal handle (default fallback):', {
-            portalId: portal.id,
+        console.warn('Door handle (fallback from coords center):', {
+            doorId: door.id,
             endpointIndex: endpointIndex,
             center: { x: centerX, y: centerY },
             handle_absolute: { x: handleX, y: handleY }
@@ -612,9 +608,9 @@ const getObjectPolygonConfig = (object: ObjectEditorObject) => {
     
     return {
         points: closedPoints,
-        stroke: object.stroke || '#666666',
-        strokeWidth: object.strokeWidth || 2,
-        fill: object.fill || 'rgba(100, 100, 100, 0.3)',
+        stroke: object.color || '#666666',
+        strokeWidth: 2, // Fixed stroke width for objects
+        fill: `${object.color || '#666666'}${Math.round((object.opacity || 0.3) * 255).toString(16).padStart(2, '0')}`, // Convert color + opacity to rgba hex
         lineCap: 'round',
         lineJoin: 'round',
         closed: true,
@@ -633,7 +629,7 @@ const getObjectVertices = (object: ObjectEditorObject) => {
     return vertices;
 };
 
-const getObjectVertexHandleConfig = (object: ObjectEditorObject, vertex: { x: number; y: number }, index: number) => ({
+const getObjectVertexHandleConfig = (_object: ObjectEditorObject, vertex: { x: number; y: number }) => ({
     x: vertex.x,
     y: vertex.y,
     radius: 6,
@@ -677,8 +673,8 @@ const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
                 objectTool.value.startDrawing(worldPos);
             }
             break;
-        case 'portal':
-            placePortal(worldPos);
+        case 'door':
+            placeDoor(worldPos);
             break;
         case 'light':
             placeLight(worldPos);
@@ -826,7 +822,7 @@ const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
                 y: pointer.y - mousePointTo.y * newScale
             }
         }
-    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion to match emit type
+    } as unknown as Partial<WallObject | DoorObject | LightObject>; // Using type assertion to match emit type
 
     // Emit changes for parent component to update viewport transform
     emit('object-modified', 'viewport', updates);
@@ -850,7 +846,7 @@ const handleStageDragEnd = (e: KonvaEventObject<DragEvent>) => {
             scale: props.viewportTransform.scale, // Keep current scale
             position: newPosition
         }
-    } as unknown as Partial<WallObject | PortalObject | LightObject>; // Using type assertion
+    } as unknown as Partial<WallObject | DoorObject | LightObject>; // Using type assertion
 
     emit('object-modified', 'viewport', updates);
 };
@@ -889,20 +885,20 @@ const handleWallDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     emit('object-modified', id, { points });
 };
 
-const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
+const handleDoorDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     const node = e.target;
     const dragOffset = { x: node.x(), y: node.y() };
 
-    // Find the portal to get its current coords
-    const portal = props.portals.find(p => p.id === id);
-    if (!portal || !portal.coords || portal.coords.length < 4) {
-        console.error('Portal or coords not found for drag end:', { id, portal });
+    // Find the door to get its current coords
+    const door = props.doors.find(p => p.id === id);
+    if (!door || !door.coords || door.coords.length < 4) {
+        console.error('Door or coords not found for drag end:', { id, door });
         return;
     }
 
-    // Calculate the center of the original portal
-    const originalCenterX = (portal.coords[0] + portal.coords[2]) / 2;
-    const originalCenterY = (portal.coords[1] + portal.coords[3]) / 2;
+    // Calculate the center of the original door
+    const originalCenterX = (door.coords[0] + door.coords[2]) / 2;
+    const originalCenterY = (door.coords[1] + door.coords[3]) / 2;
     
     // Calculate new center position
     const newCenterX = originalCenterX + dragOffset.x;
@@ -923,15 +919,15 @@ const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
 
     // Update coords by applying the offset
     const newCoords = [
-        portal.coords[0] + deltaX, // x1
-        portal.coords[1] + deltaY, // y1
-        portal.coords[2] + deltaX, // x2
-        portal.coords[3] + deltaY  // y2
+        door.coords[0] + deltaX, // x1
+        door.coords[1] + deltaY, // y1
+        door.coords[2] + deltaX, // x2
+        door.coords[3] + deltaY  // y2
     ];
 
-    console.log('Portal drag end (coords system):', {
+    console.log('Door drag end (coords system):', {
         id,
-        originalCoords: portal.coords,
+        originalCoords: door.coords,
         dragOffset,
         originalCenter: { x: originalCenterX, y: originalCenterY },
         newCenter: snappedCenter,
@@ -943,13 +939,7 @@ const handlePortalDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
     node.position({ x: 0, y: 0 });
 
     emit('object-modified', id, {
-        coords: newCoords,
-        // Update legacy fields for backward compatibility
-        position: snappedCenter,
-        bounds: [
-            { x: newCoords[0], y: newCoords[1] },
-            { x: newCoords[2], y: newCoords[3] }
-        ]
+        coords: newCoords
     });
 };
 
@@ -1113,11 +1103,11 @@ const handleKeyDown = (e: KeyboardEvent) => {
     }
 };
 
-const placePortal = (pos: Point) => {
-    console.log('[EditorCanvas] placePortal called with world pixel pos:', JSON.parse(JSON.stringify(pos)), 'Current tool:', props.currentTool);
+const placeDoor = (pos: Point) => {
+    console.log('[EditorCanvas] placeDoor called with world pixel pos:', JSON.parse(JSON.stringify(pos)), 'Current tool:', props.currentTool);
 
-    if (props.currentTool !== 'portal') {
-        console.warn('[EditorCanvas] placePortal called, but current tool is not portal. Aborting.');
+    if (props.currentTool !== 'door') {
+        console.warn('[EditorCanvas] placeDoor called, but current tool is not door. Aborting.');
         return;
     }
 
@@ -1130,42 +1120,33 @@ const placePortal = (pos: Point) => {
           )
         : pos;
     
-    // Define portal length in world units. Default to 1 grid cell.
+    // Define door length in world units. Default to 1 grid cell.
     const worldUnitsPerCell = props.mapMetadata.coordinates.worldUnitsPerGridCell;
-    const portalLength = worldUnitsPerCell;
+    const doorLength = worldUnitsPerCell;
 
     // Create line segment coordinates [x1, y1, x2, y2] centered at snappedWorldPos
-    // Default to horizontal portal
+    // Default to horizontal door
     const coords = [
-        snappedWorldPos.x - portalLength / 2, snappedWorldPos.y,  // Start point
-        snappedWorldPos.x + portalLength / 2, snappedWorldPos.y   // End point
+        snappedWorldPos.x - doorLength / 2, snappedWorldPos.y,  // Start point
+        snappedWorldPos.x + doorLength / 2, snappedWorldPos.y   // End point
     ];
 
-    const newPortal: PortalObject = {
-        id: `portal-${Date.now()}`,
-        objectType: 'portal',
+    const newDoor: DoorObject = {
+        id: `door-${Date.now()}`,
+        objectType: 'door',
         coords: coords, // Simple line segment coordinates
         state: 'closed', // Default to closed
         material: 'wood', // Default material
         stroke: '#8B4513', // Brown color to match schema default
         strokeWidth: 3, // Default width to match schema
         requiresKey: false,
+        tags: [],
         visible: true,
-        locked: false,
-        
-        // Legacy support for backward compatibility
-        position: snappedWorldPos,
-        rotation: 0,
-        bounds: [
-            { x: coords[0], y: coords[1] },
-            { x: coords[2], y: coords[3] }
-        ],
-        freestanding: true,
-        closed: true
+        locked: false
     };
 
-    console.log('[EditorCanvas] placePortal - Emitting new portal with coords:', JSON.parse(JSON.stringify(newPortal)));
-    emit('object-added', newPortal);
+    console.log('[EditorCanvas] placeDoor - Emitting new door with coords:', JSON.parse(JSON.stringify(newDoor)));
+    emit('object-added', newDoor);
 };
 
 const placeLight = (pos: Point) => {
@@ -1430,15 +1411,16 @@ const handleSelectionEnded = (rect: { start: Point; end: Point }) => {
         }
     }
     
-    // Check portals
-    for (const portal of props.portals) {
-        if (portal.visible === false) continue;
+    // Check doors
+    for (const door of props.doors) {
+        if (door.visible === false) continue;
         
-        const portalX = portal.position?.x || 0;
-        const portalY = portal.position?.y || 0;
+        // For doors, use center of coords array for selection
+        const doorX = door.coords?.length >= 4 ? (door.coords[0] + door.coords[2]) / 2 : 0;
+        const doorY = door.coords?.length >= 4 ? (door.coords[1] + door.coords[3]) / 2 : 0;
         
-        if (portalX >= x && portalX <= x + width && portalY >= y && portalY <= y + height) {
-            selectedIds.push(portal.id);
+        if (doorX >= x && doorX <= x + width && doorY >= y && doorY <= y + height) {
+            selectedIds.push(door.id);
         }
     }
     
@@ -1479,7 +1461,7 @@ watch(() => selectedNonWallObjectIds.value, (newSelectedIds) => {
     const selectedNodes: Konva.Node[] = [];
 
     for (const id of newSelectedIds) {
-        // Find the node in portal or light layers (walls are excluded)
+        // Find the node in door or light layers (walls are excluded)
         const node = konvaStage.findOne(`#${id}`);
         if (node) {
             selectedNodes.push(node);
@@ -1700,14 +1682,14 @@ watch(() => selectionTool.value, (tool) => {
     }
 }, { immediate: true });
 
-// Add a new method to handle portal endpoint drag
-const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, endpointIndex: number) => {
-    // Only allow portal editing when using select tool
+// Add a new method to handle door endpoint drag
+const handleDoorEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, endpointIndex: number) => {
+    // Only allow door editing when using select tool
     if (props.currentTool !== 'select') return;
     
-    const portal = props.portals.find(p => p.id === id);
-    if (!portal || !portal.coords || portal.coords.length < 4) {
-        console.error('Portal or coords not found for endpoint drag', { id, portal });
+    const door = props.doors.find(p => p.id === id);
+    if (!door || !door.coords || door.coords.length < 4) {
+        console.error('Door or coords not found for endpoint drag', { id, door });
         return;
     }
 
@@ -1726,14 +1708,14 @@ const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, en
         : handleNewPos;
 
     // 3. Update the coords array with the new endpoint position
-    const newCoords = [...portal.coords];
+    const newCoords = [...door.coords];
     const coordIndex = endpointIndex * 2; // 0 for start (x1,y1), 2 for end (x2,y2)
     newCoords[coordIndex] = snappedHandlePos.x;
     newCoords[coordIndex + 1] = snappedHandlePos.y;
     
-    console.log('[EditorCanvas] Portal endpoint drag (coords system):', {
+    console.log('[EditorCanvas] Door endpoint drag (coords system):', {
         id, endpointIndex,
-        originalCoords: portal.coords,
+        originalCoords: door.coords,
         handleNewPos,
         snappedHandlePos,
         coordIndex,
@@ -1745,21 +1727,12 @@ const handlePortalEndpointDrag = (e: KonvaEventObject<DragEvent>, id: string, en
 
     // 4. Emit the object-modified event with updated coords
     emit('object-modified', id, {
-        coords: newCoords,
-        // Update legacy fields for backward compatibility
-        bounds: [
-            { x: newCoords[0], y: newCoords[1] },
-            { x: newCoords[2], y: newCoords[3] }
-        ],
-        position: {
-            x: (newCoords[0] + newCoords[2]) / 2,
-            y: (newCoords[1] + newCoords[3]) / 2
-        }
+        coords: newCoords
     });
 
-    // Redraw the layer containing the portal
-    const portalKonvaNode = handleNode.getParent();
-    portalKonvaNode?.getLayer()?.batchDraw();
+    // Redraw the layer containing the door
+    const doorKonvaNode = handleNode.getParent();
+    doorKonvaNode?.getLayer()?.batchDraw();
 };
 </script>
 

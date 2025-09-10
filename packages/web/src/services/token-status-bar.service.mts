@@ -87,17 +87,20 @@ export class TokenStatusBarService {
     }
     
     // If current is not defined, default to maximum (full health for new tokens)
+    let currentValue: number;
     if (typeof current !== 'number') {
-      current = maximum;
+      currentValue = maximum;
+    } else {
+      currentValue = current;
     }
     
     // Calculate percentage and display color
-    const percentage = maximum > 0 ? Math.max(0, Math.min(1, current / maximum)) : 0;
+    const percentage = maximum > 0 ? Math.max(0, Math.min(1, currentValue / maximum)) : 0;
     const displayColor = this.calculateDisplayColor(percentage, config);
     
     return {
       config,
-      current,
+      current: currentValue,
       maximum,
       percentage,
       displayColor,
@@ -112,17 +115,22 @@ export class TokenStatusBarService {
    * @param path Dot-notation path (e.g., 'attributes.hitPoints.current')
    * @returns The extracted value or undefined
    */
-  private static getValueFromPath(obj: any, path: string): any {
+  private static getValueFromPath(obj: unknown, path: string): unknown {
     if (!obj || typeof obj !== 'object') {
       return undefined;
     }
     
     const parts = path.split('.');
-    let current = obj;
+    let current: unknown = obj;
     
     for (const part of parts) {
-      if (current && typeof current === 'object' && part in current) {
-        current = current[part];
+      if (current && typeof current === 'object' && current !== null) {
+        const obj = current as Record<string, unknown>;
+        if (part in obj) {
+          current = obj[part];
+        } else {
+          return undefined;
+        }
       } else {
         return undefined;
       }
@@ -212,7 +220,7 @@ export class TokenStatusBarService {
    * @returns Status bar cache object
    */
   static createStatusBarCache(
-    document: any,
+    document: IVTTDocument,
     plugin: GameSystemPlugin
   ): TokenStatusBarCache {
     const statusBars = this.calculateStatusBars(document, plugin);
@@ -239,7 +247,7 @@ export class TokenStatusBarService {
    */
   static isCacheValid(
     cache: TokenStatusBarCache | undefined,
-    _document: any,
+    _document: IVTTDocument,
     maxAge = 5000
   ): boolean {
     if (!cache) {

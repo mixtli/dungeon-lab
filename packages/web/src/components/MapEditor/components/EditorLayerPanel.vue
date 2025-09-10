@@ -28,12 +28,12 @@
 
             <div class="layer-item">
                 <div class="layer-header">
-                    <input type="checkbox" :checked="portalsVisible"
-                        @change="toggleLayerVisibility('portals', ($event.target as HTMLInputElement).checked)" />
-                    <span class="layer-name">Portals</span>
+                    <input type="checkbox" :checked="doorsVisible"
+                        @change="toggleLayerVisibility('doors', ($event.target as HTMLInputElement).checked)" />
+                    <span class="layer-name">Doors</span>
                 </div>
                 <div class="layer-info">
-                    <span class="layer-count">{{ portals.length }} objects</span>
+                    <span class="layer-count">{{ doors.length }} objects</span>
                 </div>
             </div>
 
@@ -53,31 +53,31 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { WallObject, PortalObject, LightObject, ObjectEditorObject } from '../../../../../shared/src/types/mapEditor.mjs';
+import type { WallObject, DoorObject, LightObject, ObjectEditorObject } from '../../../../../shared/src/types/mapEditor.mjs';
 
 // Props and emits
 defineProps<{
     walls: WallObject[];
     objects: ObjectEditorObject[];
-    portals: PortalObject[];
+    doors: DoorObject[];
     lights: LightObject[];
 }>();
 
 const emit = defineEmits<{
-    (e: 'visibility-changed', layerType: 'walls' | 'objects' | 'portals' | 'lights', visible: boolean): void;
+    (e: 'visibility-changed', layerType: 'walls' | 'objects' | 'doors' | 'lights', visible: boolean): void;
 }>();
 
 // Layer visibility state
 const wallsVisible = ref(true);
 const objectsVisible = ref(true);
-const portalsVisible = ref(true);
+const doorsVisible = ref(true);
 const lightsVisible = ref(true);
 
 // Methods
-const toggleLayerVisibility = (layerType: 'walls' | 'objects' | 'portals' | 'lights', visible: boolean) => {
+const toggleLayerVisibility = (layerType: 'walls' | 'objects' | 'doors' | 'lights', visible: boolean) => {
     if (layerType === 'walls') wallsVisible.value = visible;
     else if (layerType === 'objects') objectsVisible.value = visible;
-    else if (layerType === 'portals') portalsVisible.value = visible;
+    else if (layerType === 'doors') doorsVisible.value = visible;
     else if (layerType === 'lights') lightsVisible.value = visible;
 
     emit('visibility-changed', layerType, visible);

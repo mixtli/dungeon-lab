@@ -64,14 +64,14 @@ const validateAddToken: ActionValidationHandler = async (
   }
 
   // Optional: Validate grid position is within map bounds
-  if (gameState.currentEncounter?.currentMap?.uvtt?.resolution?.map_size) {
-    const mapData = gameState.currentEncounter.currentMap;
+  if (gameState.currentEncounter?.currentMap?.mapData?.coordinates) {
+    const mapData = gameState.currentEncounter.currentMap.mapData;
     
     // Basic bounds check if map dimensions are available
-    if (mapData.uvtt?.resolution?.map_size?.x && mapData.uvtt?.resolution?.map_size?.y) {
-      // map_size is already in grid units, not pixels
-      const maxGridX = mapData.uvtt.resolution.map_size.x;
-      const maxGridY = mapData.uvtt.resolution.map_size.y;
+    if (mapData.coordinates.dimensions?.width && mapData.coordinates.dimensions?.height) {
+      // Use grid dimensions from the mapData coordinate system
+      const maxGridX = mapData.coordinates.dimensions.width;
+      const maxGridY = mapData.coordinates.dimensions.height;
       
       console.log('[AddTokenHandler] Bounds check:', {
         requestedPosition: params.gridPosition,
@@ -105,7 +105,7 @@ const validateAddToken: ActionValidationHandler = async (
 /**
  * Get token grid size from plugin
  */
-async function getTokenGridSize(document: any): Promise<number> {
+async function getTokenGridSize(document: { pluginId: string; [key: string]: unknown }): Promise<number> {
   try {
     // Get the plugin for this document's plugin ID
     const plugin = await pluginDiscoveryService.loadPluginModule(document.pluginId);
@@ -167,20 +167,18 @@ function createTokenBounds(
 /**
  * Get token image URL from document
  */
-function getTokenImageUrl(document: any): string | undefined {
-  // Documents with virtuals include tokenImage, avatar, and image asset objects
-  const documentWithAssets = document as {
-    tokenImage?: { url: string };
-    avatar?: { url: string };
-    image?: { url: string };
-  };
+function getTokenImageUrl(document: {
+  tokenImage?: { url: string } | null;
+  avatar?: { url: string } | null;
+  image?: { url: string } | null;
+}): string | undefined {
   
-  if (documentWithAssets.tokenImage?.url) {
-    return transformAssetUrl(documentWithAssets.tokenImage.url);
-  } else if (documentWithAssets.avatar?.url) {
-    return transformAssetUrl(documentWithAssets.avatar.url);
-  } else if (documentWithAssets.image?.url) {
-    return transformAssetUrl(documentWithAssets.image.url);
+  if (document.tokenImage?.url) {
+    return transformAssetUrl(document.tokenImage.url);
+  } else if (document.avatar?.url) {
+    return transformAssetUrl(document.avatar.url);
+  } else if (document.image?.url) {
+    return transformAssetUrl(document.image.url);
   }
   
   return undefined;

@@ -162,7 +162,7 @@ const changeDetectionTrigger = ref(0);
 // Check if form has unsaved changes by comparing copy to original
 const hasUnsavedChanges = computed(() => {
   // Access changeDetectionTrigger to make this computed reactive to our manual triggers
-  changeDetectionTrigger.value;
+  void changeDetectionTrigger.value;
   
   if (!reactiveDocument.value || !documentCopy.value) {
     return false;
@@ -485,8 +485,8 @@ const handleDragStart = (event: MouseEvent) => {
 const getComponentProps = () => {
   console.log(`[DocumentSheetContainer] getComponentProps - docType: ${props.documentType}, context: ${context.value}`);
   
-  // Unified props structure for all document types with copy management
-  const componentProps = {
+  // Base props structure for all document types with copy management
+  const baseProps = {
     document: reactiveDocument,          // Original document (for view mode)
     documentCopy: computed(() => documentCopy.value), // Editable copy (for edit mode)
     items: reactiveItems.value,
@@ -510,8 +510,11 @@ const getComponentProps = () => {
       ? gameSessionStore.currentSession?.participants?.find(user => user.id === item.ownerId)
       : null;
     
-    (componentProps as any).ownerCharacter = computed(() => ownerCharacter);
-    (componentProps as any).ownerUser = computed(() => ownerUser);
+    const componentProps = {
+      ...baseProps,
+      ownerCharacter: computed(() => ownerCharacter),
+      ownerUser: computed(() => ownerUser)
+    };
     
     console.log(`[DocumentSheetContainer] Adding owner character for item "${item.name}":`, {
       carrierId: item.carrierId,
@@ -521,18 +524,21 @@ const getComponentProps = () => {
       ownerId: item.ownerId,
       userName: ownerUser?.displayName || ownerUser?.username || 'Unassigned'
     });
+    
+    console.log(`[DocumentSheetContainer] getComponentProps - Enhanced props:`, {
+      document: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name, type: reactiveDocument.value.documentType } : null,
+      documentCopy: documentCopy.value ? { id: documentCopy.value.id, name: documentCopy.value.name } : null,
+      items: reactiveItems.value?.value?.length || 0,
+      editMode: editMode.value,
+      hasUnsavedChanges: hasUnsavedChanges.value,
+      readonly: props.readonly
+    });
+    
+    return componentProps;
   }
   
-  console.log(`[DocumentSheetContainer] getComponentProps - Enhanced props:`, {
-    document: reactiveDocument.value ? { id: reactiveDocument.value.id, name: reactiveDocument.value.name, type: reactiveDocument.value.documentType } : null,
-    documentCopy: documentCopy.value ? { id: documentCopy.value.id, name: documentCopy.value.name } : null,
-    items: reactiveItems.value?.value?.length || 0,
-    editMode: editMode.value,
-    hasUnsavedChanges: hasUnsavedChanges.value,
-    readonly: props.readonly
-  });
-  
-  return componentProps;
+  // For non-item documents, return base props
+  return baseProps;
 };
 
 // Handle updates from document sheet components (unified for all document types)

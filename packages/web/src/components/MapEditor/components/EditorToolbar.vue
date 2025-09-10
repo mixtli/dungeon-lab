@@ -37,10 +37,10 @@
                 </button>
             </div>
 
-            <button class="tool-button" :class="{ active: currentTool === 'portal' }" @click="selectTool('portal')"
-                title="Portal Tool: Click to place a door or portal on the map.">
+            <button class="tool-button" :class="{ active: currentTool === 'door' }" @click="selectTool('door')"
+                title="Door Tool: Click to place a door on the map.">
                 <span class="tool-icon">⊏⊐</span>
-                <span class="tool-label">Portal</span>
+                <span class="tool-label">Door</span>
             </button>
 
             <button class="tool-button" :class="{ active: currentTool === 'light' }" @click="selectTool('light')"

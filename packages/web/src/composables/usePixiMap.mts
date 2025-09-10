@@ -1,6 +1,7 @@
 import { ref, onUnmounted, type Ref } from 'vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import { EncounterMapRenderer, type Platform, type EncounterMapConfig } from '@/services/encounter/PixiMapRenderer.mjs';
 import { TokenRenderer } from '@/services/encounter/TokenRenderer.mjs';
@@ -38,7 +39,7 @@ export interface UsePixiMapReturn {
   removeToken: (tokenId: string) => void;
   moveToken: (tokenId: string, x: number, y: number, animate?: boolean) => void;
   clearAllTokens: () => void;
-  updateTokenStatusBars: (tokenId: string, document: any, plugin: GameSystemPlugin) => void;
+  updateTokenStatusBars: (tokenId: string, document: IVTTDocument, plugin: GameSystemPlugin) => void;
   
   // Token selection and interaction
   selectToken: (tokenId: string) => void;
@@ -301,7 +302,7 @@ export function usePixiMap(): UsePixiMapReturn {
   /**
    * Update status bars for a token based on document data and plugin configuration
    */
-  const updateTokenStatusBars = (tokenId: string, document: any, plugin: GameSystemPlugin): void => {
+  const updateTokenStatusBars = (tokenId: string, document: IVTTDocument, plugin: GameSystemPlugin): void => {
     if (!tokenRenderer) {
       console.warn('[usePixiMap] No token renderer available for status bar update');
       return;

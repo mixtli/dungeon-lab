@@ -48,8 +48,9 @@ import { useRouter } from 'vue-router';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
 import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
+import type { InternalMapData } from '@dungeon-lab/shared/types/maps.mjs';
 import { playerActionService } from '@/services/player-action.service.mjs';
-import type { MoveTokenParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { MoveTokenParameters, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
@@ -171,7 +172,7 @@ const previousMapData = ref<{
   id?: string;
   name?: string;
   imageUrl?: string;
-  mapData?: any;
+  mapData?: InternalMapData;
 } | null>(null);
 
 // Props
@@ -785,7 +786,10 @@ const refreshTokenStatusBars = (token: Token) => {
     }
     
     // Update the status bars using the usePixiMap composable
-    updateTokenStatusBars(token.id, document, activePlugin);
+    // Only update if document is a vtt-document (which includes characters and actors)
+    if (document.documentType === 'vtt-document' || document.documentType === 'character' || document.documentType === 'actor') {
+      updateTokenStatusBars(token.id, document as IVTTDocument, activePlugin);
+    }
     console.debug('[PixiMapViewer] Updated status bars for token:', token.id, 'document:', document.documentType);
     
   } catch (error) {

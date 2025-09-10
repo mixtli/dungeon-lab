@@ -22,7 +22,7 @@
                 <!-- Layer panel -->
                 <EditorLayerPanel :walls="editorState.walls.value" 
                     :objects="editorState.objects.value"
-                    :portals="editorState.portals.value"
+                    :doors="editorState.doors.value"
                     :lights="editorState.lights.value" 
                     @visibility-changed="handleLayerVisibility" />
             </div>
@@ -37,7 +37,7 @@
                 
                 <EditorCanvas :walls="editorState.walls.value" 
                     :objects="editorState.objects.value"
-                    :portals="editorState.portals.value"
+                    :doors="editorState.doors.value"
                     :lights="editorState.lights.value" 
                     :selected-object-ids="editorState.selectedObjectIds.value"
                     :current-tool="editorState.currentTool.value" 
@@ -88,7 +88,7 @@ import { useEditorState } from './composables/useEditorState.mjs';
 // Removed UVTT conversion import - using pure world coordinates
 import type {
     WallObject,
-    PortalObject,
+    DoorObject,
     LightObject,
     ObjectEditorObject,
     Point,
@@ -99,6 +99,29 @@ import { z } from 'zod';
 
 type InternalMapData = z.infer<typeof internalMapDataSchema>;
 import { MapsClient } from '@dungeon-lab/client/index.mjs';
+
+// Update payload types (matches EditorCanvas.vue)
+interface ViewportUpdate {
+    viewportTransform?: {
+        scale: number;
+        position: Point;
+    };
+}
+
+interface GridConfigUpdate {
+    worldUnitsPerCell?: number;
+}
+
+interface GridOffsetUpdate {
+    offset?: Point;
+}
+
+// Union type for all possible updates
+type EditorUpdatePayload = 
+    | Partial<WallObject | DoorObject | LightObject | ObjectEditorObject>
+    | ViewportUpdate 
+    | GridConfigUpdate 
+    | GridOffsetUpdate;
 
 // Import editor components
 import EditorToolbar from './components/EditorToolbar.vue';
@@ -117,7 +140,7 @@ const props = defineProps<{
 
 // Define emits
 const emit = defineEmits<{
-    (e: 'save', data: { mapData: any }): void;
+    (e: 'save', data: { mapData: InternalMapData }): void;
 }>();
 
 // Initialize the editor state
@@ -138,11 +161,7 @@ const mousePosition = ref<{
 // Inspector window state
 const inspectorVisible = ref(false);
 
-// Helper for flattening wall points for Konva
-const flattenWallPointsForKonva = (points: [number, number][]): number[] => {
-    // Konva expects a flat array of numbers [x1, y1, x2, y2, ...]
-    return points.flatMap(point => [point[0], point[1]]);
-};
+// Removed unused flattenWallPointsForKonva helper function
 
 // Load map data from new internal format
 const loadMapData = (data: InternalMapData) => {
@@ -236,15 +255,16 @@ const loadMapData = (data: InternalMapData) => {
                         points: points,
                         shapeType: serverObject.shapeType || 'polygon',
                         type: serverObject.type || 'other',
-                        height: serverObject.height,
-                        fill: `rgba(100, 100, 100, ${serverObject.opacity || 0.3})`,
-                        stroke: serverObject.color || '#666666',
-                        strokeWidth: 2,
-                        blocking: {
-                            movement: serverObject.blocksMovement || false,
-                            sight: serverObject.blocksLight || false,
-                            light: serverObject.blocksLight || false
-                        },
+                        height: serverObject.height || 0,
+                        blocksMovement: serverObject.blocksMovement || false,
+                        blocksLight: serverObject.blocksLight || false,
+                        blocksSound: serverObject.blocksSound || false,
+                        interactable: serverObject.interactable || false,
+                        searchable: serverObject.searchable || false,
+                        moveable: serverObject.moveable || false,
+                        color: serverObject.color || '#666666',
+                        opacity: serverObject.opacity || 0.3,
+                        tags: serverObject.tags || [],
                         locked: false
                     });
                 });
@@ -255,16 +275,18 @@ const loadMapData = (data: InternalMapData) => {
             }
         }
 
-        // Load portals
-        if (data.portals) {
-            editorState.portals.value = data.portals.map((portal, index) => ({
-                id: `portal-${index}`,
-                objectType: 'portal' as const,
-                position: portal.position,
-                rotation: portal.rotation,
-                bounds: portal.bounds,
-                closed: portal.closed,
-                freestanding: portal.freestanding,
+        // Load doors
+        if (data.doors) {
+            editorState.doors.value = data.doors.map((door, index) => ({
+                id: door.id || `door-${index}`,
+                objectType: 'door' as const,
+                coords: door.coords || [0, 0, 0, 0],
+                state: door.state || 'closed',
+                material: door.material || 'wood',
+                stroke: door.stroke || '#8B4513',
+                strokeWidth: door.strokeWidth || 3,
+                requiresKey: door.requiresKey || false,
+                tags: door.tags || [],
                 visible: true,
                 locked: false
             }));
@@ -337,25 +359,21 @@ const handleObjectAdded = (object: AnyEditorObject) => {
         editorState.addWall(object as WallObject);
     } else if (object.objectType === 'object') {
         editorState.addObject(object as ObjectEditorObject);
-    } else if (object.objectType === 'portal') {
-        console.log('[MapEditorComponent] handleObjectAdded for Portal. Received portal object:', JSON.parse(JSON.stringify(object)));
-        editorState.addPortal(object as PortalObject);
+    } else if (object.objectType === 'door') {
+        console.log('[MapEditorComponent] handleObjectAdded for Door. Received door object:', JSON.parse(JSON.stringify(object)));
+        editorState.addDoor(object as DoorObject);
     } else if (object.objectType === 'light') {
         const light = object as LightObject;
-        // Light range is now stored in world units directly
-        const rangeInWorldUnits = light.range;
-        
-        console.log(`MapEditorComponent: Adding new light. Range (world units): ${rangeInWorldUnits}`);
+        // Light bright radius is in world units
+        console.log(`MapEditorComponent: Adding new light. Bright radius (world units): ${light.brightRadius}`);
 
         editorState.addLight({
-            ...light,
-            range: rangeInWorldUnits, // Store range in world units in the editor state
-            opacity: 0.5 // Default semi-transparent
+            ...light
         });
     }
 };
 
-const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => {
+const handleObjectModified = (id: string, updates: EditorUpdatePayload) => {
     // Special case for viewport transform
     if (id === 'viewport' && 'viewportTransform' in updates) {
         // Update the viewport transform directly
@@ -393,8 +411,8 @@ const handleObjectModified = (id: string, updates: Partial<AnyEditorObject>) => 
         editorState.updateWall(id, updates as Partial<WallObject>);
     } else if (object.objectType === 'object') {
         editorState.updateObject(id, updates as Partial<ObjectEditorObject>);
-    } else if (object.objectType === 'portal') {
-        editorState.updatePortal(id, updates as Partial<PortalObject>);
+    } else if (object.objectType === 'door') {
+        editorState.updateDoor(id, updates as Partial<DoorObject>);
     } else if (object.objectType === 'light') {
         editorState.updateLight(id, updates as Partial<LightObject>);
     }
@@ -427,12 +445,22 @@ const handlePositionUpdate = (objectId: string, x: number, y: number) => {
     
     let updates;
     
-    // Lights and portals store position in position.x/y
-    if (object.objectType === 'light' || object.objectType === 'portal') {
+    // Handle position updates based on object type
+    if (object.objectType === 'light') {
+        // Lights store position in position.x/y
         updates = { position: { x, y } };
+    } else if (object.objectType === 'object') {
+        // ObjectEditorObjects store position in position.x/y
+        updates = { position: { x, y } };
+    } else if (object.objectType === 'door') {
+        // For doors, we would need to translate coords array, but position updates 
+        // for doors should be handled through coord array updates instead
+        console.warn('Position updates for doors should be handled through coord array updates');
+        return;
     } else {
-        // Other objects store position directly as x/y
-        updates = { x, y };
+        // For walls and other objects, position updates aren't directly supported
+        console.warn(`Position updates not supported for ${object.objectType} objects`);
+        return;
     }
     
     handleObjectModified(objectId, updates);
@@ -465,7 +493,7 @@ watch(() => editorState.selectedObjectIds.value.length, (newLength) => {
     }
 });
 
-const handleLayerVisibility = (layerType: 'walls' | 'objects' | 'portals' | 'lights', visible: boolean) => {
+const handleLayerVisibility = (layerType: 'walls' | 'objects' | 'doors' | 'lights', visible: boolean) => {
     // Update visibility for all objects in the layer
     let collection;
     
@@ -473,8 +501,8 @@ const handleLayerVisibility = (layerType: 'walls' | 'objects' | 'portals' | 'lig
         collection = editorState.walls.value;
     } else if (layerType === 'objects') {
         collection = editorState.objects.value;
-    } else if (layerType === 'portals') {
-        collection = editorState.portals.value;
+    } else if (layerType === 'doors') {
+        collection = editorState.doors.value;
     } else if (layerType === 'lights') {
         collection = editorState.lights.value;
     } else {
@@ -552,16 +580,16 @@ const convertPointsToWallSegments = (wall: WallObject, wallType: 'wall' | 'terra
                 y: points[i + 3],
                 z: 0 // Default z-coordinate for 2D walls  
             },
-            height: wall.height || 10,
+            height: 10, // Default height for editor walls
             thickness: 1, // Default thickness
-            material: (wall.material || 'stone') as 'stone' | 'wood' | 'metal' | 'glass' | 'magic' | 'force',
+            material: 'stone' as const, // Default material for editor walls
             blocksMovement: true,
             blocksLight: wallType === 'wall', // Walls block light, terrain may not
             blocksSound: wallType === 'wall',
             transparency: 0, // Opaque by default
             oneWayVision: false,
             destructible: false,
-            name: wall.name,
+            name: undefined, // Editor walls don't have names by default
             description: `${wallType === 'wall' ? 'Wall' : 'Terrain'} segment`,
             tags: []
         });
@@ -580,25 +608,16 @@ const convertEditorStateToWorldCoordinates = () => {
     // Use walls directly (no separate objectWalls collection)
     const allWalls = [...walls];
     
-    // Convert portals (doors)
-    const doors = editorState.portals.value.map(portal => ({
-        id: portal.id,
-        // Convert bounds to polygon format
-        bounds: {
-            type: 'polygon' as const,
-            points: Array.isArray(portal.bounds) ? portal.bounds.map(point => ({
-                x: point.x,
-                y: point.y
-            })) : []
-        },
-        position: {
-            x: portal.position.x,
-            y: portal.position.y,
-            z: 0
-        },
-        rotation: portal.rotation || 0,
-        state: portal.closed ? 'closed' as const : 'open' as const,
-        type: portal.freestanding ? 'freestanding' as const : 'wall-mounted' as const
+    // Convert doors 
+    const doors = editorState.doors.value.map(door => ({
+        id: door.id,
+        tags: door.tags || [],
+        material: door.material || 'wood',
+        state: door.state || 'closed',
+        coords: door.coords || [0, 0, 0, 0],
+        stroke: door.stroke || '#8B4513',
+        strokeWidth: door.strokeWidth || 3,
+        requiresKey: door.requiresKey || false
     }));
     
     // Convert lights
@@ -607,7 +626,7 @@ const convertEditorStateToWorldCoordinates = () => {
         position: {
             x: light.position.x,
             y: light.position.y,
-            z: (light.position as any).z || 5
+            z: 5 // Default Z-coordinate for 2D editor lights
         },
         type: light.type || 'point',
         brightRadius: light.brightRadius || 0,
@@ -625,6 +644,7 @@ const convertEditorStateToWorldCoordinates = () => {
         },
         enabled: light.enabled ?? true,
         controllable: light.controllable ?? false,
+        tags: [], // Empty tags array for editor lights
         name: light.name,
         description: light.description
     }));
@@ -651,18 +671,24 @@ const convertEditorStateToWorldCoordinates = () => {
         }, []) : [],
         shapeType: obj.shapeType || 'polygon',
         type: obj.type || 'other',
-        blocksMovement: obj.blocking?.movement ?? true,
-        blocksLight: obj.blocking?.light ?? false,
-        blocksSound: obj.blocking?.sight ?? false, // Using sight as sound for now
-        color: obj.stroke || '#666666',
-        opacity: 1,
+        height: obj.height || 1,
+        blocksMovement: obj.blocksMovement ?? true,
+        blocksLight: obj.blocksLight ?? false,
+        blocksSound: obj.blocksSound ?? false,
+        interactable: obj.interactable ?? false,
+        searchable: obj.searchable ?? false,
+        moveable: obj.moveable ?? false,
+        color: obj.color || '#666666',
+        opacity: obj.opacity ?? 1,
+        tags: obj.tags || [],
         name: obj.name,
         description: obj.description
     }));
     
-    // Return the complete mapData structure
+    // Return the complete mapData structure conforming to InternalMapData schema
     return {
         mapData: {
+            version: '1.0',
             coordinates: editorState.mapMetadata.coordinates,
             walls: allWalls,
             terrain: [], // No terrain regions in current editor
@@ -670,12 +696,15 @@ const convertEditorStateToWorldCoordinates = () => {
             regions: [], // No regions in current editor
             doors,
             lights,
-            environment: {
-                ambientLight: {
-                    color: editorState.mapMetadata.environment?.ambientLight.color || '#ffffff',
-                    intensity: editorState.mapMetadata.environment?.ambientLight.intensity || 0.1
-                },
-                globalIllumination: editorState.mapMetadata.environment?.globalIllumination || false
+            environment: editorState.mapMetadata.environment,
+            semanticData: {
+                mapType: 'other' as const,
+                keywords: []
+            },
+            conversionSettings: {
+                defaultPolygonPrecision: 16,
+                useAdaptivePrecision: true,
+                targetSegmentLength: 7.5
             }
         }
     };

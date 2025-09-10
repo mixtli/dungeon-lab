@@ -70,7 +70,7 @@ function openImportModal() {
   importModal.value?.open();
 }
 
-function onImportSuccess(map: IMap) {
+function onImportSuccess() {
   showNotification('Map imported successfully!');
   fetchMaps(); // Refresh the maps list
 }

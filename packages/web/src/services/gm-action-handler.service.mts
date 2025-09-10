@@ -92,7 +92,7 @@ export class GMActionHandlerService {
     this.socketStore.socket.on('gameAction:forward', this.handleActionRequest.bind(this));
     
     // Add debug listener to verify socket events are being received
-    this.socketStore.socket.on('gameAction:forward', (request: any) => {
+    this.socketStore.socket.on('gameAction:forward', (request: GameActionRequest) => {
       console.log('[GMActionHandler] 🔍 DEBUG: gameAction:forward event received:', {
         action: request?.action,
         playerId: request?.playerId,

@@ -15,17 +15,16 @@ export function isPositionWithinBounds(
   position: Point,
   mapData: IMapResponse | null
 ): boolean {
-  if (!mapData?.uvtt?.resolution?.map_size) {
+  if (!mapData?.mapData?.coordinates?.dimensions) {
     console.log('[BoundsValidation] No map size data available, allowing movement');
     return true; // No bounds data, allow movement
   }
 
-  const { map_size } = mapData.uvtt.resolution;
-  const mapWidth = map_size.x;
-  const mapHeight = map_size.y;
+  const mapWidth = mapData.mapData.coordinates.dimensions.width;
+  const mapHeight = mapData.mapData.coordinates.dimensions.height;
 
   // Convert world pixel coordinates to grid coordinates for bounds checking
-  const pixelsPerGrid = mapData.uvtt.resolution.pixels_per_grid || 50;
+  const pixelsPerGrid = mapData.mapData.coordinates.worldUnitsPerGridCell || 50;
   const gridX = position.x / pixelsPerGrid;
   const gridY = position.y / pixelsPerGrid;
 
@@ -51,16 +50,15 @@ export function clampPositionToBounds(
   position: Point,
   mapData: IMapResponse | null
 ): Point {
-  if (!mapData?.uvtt?.resolution?.map_size) {
+  if (!mapData?.mapData?.coordinates?.dimensions) {
     return position; // No bounds data, return original position
   }
 
-  const { map_size } = mapData.uvtt.resolution;
-  const mapWidth = map_size.x;
-  const mapHeight = map_size.y;
+  const mapWidth = mapData.mapData.coordinates.dimensions.width;
+  const mapHeight = mapData.mapData.coordinates.dimensions.height;
 
   // Convert world pixel coordinates to grid coordinates for clamping
-  const pixelsPerGrid = mapData.uvtt.resolution.pixels_per_grid || 50;
+  const pixelsPerGrid = mapData.mapData.coordinates.worldUnitsPerGridCell || 50;
   const gridX = position.x / pixelsPerGrid;
   const gridY = position.y / pixelsPerGrid;
 

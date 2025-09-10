@@ -95,7 +95,7 @@ onMounted(async () => {
 });
 
 // Handle save events from the editor
-const handleSave = async (editorData: { mapData: any }) => {
+const handleSave = async (editorData: { mapData: IInternalMapData }) => {
   try {
     if (!mapId.value) {
       throw new Error('No map ID available for saving');

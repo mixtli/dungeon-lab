@@ -142,14 +142,14 @@ const buttonText = computed(() => {
 });
 
 // Plugin component event handlers
-async function handlePluginRollAccepted(rollData: any): Promise<void> {
+async function handlePluginRollAccepted(rollData: RollServerResult): Promise<void> {
   console.log('[RollRequestMessage] Plugin roll accepted:', rollData);
   
   processing.value = true;
   
   try {
     // Submit the roll using the enhanced data from the plugin
-    const roll = rollData.rollData;
+    const roll = rollData;
     
     // Use RollService to automatically apply user dice preferences
     const result = await rollService.submitRoll(roll);

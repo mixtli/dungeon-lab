@@ -109,14 +109,16 @@ const finishDrawing = () => {
     points: relativePoints,
     shapeType: 'polygon',
     type: 'other',
-    fill: 'rgba(0, 0, 0, 0)', // Transparent by default
-    stroke: '#666666',
-    strokeWidth: 2,
-    blocking: {
-      movement: true,
-      sight: false,
-      light: false
-    }
+    height: 0, // Default height
+    blocksMovement: true, // Default to blocking movement
+    blocksLight: false, // Default to not blocking light
+    blocksSound: false, // Default to not blocking sound
+    interactable: false, // Default to not interactable
+    searchable: false, // Default to not searchable
+    moveable: false, // Default to not moveable
+    color: '#666666', // Main color property (replacing stroke/fill)
+    opacity: 1.0, // Opacity property
+    tags: [] // Default empty tags array
   };
   
   console.log('Emitting object-created event with object:', object);

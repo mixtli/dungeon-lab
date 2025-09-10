@@ -246,43 +246,24 @@
                 </select>
               </div>
               <div class="property-row">
-                <label class="property-label">Stroke Color:</label>
+                <label class="property-label">Color:</label>
                 <input 
                   type="color" 
                   class="property-input color-input"
-                  :value="(selectedObject as ObjectEditorObject).stroke || '#666666'"
-                  @change="updateProperty('stroke', ($event.target as HTMLInputElement).value)" 
+                  :value="(selectedObject as ObjectEditorObject).color || '#666666'"
+                  @change="updateProperty('color', ($event.target as HTMLInputElement).value)" 
                 />
               </div>
               <div class="property-row">
-                <label class="property-label">Stroke Width:</label>
-                <input 
-                  type="number" 
-                  class="property-input number-input"
-                  :value="(selectedObject as ObjectEditorObject).strokeWidth || 2" 
-                  min="0" max="10" step="1"
-                  @change="updateProperty('strokeWidth', parseInt(($event.target as HTMLInputElement).value))" 
-                />
-              </div>
-              <div class="property-row">
-                <label class="property-label">Fill Color:</label>
-                <input 
-                  type="color" 
-                  class="property-input color-input"
-                  :value="(selectedObject as ObjectEditorObject).fill || 'rgba(0, 0, 0, 0)'"
-                  @change="updateProperty('fill', ($event.target as HTMLInputElement).value)" 
-                />
-              </div>
-              <div class="property-row">
-                <label class="property-label">Fill Opacity:</label>
+                <label class="property-label">Opacity:</label>
                 <input 
                   type="range" 
                   class="property-input range-input"
-                  :value="getObjectFillOpacity(selectedObject as ObjectEditorObject)" 
+                  :value="(selectedObject as ObjectEditorObject).opacity || 1" 
                   min="0" max="1" step="0.1"
-                  @change="updateObjectFillOpacity(parseFloat(($event.target as HTMLInputElement).value))" 
+                  @change="updateProperty('opacity', parseFloat(($event.target as HTMLInputElement).value))" 
                 />
-                <span class="range-value">{{ getObjectFillOpacity(selectedObject as ObjectEditorObject).toFixed(1) }}</span>
+                <span class="range-value">{{ ((selectedObject as ObjectEditorObject).opacity || 1).toFixed(1) }}</span>
               </div>
             </div>
 
@@ -293,17 +274,8 @@
                 <input 
                   type="checkbox" 
                   class="property-input checkbox-input"
-                  :checked="(selectedObject as ObjectEditorObject).blocking?.movement ?? true"
-                  @change="updateBlockingProperty('movement', ($event.target as HTMLInputElement).checked)" 
-                />
-              </div>
-              <div class="property-row">
-                <label class="property-label">Blocks Sight:</label>
-                <input 
-                  type="checkbox" 
-                  class="property-input checkbox-input"
-                  :checked="(selectedObject as ObjectEditorObject).blocking?.sight ?? false"
-                  @change="updateBlockingProperty('sight', ($event.target as HTMLInputElement).checked)" 
+                  :checked="(selectedObject as ObjectEditorObject).blocksMovement ?? true"
+                  @change="updateProperty('blocksMovement', ($event.target as HTMLInputElement).checked)" 
                 />
               </div>
               <div class="property-row">
@@ -311,8 +283,17 @@
                 <input 
                   type="checkbox" 
                   class="property-input checkbox-input"
-                  :checked="(selectedObject as ObjectEditorObject).blocking?.light ?? false"
-                  @change="updateBlockingProperty('light', ($event.target as HTMLInputElement).checked)" 
+                  :checked="(selectedObject as ObjectEditorObject).blocksLight ?? false"
+                  @change="updateProperty('blocksLight', ($event.target as HTMLInputElement).checked)" 
+                />
+              </div>
+              <div class="property-row">
+                <label class="property-label">Blocks Sound:</label>
+                <input 
+                  type="checkbox" 
+                  class="property-input checkbox-input"
+                  :checked="(selectedObject as ObjectEditorObject).blocksSound ?? false"
+                  @change="updateProperty('blocksSound', ($event.target as HTMLInputElement).checked)" 
                 />
               </div>
             </div>
@@ -373,8 +354,8 @@
             </div>
           </template>
 
-          <!-- Position properties (for non-wall, non-portal objects) -->
-          <template v-else-if="selectedObject?.objectType !== 'portal'">
+          <!-- Position properties (for non-wall, non-door objects) -->
+          <template v-else-if="selectedObject?.objectType !== 'door'">
             <div class="property-group">
               <h4 class="group-title">Position</h4>
               <div class="property-row">
@@ -473,7 +454,7 @@ if (savedState) {
   try {
     const parsed = JSON.parse(savedState);
     windowState.value = { ...windowState.value, ...parsed };
-  } catch (e) {
+  } catch {
     console.warn('Failed to parse saved inspector window state');
   }
 }
@@ -503,30 +484,53 @@ const objectTypeLabel = computed(() => {
 function getObjectX(object: AnyEditorObject | null): number {
   if (!object) return 0;
   
-  // Lights store position in position.x/y
-  if (object.objectType === 'light') {
-    return (object as any).position?.x || 0;
+  // Lights and Objects store position in position.x/y
+  if (object.objectType === 'light' || object.objectType === 'object') {
+    return object.position.x;
   }
   
   // Doors store position in coords array [x1, y1, x2, y2]
   if (object.objectType === 'door') {
-    return (object as any).coords?.[0] || 0;
+    return object.coords[0] || 0;
   }
   
-  // Walls might store position differently or have points array
-  return (object as any).x || 0;
+  // Walls use first point in points array [x1, y1, x2, y2, ...]
+  if (object.objectType === 'wall') {
+    return object.points[0] || 0;
+  }
+  
+  // Terrain and regions use first point in points array
+  if (object.objectType === 'terrain' || object.objectType === 'region') {
+    return object.points[0] || 0;
+  }
+  
+  return 0;
 }
 
 function getObjectY(object: AnyEditorObject | null): number {
   if (!object) return 0;
   
-  // Lights and portals store position in position.x/y  
-  if (object.objectType === 'light' || object.objectType === 'portal') {
-    return (object as any).position?.y || 0;
+  // Lights and Objects store position in position.x/y
+  if (object.objectType === 'light' || object.objectType === 'object') {
+    return object.position.y;
   }
   
-  // Walls might store position differently or have points array
-  return (object as any).y || 0;
+  // Doors store position in coords array [x1, y1, x2, y2]
+  if (object.objectType === 'door') {
+    return object.coords[1] || 0;
+  }
+  
+  // Walls use second point in points array [x1, y1, x2, y2, ...]
+  if (object.objectType === 'wall') {
+    return object.points[1] || 0;
+  }
+  
+  // Terrain and regions use second point in points array
+  if (object.objectType === 'terrain' || object.objectType === 'region') {
+    return object.points[1] || 0;
+  }
+  
+  return 0;
 }
 
 // Wall-specific geometry helpers
@@ -572,7 +576,7 @@ function getDoorLength(door: DoorObject): number {
 }
 
 // Property updates
-function updateProperty(property: string, value: any) {
+function updateProperty(property: string, value: string | number | boolean | number[] | Record<string, unknown>) {
   if (selectedObject.value) {
     emit('property-updated', selectedObject.value.id, property, value);
   }
@@ -661,64 +665,10 @@ function saveWindowState() {
   localStorage.setItem('inspector-window-state', JSON.stringify(windowState.value));
 }
 
-// Object-specific helper functions
-function getObjectFillOpacity(object: ObjectEditorObject): number {
-  const fill = object.fill || 'rgba(0, 0, 0, 0)';
-  // Parse RGBA values to get opacity
-  if (fill.includes('rgba')) {
-    const match = fill.match(/rgba\([^,]+,[^,]+,[^,]+,([^)]+)\)/);
-    return match ? parseFloat(match[1]) : 0;
-  } else if (fill.includes('rgb')) {
-    return 1; // RGB without alpha is fully opaque
-  } else {
-    return 0; // Default transparent
-  }
-}
-
-function updateObjectFillOpacity(opacity: number) {
-  if (selectedObject.value && selectedObject.value.objectType === 'object') {
-    const obj = selectedObject.value as ObjectEditorObject;
-    const currentFill = obj.fill || 'rgba(0, 0, 0, 0)';
-    
-    // Extract RGB values and apply new opacity
-    let newFill;
-    if (currentFill.includes('rgba') || currentFill.includes('rgb')) {
-      // Extract RGB values
-      const rgbMatch = currentFill.match(/rgba?\(([^,]+),([^,]+),([^,]+)/);
-      if (rgbMatch) {
-        const r = rgbMatch[1].trim();
-        const g = rgbMatch[2].trim();
-        const b = rgbMatch[3].trim();
-        newFill = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-      } else {
-        newFill = `rgba(0, 0, 0, ${opacity})`;
-      }
-    } else if (currentFill.startsWith('#')) {
-      // Convert hex to rgba
-      const hex = currentFill.slice(1);
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      newFill = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-    } else {
-      newFill = `rgba(0, 0, 0, ${opacity})`;
-    }
-    
-    updateProperty('fill', newFill);
-  }
-}
-
-function updateBlockingProperty(type: 'movement' | 'sight' | 'light', value: boolean) {
-  if (selectedObject.value && selectedObject.value.objectType === 'object') {
-    const obj = selectedObject.value as ObjectEditorObject;
-    const currentBlocking = obj.blocking || { movement: true, sight: false, light: false };
-    const newBlocking = { ...currentBlocking, [type]: value };
-    updateProperty('blocking', newBlocking);
-  }
-}
+// Object-specific helper functions - removed unused fill opacity and blocking property helpers
 
 // Show/hide window based on selection
-watch(() => props.selectedObjects.length, (newLength) => {
+watch(() => props.selectedObjects.length, () => {
   // Window visibility is controlled by parent component
   // This watcher can be used for side effects if needed
 });
