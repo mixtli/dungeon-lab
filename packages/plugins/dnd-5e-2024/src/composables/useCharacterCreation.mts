@@ -13,7 +13,7 @@ import type {
   FormStep,
   CharacterCreationFormData
 } from '../types/character-creation.mjs';
-import type { DndCharacterClassDocument, DndBackgroundDocument, DndSpeciesDocument } from '../types/dnd/index.mjs';
+import type { DndCharacterClassDocument, DndBackgroundDocument, DndSpeciesDocument, DndItemDocument } from '../types/dnd/index.mjs';
 
 // Type definitions for better type safety
 interface ItemGroupEntry {
@@ -435,7 +435,7 @@ export function useCharacterCreation() {
     equipmentSelections: EquipmentSelections,
     classDocument: DndCharacterClassDocument,
     backgroundDocument: DndBackgroundDocument
-  ): Promise<Array<any>> => {
+  ): Promise<Array<DndItemDocument>> => {
     const itemsToCreate: { entryId: string; quantity: number }[] = [];
     
     try {
@@ -478,7 +478,7 @@ export function useCharacterCreation() {
       }
 
       // Prepare item document data from existing documents (copy as templates)
-      const itemsData = [];
+      const itemsData: Array<DndItemDocument> = [];
       for (const { entryId, quantity } of itemsToCreate) {
         try {
           // Get item document (entryId is actually a document ID)
@@ -489,15 +489,38 @@ export function useCharacterCreation() {
             continue;
           }
 
+          // Type guard: ensure this is actually an item document
+          if (itemDocument.documentType !== 'item') {
+            console.warn(`Document ${entryId} is not an item document (documentType: ${itemDocument.documentType})`);
+            continue;
+          }
+
+          // Type guard: ensure it's a D&D 5e item with valid plugin document type
+          if (itemDocument.pluginId !== 'dnd-5e-2024') {
+            console.warn(`Document ${entryId} is not a D&D 5e item (pluginId: ${itemDocument.pluginId})`);
+            continue;
+          }
+
+          const validItemTypes = ['weapon', 'armor', 'shield', 'gear', 'tool'];
+          if (!validItemTypes.includes(itemDocument.pluginDocumentType)) {
+            console.warn(`Document ${entryId} has invalid pluginDocumentType: ${itemDocument.pluginDocumentType}`);
+            continue;
+          }
+
+          // After type guards, we know this is a valid DndItemDocument
+          const validItemDocument = itemDocument as DndItemDocument;
+          
           // Prepare item document data (copy the entire document as template)
-          const contentData = { ...itemDocument };
+          const contentData = { ...validItemDocument };
           
           // Asset IDs should already be resolved in documents, but handle any edge cases
           if (contentData.imageId && typeof contentData.imageId === 'object' && '_id' in contentData.imageId) {
-            contentData.imageId = (contentData.imageId as any)._id;
+            const idObject = contentData.imageId as { _id: string };
+            contentData.imageId = idObject._id;
           }
           if (contentData.tokenImageId && typeof contentData.tokenImageId === 'object' && '_id' in contentData.tokenImageId) {
-            contentData.tokenImageId = (contentData.tokenImageId as any)._id;
+            const idObject = contentData.tokenImageId as { _id: string };
+            contentData.tokenImageId = idObject._id;
           }
           
           const itemData = {
@@ -523,7 +546,7 @@ export function useCharacterCreation() {
     }
   };
 
-  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: unknown; itemsData: Array<any> }> => {
+  const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: unknown; itemsData: Array<DndItemDocument> }> => {
     const characterData = getCharacterData();
     if (!characterData) {
       throw new Error('Character data is not complete or valid');

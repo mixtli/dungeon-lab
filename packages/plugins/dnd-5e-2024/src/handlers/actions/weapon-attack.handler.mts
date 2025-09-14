@@ -202,7 +202,7 @@ function getProficiencyBonus(caster: ICharacter | IActor): number {
 /**
  * Check if actor has advantage on attack rolls from conditions, spells, or circumstances
  */
-function checkForAdvantageConditions(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): boolean {
+function checkForAdvantageConditions(_actor: ICharacter | IActor, _targets: (ICharacter | IActor)[]): boolean {
   // TODO: Implement condition checking logic
   // This would check for conditions like:
   // - Hidden/Invisible attacker
@@ -218,7 +218,7 @@ function checkForAdvantageConditions(actor: ICharacter | IActor, targets: (IChar
 /**
  * Check if actor has disadvantage on attack rolls from conditions, spells, or circumstances
  */
-function checkForDisadvantageConditions(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): boolean {
+function checkForDisadvantageConditions(_actor: ICharacter | IActor, _targets: (ICharacter | IActor)[]): boolean {
   // TODO: Implement condition checking logic
   // This would check for conditions like:
   // - Blinded attacker
@@ -234,7 +234,7 @@ function checkForDisadvantageConditions(actor: ICharacter | IActor, targets: (IC
 /**
  * Get human-readable reasons for advantage on attack rolls
  */
-function getAdvantageReasons(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): string[] {
+function getAdvantageReasons(_actor: ICharacter | IActor, _targets: (ICharacter | IActor)[]): string[] {
   const reasons: string[] = [];
   
   // TODO: Implement condition checking logic
@@ -249,7 +249,7 @@ function getAdvantageReasons(actor: ICharacter | IActor, targets: (ICharacter | 
 /**
  * Get human-readable reasons for disadvantage on attack rolls
  */
-function getDisadvantageReasons(actor: ICharacter | IActor, targets: (ICharacter | IActor)[]): string[] {
+function getDisadvantageReasons(_actor: ICharacter | IActor, _targets: (ICharacter | IActor)[]): string[] {
   const reasons: string[] = [];
   
   // TODO: Implement condition checking logic
@@ -614,7 +614,6 @@ const executeWeaponAttack: ActionExecutionHandler = async (
       result: attackTotal,
       target: targetAC,
       success: hits,
-      critical: isNaturalTwenty || isNaturalOne,
       rollType: 'weapon-attack',
       recipients: attackResult.recipients,
       chatComponentType: 'dnd-roll-card'

@@ -9,7 +9,8 @@ import type { GameActionRequest, ServerGameStateWithVirtuals, IItem, ICharacter 
 import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { EquipItemParameters } from '../../shared/types/equipment-actions.mjs';
-import type { DndCharacterDocument, DndItemDocument } from '../../types/dnd/character.mjs';
+import type { DndCharacterDocument } from '../../types/dnd/character.mjs';
+import type { DndItemDocument } from '../../types/dnd/item.mjs';
 
 /**
  * Validate item equipping request with D&D 5e rules
@@ -223,7 +224,9 @@ const executeEquipItem: ActionExecutionHandler = async (
   
   // Initialize equipment object if it doesn't exist
   if (!character.pluginData) {
-    character.pluginData = {} as any;
+    // Character pluginData is missing - this shouldn't normally happen for valid characters
+    console.warn('Character pluginData missing, initializing basic structure');
+    character.pluginData = { equipment: {} } as { equipment: Record<string, unknown> };
   }
   if (!character.pluginData.equipment) {
     character.pluginData.equipment = {};

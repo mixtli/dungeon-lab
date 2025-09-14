@@ -107,7 +107,9 @@ const executeUnequipItem: ActionExecutionHandler = async (
   
   // Initialize equipment object if it doesn't exist (shouldn't happen due to validation)
   if (!character.pluginData) {
-    character.pluginData = {} as any;
+    // Character pluginData is missing - this shouldn't normally happen for valid characters
+    console.warn('Character pluginData missing, initializing basic structure');
+    character.pluginData = { equipment: {} } as { equipment: Record<string, unknown> };
   }
   if (!character.pluginData.equipment) {
     character.pluginData.equipment = {};

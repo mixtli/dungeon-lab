@@ -214,13 +214,22 @@ export function processD20Roll(
  * @param result - The roll result
  * @param context - Additional context data for logging
  */
+// Extended roll result type that may include calculated total
+interface ExtendedRollResult extends RollServerResult {
+  calculatedTotal?: number;
+}
+
+function hasCalculatedTotal(result: RollServerResult): result is ExtendedRollResult {
+  return 'calculatedTotal' in result;
+}
+
 export function logRollProcessing(
   handlerName: string, 
   rollType: string, 
   result: RollServerResult,
   context: Record<string, unknown> = {}
 ): void {
-  const total = (result as any).calculatedTotal ?? calculateD20Total(result);
+  const total = hasCalculatedTotal(result) ? result.calculatedTotal : calculateD20Total(result);
   
   console.log(`[${handlerName}] Processing ${rollType}:`, {
     advantageMode: result.arguments.pluginArgs?.advantageMode,

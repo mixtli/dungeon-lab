@@ -101,7 +101,7 @@ function applyDamageToTarget(
 /**
  * Check if caster has advantage on spell attack rolls from conditions, spells, or circumstances
  */
-function checkSpellAttackAdvantageConditions(caster: ICharacter | IActor, targets: SpellTarget[]): boolean {
+function checkSpellAttackAdvantageConditions(_caster: ICharacter | IActor, _targets: SpellTarget[]): boolean {
   // TODO: Implement condition checking logic
   // This would check for conditions like:
   // - Hidden/Invisible caster
@@ -117,7 +117,7 @@ function checkSpellAttackAdvantageConditions(caster: ICharacter | IActor, target
 /**
  * Check if caster has disadvantage on spell attack rolls from conditions, spells, or circumstances
  */
-function checkSpellAttackDisadvantageConditions(caster: ICharacter | IActor, targets: SpellTarget[]): boolean {
+function checkSpellAttackDisadvantageConditions(_caster: ICharacter | IActor, _targets: SpellTarget[]): boolean {
   // TODO: Implement condition checking logic
   // This would check for conditions like:
   // - Blinded caster
@@ -133,7 +133,7 @@ function checkSpellAttackDisadvantageConditions(caster: ICharacter | IActor, tar
 /**
  * Get human-readable reasons for advantage on spell attack rolls
  */
-function getSpellAttackAdvantageReasons(caster: ICharacter | IActor, targets: SpellTarget[]): string[] {
+function getSpellAttackAdvantageReasons(_caster: ICharacter | IActor, _targets: SpellTarget[]): string[] {
   const reasons: string[] = [];
   
   // TODO: Implement condition checking logic
@@ -147,7 +147,7 @@ function getSpellAttackAdvantageReasons(caster: ICharacter | IActor, targets: Sp
 /**
  * Get human-readable reasons for disadvantage on spell attack rolls
  */
-function getSpellAttackDisadvantageReasons(caster: ICharacter | IActor, targets: SpellTarget[]): string[] {
+function getSpellAttackDisadvantageReasons(_caster: ICharacter | IActor, _targets: SpellTarget[]): string[] {
   const reasons: string[] = [];
   
   // TODO: Implement condition checking logic

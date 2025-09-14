@@ -4,14 +4,14 @@
     <header class="sheet-header" @mousedown="startDrag">
       <div class="gear-info">
         <div class="gear-icon">
-          <div class="gear-type-badge" :class="`category-${gearData.category || 'other'}`">
+          <div class="gear-type-badge" :class="`category-${'category' in gearData ? gearData.category : 'other'}`">
             {{ getGearIcon(gearData) }}
           </div>
         </div>
         <div class="gear-details">
           <h1 class="gear-name">{{ gear.name }}</h1>
           <p class="gear-subtitle">
-            {{ gearTypeText }}{{ gearData.category ? ` • ${formatCategory(gearData.category)}` : '' }}
+            {{ gearTypeText }}{{ 'category' in gearData && gearData.category ? ` • ${formatCategory(gearData.category)}` : '' }}
           </p>
         </div>
       </div>
@@ -73,7 +73,7 @@
       <section class="gear-section">
         <h3 class="section-title">{{ gearData.itemType === 'tool' ? 'Tool' : 'Gear' }} Details</h3>
         <div class="gear-properties">
-          <div v-if="gearData.category" class="property-row">
+          <div v-if="'category' in gearData && gearData.category" class="property-row">
             <span class="property-label">Category:</span>
             <span class="property-value category">{{ formatCategory(gearData.category) }}</span>
           </div>
@@ -87,22 +87,22 @@
           </div>
           <div v-if="isToolData && toolData.itemGroup" class="property-row">
             <span class="property-label">Item Group:</span>
-            <span class="property-value">{{ toolData.itemGroup.name }}</span>
+            <span class="property-value">{{ toolData.itemGroup._ref?.slug || 'Unknown Group' }}</span>
           </div>
         </div>
       </section>
 
       <!-- Consumable Properties -->
-      <section v-if="isGearData && gearData.consumable" class="gear-section">
+      <section v-if="isGearData && 'consumable' in gearData && gearData.consumable" class="gear-section">
         <h3 class="section-title">Consumable Properties</h3>
         <div class="consumable-properties">
           <div class="property-row">
             <span class="property-label">Uses:</span>
-            <span class="property-value uses">{{ gearData.consumable.uses }}</span>
+            <span class="property-value uses">{{ 'consumable' in gearData && gearData.consumable?.uses }}</span>
           </div>
-          <div v-if="gearData.consumable.duration" class="property-row">
+          <div v-if="'consumable' in gearData && gearData.consumable?.duration" class="property-row">
             <span class="property-label">Duration:</span>
-            <span class="property-value">{{ gearData.consumable.duration }}</span>
+            <span class="property-value">{{ 'consumable' in gearData && gearData.consumable?.duration }}</span>
           </div>
         </div>
       </section>
@@ -182,10 +182,6 @@ const gearData = computed((): DndItemData => {
 const isGearData = computed(() => gearData.value.itemType === 'gear');
 const isToolData = computed(() => gearData.value.itemType === 'tool');
 
-// Typed accessors
-const gearDataTyped = computed((): DndGearData | null => {
-  return isGearData.value ? gearData.value as DndGearData : null;
-});
 
 const toolData = computed((): DndToolData => {
   return gearData.value as DndToolData;

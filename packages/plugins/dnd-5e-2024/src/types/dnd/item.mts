@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { vttDocumentSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { itemSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { referenceObjectSchema } from '@dungeon-lab/shared/types/index.mjs';
 import { 
   damageTypeSchema,
@@ -215,10 +215,10 @@ export const dndItemDataSchema = z.discriminatedUnion('itemType', [
 
 /**
  * D&D Item document schema (runtime) 
- * Extends base VTT document with item-specific plugin data
+ * Extends base item document with D&D-specific plugin data
  */
-export const dndItemDocumentSchema = vttDocumentSchema.extend({
-  pluginDocumentType: z.literal('item'),
+export const dndItemDocumentSchema = itemSchema.extend({
+  pluginDocumentType: z.enum(['weapon', 'armor', 'shield', 'gear', 'tool']),
   pluginData: dndItemDataSchema
 });
 

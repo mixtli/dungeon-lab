@@ -11,12 +11,17 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals, ICharacter, IActor } from '@dungeon-lab/shared/types/index.mjs';
+import type { DndCharacterData, DndCreatureData } from '../../types/dnd/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateD20Total } from '../../utils/dnd-roll-utilities.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
+import type { actionSchema } from '../../types/dnd/stat-block.mjs';
+import { z } from 'zod';
+
+type MonsterAction = z.infer<typeof actionSchema>;
 
 /**
  * Monster action request parameters
@@ -32,7 +37,7 @@ interface MonsterActionTarget {
   tokenId: string;
   document: ICharacter | IActor;
   documentType: 'character' | 'actor';
-  pluginData: any;
+  pluginData: DndCharacterData | DndCreatureData;
 }
 
 /**
@@ -163,13 +168,13 @@ function getTargetSaveBonus(target: MonsterActionTarget, ability: string): numbe
     let saveBonus = abilityMod;
     
     if (target.documentType === 'character') {
-      const characterData = target.pluginData as any;
+      const characterData = target.pluginData as DndCharacterData;
       const savingThrows = characterData.attributes?.savingThrows || {};
       if (savingThrows[ability]) {
         saveBonus = savingThrows[ability];
       }
     } else if (target.documentType === 'actor') {
-      const actorData = target.pluginData as { savingThrows?: Record<string, number> };
+      const actorData = target.pluginData as DndCreatureData;
       if (actorData.savingThrows && actorData.savingThrows[ability]) {
         saveBonus = actorData.savingThrows[ability];
       }
@@ -398,7 +403,7 @@ const executeMonsterAction: ActionExecutionHandler = async (
  * Execute attack roll workflow (Bite, Claw, Tail, etc.)
  */
 async function executeAttackRollWorkflow(
-  action: any,
+  action: MonsterAction,
   creature: IActor,
   targets: MonsterActionTarget[],
   context: AsyncActionContext,
@@ -515,7 +520,7 @@ async function executeAttackRollWorkflow(
  * Execute saving throw workflow (Breath Weapon, Frightful Presence, etc.)
  */
 async function executeSavingThrowWorkflow(
-  action: any,
+  action: MonsterAction,
   creature: IActor,
   targets: MonsterActionTarget[],
   context: AsyncActionContext,
@@ -600,7 +605,7 @@ async function executeSavingThrowWorkflow(
  * Execute automatic effect workflow (no rolls required)
  */
 async function executeAutomaticEffectWorkflow(
-  action: any,
+  action: MonsterAction,
   creature: IActor,
   targets: MonsterActionTarget[],
   context: AsyncActionContext,
@@ -632,7 +637,7 @@ async function executeAutomaticEffectWorkflow(
  * Roll and apply damage to a target
  */
 async function rollAndApplyDamage(
-  action: any,
+  action: MonsterAction,
   target: MonsterActionTarget,
   context: AsyncActionContext,
   isCriticalHit: boolean = false,

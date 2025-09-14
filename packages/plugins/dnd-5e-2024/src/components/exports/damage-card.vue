@@ -49,19 +49,6 @@ const props = defineProps<Props>();
 // Extract damage information from available data
 const damageTotal = props.rollData?.metadata?.result || props.result || 0;
 const rollType = props.rollData?.rollType || props.rollType || '';
-const isCritical = !!(props.rollData?.metadata?.critical);
-
-// Determine damage source (weapon name, spell name, etc.)
-const damageSource = (() => {
-  const weaponData = props.rollData?.metadata?.weapon as any;
-  const spellData = props.rollData?.metadata?.spell as any;
-  
-  if (weaponData?.name) return weaponData.name;
-  if (spellData?.name) return spellData.name;
-  if (rollType.includes('weapon')) return 'Weapon';
-  if (rollType.includes('spell')) return 'Spell';
-  return 'Unknown Source';
-})();
 
 // Determine damage type
 const damageType = (() => {

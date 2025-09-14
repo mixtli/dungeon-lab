@@ -7,7 +7,7 @@
 
 import type { additionalDamageSchema, areaOfEffectSchema, rangeSchema } from '../../types/dnd/stat-block.mjs';
 import type { z } from 'zod';
-import { expandAbilityName } from '../../types/dnd/common.mjs';
+import { expandAbilityName, DAMAGE_TYPES_2024, ABILITIES, type DamageType, type Ability } from '../../types/dnd/common.mjs';
 
 export interface ParsedAttackData {
   attackType?: 'melee' | 'ranged' | 'both';
@@ -29,6 +29,32 @@ export interface ParsedSaveData {
 
 export interface ParsedActionData extends ParsedAttackData, ParsedSaveData {
   recharge?: string;
+}
+
+/**
+ * Safely convert string damage type to DamageType union
+ */
+function convertDamageType(damageType: string): DamageType {
+  const normalized = damageType.toLowerCase().trim();
+  return DAMAGE_TYPES_2024.includes(normalized as DamageType) ? normalized as DamageType : 'bludgeoning';
+}
+
+/**
+ * Safely convert string ability to Ability union
+ */
+function convertAbility(ability: string): Ability | string {
+  const normalized = ability.toLowerCase().trim();
+  return ABILITIES.includes(normalized as Ability) ? normalized as Ability : ability;
+}
+
+/**
+ * Safely convert string shape to area of effect shape union
+ */
+function convertAreaShape(shape: string): 'cone' | 'line' | 'sphere' | 'cube' | 'emanation' | 'cylinder' {
+  const normalized = shape.toLowerCase().trim();
+  const validShapes = ['cone', 'line', 'sphere', 'cube', 'emanation', 'cylinder'] as const;
+  type ValidShape = typeof validShapes[number];
+  return validShapes.includes(normalized as ValidShape) ? normalized as ValidShape : 'sphere';
 }
 
 /**
@@ -146,7 +172,7 @@ export function parseAdditionalDamage(text: string): z.infer<typeof additionalDa
     
     additionalDamages.push({
       damage,
-      type: type as any, // Type assertion since we can't validate enum at runtime
+      type: convertDamageType(type),
       average
     });
   }
@@ -169,10 +195,10 @@ export function parseSavingThrow(text: string): { ability: string; dc: number } 
       const fullAbilityName = expandAbilityName(abilityAbbr);
       
       return {
-        ability: fullAbilityName,
+        ability: convertAbility(fullAbilityName),
         dc: parseInt(dcMatch[1], 10)
       };
-    } catch (error) {
+    } catch {
       // If ability abbreviation is invalid, log error and return undefined
       console.warn(`Invalid ability abbreviation in saving throw: ${saveMatch[1]}`);
       return undefined;
@@ -227,7 +253,7 @@ export function parseAreaOfEffect(text: string): z.infer<typeof areaOfEffectSche
       const normalizedShape = shapeMap[shape];
       if (normalizedShape) {
         return {
-          shape: normalizedShape as any,
+          shape: convertAreaShape(normalizedShape),
           size
         };
       }

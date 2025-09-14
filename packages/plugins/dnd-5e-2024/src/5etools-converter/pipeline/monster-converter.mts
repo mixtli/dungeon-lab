@@ -30,6 +30,33 @@ import { damageTypeSchema, type DamageType, type SpellReferenceObject } from '..
 import { parseActionMarkup } from '../utils/markup-parser.mjs';
 
 /**
+ * Type conversion helpers for action parsing
+ */
+function convertDamageType(damageType?: unknown): 'acid' | 'bludgeoning' | 'cold' | 'fire' | 'force' | 'lightning' | 'necrotic' | 'piercing' | 'poison' | 'psychic' | 'radiant' | 'slashing' | 'thunder' | undefined {
+  if (typeof damageType !== 'string') return undefined;
+  const normalized = damageType.toLowerCase().trim();
+  const validTypes = ['acid', 'bludgeoning', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'piercing', 'poison', 'psychic', 'radiant', 'slashing', 'thunder'] as const;
+  type ValidType = typeof validTypes[number];
+  return validTypes.includes(normalized as ValidType) ? normalized as ValidType : undefined;
+}
+
+function convertAbility(ability?: unknown): 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' | undefined {
+  if (typeof ability !== 'string') return undefined;
+  const normalized = ability.toLowerCase().trim();
+  const validAbilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+  type ValidAbility = typeof validAbilities[number];
+  return validAbilities.includes(normalized as ValidAbility) ? normalized as ValidAbility : undefined;
+}
+
+function convertAreaShape(shape?: unknown): 'cone' | 'line' | 'sphere' | 'cube' | 'emanation' | 'cylinder' | undefined {
+  if (typeof shape !== 'string') return undefined;
+  const normalized = shape.toLowerCase().trim();
+  const validShapes = ['cone', 'line', 'sphere', 'cube', 'emanation', 'cylinder'] as const;
+  type ValidShape = typeof validShapes[number];
+  return validShapes.includes(normalized as ValidShape) ? normalized as ValidShape : undefined;
+}
+
+/**
  * Monster fluff data interface
  */
 interface EtoolsMonsterFluff {
@@ -597,11 +624,11 @@ export class TypedMonsterConverter extends TypedConverter<
     range?: { normal: number; long?: number };
     averageDamage?: number;
     damage?: string;
-    damageType?: string;
-    additionalDamage?: Array<{ damage: string; type: string; average?: number }>;
+    damageType?: 'acid' | 'bludgeoning' | 'cold' | 'fire' | 'force' | 'lightning' | 'necrotic' | 'piercing' | 'poison' | 'psychic' | 'radiant' | 'slashing' | 'thunder';
+    additionalDamage?: Array<{ damage: string; type: 'acid' | 'bludgeoning' | 'cold' | 'fire' | 'force' | 'lightning' | 'necrotic' | 'piercing' | 'poison' | 'psychic' | 'radiant' | 'slashing' | 'thunder'; average?: number }>;
     effectsOnMiss?: string;
-    savingThrow?: { ability: string; dc: number };
-    areaOfEffect?: { shape: string; size: string };
+    savingThrow?: { ability: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'; dc: number };
+    areaOfEffect?: { shape: 'cone' | 'line' | 'sphere' | 'cube' | 'emanation' | 'cylinder'; size: string };
     recharge?: string;
   }> | undefined {
     if (!actions || !Array.isArray(actions) || actions.length === 0) return undefined;
@@ -621,21 +648,28 @@ export class TypedMonsterConverter extends TypedConverter<
       return {
         name,
         description,
-        // Map parsed data to schema fields
+        // Map parsed data to schema fields with type conversion
         attackType: parsedData.attackType,
         attackBonus: parsedData.attackBonus,
         reach: parsedData.reach,
         range: parsedData.range,
         averageDamage: parsedData.averageDamage,
         damage: parsedData.damage,
-        damageType: parsedData.damageType,
-        additionalDamage: parsedData.additionalDamage,
+        damageType: convertDamageType(parsedData.damageType),
+        additionalDamage: parsedData.additionalDamage?.map(damage => ({
+          damage: damage.damage,
+          type: convertDamageType(damage.type) || 'bludgeoning',
+          average: damage.average
+        })),
         effectsOnMiss: parsedData.effectsOnMiss,
         savingThrow: parsedData.ability && parsedData.dc ? {
-          ability: parsedData.ability,
+          ability: convertAbility(parsedData.ability) || 'constitution',
           dc: parsedData.dc
         } : undefined,
-        areaOfEffect: parsedData.areaOfEffect,
+        areaOfEffect: parsedData.areaOfEffect ? {
+          shape: convertAreaShape(parsedData.areaOfEffect.shape) || 'sphere',
+          size: parsedData.areaOfEffect.size
+        } : undefined,
         recharge: parsedData.recharge
       };
     });

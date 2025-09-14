@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { actorSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import { characterSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { referenceOrObjectIdSchema } from '@dungeon-lab/shared/types/reference.mjs';
 import {
   abilitySchema,
@@ -347,9 +347,9 @@ export const dndCharacterDataSchema = z.object({
 
 /**
  * D&D Character document schema (runtime)
- * Extends base Actor document with character-specific plugin data
+ * Extends base Character document with character-specific plugin data
  */
-export const dndCharacterDocumentSchema = actorSchema.extend({
+export const dndCharacterDocumentSchema = characterSchema.extend({
   pluginData: dndCharacterDataSchema
 });
 

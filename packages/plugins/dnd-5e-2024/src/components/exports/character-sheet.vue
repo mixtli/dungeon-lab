@@ -57,7 +57,7 @@
       <button 
         v-for="tab in tabs" 
         :key="tab.id"
-        @click="switchTab(tab.id)"
+        @click="switchTab(tab.id as TabId)"
         :class="['tab-btn', { active: activeTab === tab.id }]"
         :title="tab.name"
       >
@@ -69,7 +69,7 @@
     <!-- Tab Content -->
     <main class="tab-content">
       <!-- Overview Tab -->
-      <div v-if="activeTab === 'overview'" class="tab-pane overview-tab">
+      <div v-if="isOverviewTab" class="tab-pane overview-tab">
         <div class="overview-layout">
           <!-- Character Portrait -->
           <div class="character-portrait-section">
@@ -207,7 +207,7 @@
       </div>
       
       <!-- Conditions Tab -->
-      <div v-if="activeTab === 'conditions'" class="tab-pane conditions-tab">
+      <div v-if="isConditionsTab" class="tab-pane conditions-tab">
         <div 
           class="conditions-container"
           :class="{ 'drag-over': isConditionDragOver }"
@@ -267,7 +267,7 @@
       </div>
       
       <!-- Abilities Tab -->
-      <div v-if="activeTab === 'abilities'" class="tab-pane abilities-tab">
+      <div v-if="isAbilitiesTab" class="tab-pane abilities-tab">
         <div class="abilities-grid">
           <div 
             v-for="(_, abilityName) in finalAbilities" 
@@ -314,7 +314,7 @@
       </div>
       
       <!-- Skills Tab -->
-      <div v-if="activeTab === 'skills'" class="tab-pane skills-tab">
+      <div v-if="isSkillsTab" class="tab-pane skills-tab">
         <div class="skills-list">
           <div 
             v-for="(skill, skillName) in characterSkills" 
@@ -340,7 +340,7 @@
       </div>
       
       <!-- Settings Tab -->
-      <div v-if="activeTab === 'settings'" class="tab-pane settings-tab">
+      <div v-if="isSettingsTab" class="tab-pane settings-tab">
         <div class="settings-section">
           <h3>Character Settings</h3>
           
@@ -365,7 +365,7 @@
         </div>
       </div>
       
-      <div v-if="activeTab === 'spells'" class="tab-pane spells-tab">
+      <div v-if="isSpellsTab" class="tab-pane spells-tab">
         <div 
           class="spells-section"
           :class="{ 'drag-over': isSpellDragOver }"
@@ -471,7 +471,7 @@
         </div>
       </div>
       
-      <div v-if="activeTab === 'gear'" class="tab-pane gear-tab">
+      <div v-if="isGearTab" class="tab-pane gear-tab">
         <div 
           class="equipment-section"
           :class="{ 'drag-over': isDragOver }"
@@ -659,7 +659,7 @@
         </div>
       </div>
       
-      <div v-if="activeTab === 'background'" class="tab-pane background-tab">
+      <div v-if="isBackgroundTab" class="tab-pane background-tab">
         <div class="character-basics-section">
           <h3 class="section-title">Character Basics</h3>
           
@@ -753,11 +753,11 @@
         </div>
       </div>
       
-      <div v-if="activeTab === 'features'" class="tab-pane features-tab">
+      <div v-if="isFeaturesTab" class="tab-pane features-tab">
         <div class="empty-state">Features coming soon...</div>
       </div>
       
-      <div v-if="activeTab === 'notes'" class="tab-pane notes-tab">
+      <div v-if="isNotesTab" class="tab-pane notes-tab">
         <div class="notes-section">
           <h3>Character Notes</h3>
           <div class="notes-editor">
@@ -814,7 +814,6 @@ import type { DndCharacterClassDocument } from '../../types/dnd/character-class.
 import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
 import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
 import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
-import type { EquipItemParameters, UnequipItemParameters } from '../../shared/types/equipment-actions.mjs';
 import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 // Weapon dialogs removed - now using unified action handlers
@@ -907,7 +906,20 @@ const emit = defineEmits<{
 }>();
 
 // Component state
-const activeTab = ref('overview');
+type TabId = 'overview' | 'conditions' | 'abilities' | 'skills' | 'spells' | 'gear' | 'background' | 'features' | 'notes' | 'settings';
+const activeTab = ref<TabId>('overview');
+
+// Computed tab visibility to avoid TypeScript analysis issues
+const isConditionsTab = computed(() => activeTab.value === 'conditions');
+const isOverviewTab = computed(() => activeTab.value === 'overview');
+const isAbilitiesTab = computed(() => activeTab.value === 'abilities');
+const isSkillsTab = computed(() => activeTab.value === 'skills');
+const isSpellsTab = computed(() => activeTab.value === 'spells');
+const isGearTab = computed(() => activeTab.value === 'gear');
+const isBackgroundTab = computed(() => activeTab.value === 'background');
+const isFeaturesTab = computed(() => activeTab.value === 'features');
+const isNotesTab = computed(() => activeTab.value === 'notes');
+const isSettingsTab = computed(() => activeTab.value === 'settings');
 
 // Roll dialog state
 const showRollDialog = ref(false);
@@ -968,17 +980,6 @@ if (characterCopy.value) {
 
 // Direct v-model computed properties for character editing
 
-// Hit points current - prioritize state.currentHitPoints for runtime HP, fallback to pluginData
-const hitPointsCurrent = computed(() => {
-  // First check state for runtime current HP
-  if (typeof character.value!.state?.currentHitPoints === 'number') {
-    return character.value!.state.currentHitPoints;
-  }
-  
-  // Fallback to pluginData (baseline HP)
-  const attributes = character.value!.pluginData?.attributes as any;
-  return attributes?.hitPoints?.current || (character.value!.pluginData as any)?.hitPoints?.current || 8;
-});
 
 // Hit points max - read-only computed from character.pluginData.attributes.hitPoints.maximum
 const hitPointsMax = computed(() => {
@@ -1297,37 +1298,9 @@ const equippedItems = computed(() => {
   };
 });
 
-const armorItems = computed(() => {
-  return characterItems.value.filter(item => 
-    item.documentType === 'item' && 
-    (item.pluginData as any)?.itemType === 'armor' &&
-    (item.pluginData as any)?.type !== 'shield'
-  );
-});
 
-const shieldItems = computed(() => {
-  return characterItems.value.filter(item => 
-    item.documentType === 'item' && 
-    (item.pluginData as any)?.itemType === 'armor' &&
-    (item.pluginData as any)?.type === 'shield'
-  );
-});
 
-const oneHandedWeapons = computed(() => {
-  return characterItems.value.filter(item => 
-    item.documentType === 'item' && 
-    (item.pluginData as any)?.itemType === 'weapon' &&
-    !(item.pluginData as any)?.properties?.includes('two-handed')
-  );
-});
 
-const twoHandedWeapons = computed(() => {
-  return characterItems.value.filter(item => 
-    item.documentType === 'item' && 
-    (item.pluginData as any)?.itemType === 'weapon' &&
-    (item.pluginData as any)?.properties?.includes('two-handed')
-  );
-});
 
 const calculatedAC = computed(() => {
   let baseAC = 10; // Natural AC
@@ -1358,13 +1331,6 @@ const calculatedAC = computed(() => {
   return baseAC + Math.max(0, dexMod);
 });
 
-const armorClassDisplay = computed(() => {
-  const attributes = character.value!.pluginData?.attributes as any;
-  if (attributes?.armorClass?.value) {
-    return attributes.armorClass.value;
-  }
-  return (character.value!.pluginData as any)?.armorClass || 10;
-});
 
 const hitPointsDisplay = computed(() => {
   const attributes = character.value!.pluginData?.attributes as any;
@@ -1413,9 +1379,8 @@ const classDisplayName = computed(() => {
 });
 
 const prominentAvatarUrl = computed(() => {
-  // Fallback hierarchy: avatar -> image -> tokenImage
+  // Fallback hierarchy: avatar -> tokenImage
   return character.value?.avatar?.url || 
-         character.value?.image?.url || 
          character.value?.tokenImage?.url || 
          null;
 });
@@ -1822,7 +1787,7 @@ const rollInitiative = () => {
   showInitiativeDialog.value = true;
 };
 
-const switchTab = (tabId: string) => {
+const switchTab = (tabId: TabId) => {
   activeTab.value = tabId;
 };
 
@@ -1873,7 +1838,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
     event.preventDefault();
     const currentIndex = tabs.findIndex(tab => tab.id === activeTab.value);
     const nextIndex = (currentIndex + 1) % tabs.length;
-    switchTab(tabs[nextIndex].id);
+    switchTab(tabs[nextIndex].id as 'overview' | 'conditions' | 'abilities' | 'skills' | 'spells' | 'gear' | 'background' | 'features' | 'notes' | 'settings');
   }
 };
 
@@ -2662,9 +2627,6 @@ const handleDrop = async (event: DragEvent) => {
     if (result && result.success) {
       console.log('[CharacterSheet] 🎉 Item assignment successful');
       pluginContext.showNotification(`✅ Successfully assigned ${actionParams.itemName} to ${actionParams.targetCharacterName}`, 'success', 3000);
-    } else if (result && result.requiresApproval) {
-      console.log('[CharacterSheet] ⏳ Item assignment pending GM approval');
-      pluginContext.showNotification(`⏳ Item assignment pending GM approval: ${actionParams.itemName} → ${actionParams.targetCharacterName}`, 'info', 5000);
     } else {
       console.warn('[CharacterSheet] ⚠️ Unexpected action result:', result);
       pluginContext.showNotification(`⚠️ Item assignment status unclear for ${actionParams.itemName}`, 'warning', 4000);
@@ -2771,10 +2733,10 @@ onMounted(async () => {
     console.log(`[CharacterSheet] Found ${itemsArray.length} total items in gameState`);
     
     // Log items by character ownership
-    const characterItems = itemsArray.filter(item => item.carrierId === character.value?.id);
+    const characterItems = itemsArray.filter(item => (item as any).carrierId === character.value?.id);
     console.log(`[CharacterSheet] Character ${character.value?.name} owns ${characterItems.length} items:`);
     
-    characterItems.forEach((item, index) => {
+    characterItems.forEach((item: any, index) => {
       console.log(`[CharacterSheet] Item ${index + 1}:`, {
         id: item.id,
         name: item.name,
@@ -2787,7 +2749,7 @@ onMounted(async () => {
     
     // Log grouped items as they would appear in the UI
     console.log('[CharacterSheet] Grouped items for UI:');
-    const grouped = groupItemsByType(characterItems);
+    const grouped = groupItemsByType(characterItems as any);
     Object.entries(grouped).forEach(([type, items]) => {
       console.log(`[CharacterSheet] ${type}: ${items.length} items`, items.map(item => item.name));
     });
@@ -2814,7 +2776,7 @@ const equipItem = async (itemId: string, slot: string) => {
   try {
     console.log('[Equipment] Equipping item:', { itemId, slot });
     
-    const item = characterItems.value.find(i => i.id === itemId);
+    const item = characterItems.value.find(i => i.id === itemId) as any;
     if (!item) {
       console.error('[Equipment] Item not found:', itemId);
       return;
@@ -2828,7 +2790,7 @@ const equipItem = async (itemId: string, slot: string) => {
         itemId,
         slot,
         itemName: item.name
-      } as EquipItemParameters
+      }
     );
 
     console.log('[Equipment] Item equipped successfully');
@@ -2850,7 +2812,7 @@ const unequipSlot = async (slot: string) => {
         characterId: character.value.id,
         slot,
         itemName: currentItem?.name
-      } as UnequipItemParameters
+      }
     );
 
     console.log('[Equipment] Slot unequipped successfully');

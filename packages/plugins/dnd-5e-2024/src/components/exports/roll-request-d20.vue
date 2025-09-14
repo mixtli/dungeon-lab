@@ -109,7 +109,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
-import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 
 interface Props {
   rollRequest: RollRequest;
@@ -179,68 +178,13 @@ const rollTypeClass = computed(() => {
   return `roll-type-${rollType.value}`;
 });
 
-const rollModeLabel = computed(() => {
-  switch (rollType.value) {
-    case 'spell-attack': 
-    case 'weapon-attack': 
-      return 'Attack Mode';
-    case 'ability-check':
-      return 'Check Mode';
-    case 'saving-throw':
-      return 'Save Mode';
-    default: return 'Roll Mode';
-  }
-});
 
 const rollButtonText = computed(() => {
   return `🎲 Roll ${rollTypeLabel.value}`;
 });
 
 // Computed properties
-const diceExpression = computed(() => {
-  if (!props.rollRequest?.dice) {
-    return 'Unknown dice';
-  }
-  
-  try {
-    return diceArrayToExpression(props.rollRequest.dice, 0);
-  } catch (error) {
-    console.error('[D20RollRequest] Failed to convert dice array to expression:', error);
-    return 'Invalid dice';
-  }
-});
 
-const rollInfo = computed(() => {
-  const metadata = props.rollRequest.metadata;
-  const characterName = metadata?.characterName;
-  
-  if (!characterName) return '';
-  
-  // Handle different roll types
-  if (rollType.value === 'spell-attack' && metadata?.spellName) {
-    return `${characterName} casts ${metadata.spellName}`;
-  } else if (rollType.value === 'weapon-attack' && metadata?.weaponName) {
-    return `${characterName} attacks with ${metadata.weaponName}`;
-  } else if (rollType.value === 'ability-check' && metadata?.ability) {
-    const skill = metadata?.skill;
-    if (skill && typeof skill === 'string') {
-      const formattedSkill = skill.split('-').map((word: string) => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
-      return `${characterName} makes a ${formattedSkill} check`;
-    } else if (typeof metadata.ability === 'string') {
-      const formattedAbility = metadata.ability.charAt(0).toUpperCase() + metadata.ability.slice(1);
-      return `${characterName} makes a ${formattedAbility} check`;
-    }
-  } else if (rollType.value === 'saving-throw' && metadata?.ability) {
-    if (typeof metadata.ability === 'string') {
-      const formattedAbility = metadata.ability.charAt(0).toUpperCase() + metadata.ability.slice(1);
-      return `${characterName} makes a ${formattedAbility} saving throw`;
-    }
-  }
-  
-  return `${characterName} makes a ${rollTypeLabel.value.toLowerCase()}`;
-});
 
 const hasAdvantageConditions = computed(() => {
   return defaultArgs.conditionReasons?.advantage?.length > 0;
@@ -250,11 +194,6 @@ const hasDisadvantageConditions = computed(() => {
   return defaultArgs.conditionReasons?.disadvantage?.length > 0;
 });
 
-const totalModifierDisplay = computed(() => {
-  const baseModifier = defaultArgs.baseModifier || 0;
-  const total = baseModifier + customModifier.value;
-  return total >= 0 ? `+${total}` : `${total}`;
-});
 
 const finalDiceExpression = computed(() => {
   const diceCount = advantageMode.value === 'normal' ? 1 : 2;
