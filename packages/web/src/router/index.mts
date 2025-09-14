@@ -9,8 +9,7 @@ import ChatView from '@/views/ChatView.vue';
 // Views - Lazy loaded
 const HomeView = () => import('@/views/HomeView.vue');
 const GameTableView = () => import('@/views/GameTableView.vue');
-const MobileActorsView = () => import('@/views/MobileActorsView.vue');
-const MobileActorSheetView = () => import('@/views/MobileActorSheetView.vue');
+const HudContainer = () => import('@/components/hud/HudContainer.vue');
 const MobileTabsContainer = () => import('@/components/mobile/MobileTabsContainer.vue');
 const CharacterSheetView = () => import('@/views/CharacterSheetView.vue');
 const CharacterListView = () => import('@/views/CharacterListView.vue');
@@ -265,20 +264,12 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: '/mobile-actors',
-        name: 'mobile-actors',
-        component: MobileActorsView,
+        path: '/mobile-hud',
+        name: 'mobile-hud',
+        component: HudContainer,
+        props: { forceLayout: 'mobile' },
         meta: {
-          title: 'Actors',
-          requiresAuth: true
-        }
-      },
-      {
-        path: '/mobile-actors/:id',
-        name: 'mobile-actor-sheet',
-        component: MobileActorSheetView,
-        meta: {
-          title: 'Actor Sheet',
+          title: 'HUD',
           requiresAuth: true
         }
       },
@@ -564,17 +555,10 @@ router.beforeEach(async (to, from, next) => {
         return;
       }
       
-      if (to.name === 'mobile-actors' || to.path.startsWith('/mobile-actors')) {
-        const query: Record<string, string> = { tab: 'actors' };
-        
-        // Preserve actor ID if navigating to specific actor sheet
-        if (to.name === 'mobile-actor-sheet' && to.params.id) {
-          query.actor = Array.isArray(to.params.id) ? to.params.id[0] : to.params.id;
-        }
-        
-        next({ 
-          name: 'mobile-container', 
-          query 
+      if (to.name === 'mobile-hud' || to.path.startsWith('/mobile-hud')) {
+        next({
+          name: 'mobile-container',
+          query: { tab: 'hud' }
         });
         return;
       }

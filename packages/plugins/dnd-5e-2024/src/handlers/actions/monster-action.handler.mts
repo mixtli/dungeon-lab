@@ -11,14 +11,15 @@
  */
 
 import type { GameActionRequest, ServerGameStateWithVirtuals, ICharacter, IActor } from '@dungeon-lab/shared/types/index.mjs';
-import type { DndCharacterData, DndCreatureData } from '../../types/dnd/index.mjs';
 import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import type { ActionValidationResult, ActionValidationHandler, ActionExecutionHandler, ActionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { RollRequestSpec } from '@dungeon-lab/shared-ui/types/action-context.mjs';
 import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 import { calculateD20Total } from '../../utils/dnd-roll-utilities.mjs';
 import type { DndCreatureData } from '../../types/dnd/creature.mjs';
+import type { DndCharacterData } from '../../types/dnd/character.mjs';
 import type { actionSchema } from '../../types/dnd/stat-block.mjs';
+import { ABILITIES, type Ability } from '../../types/dnd/common.mjs';
 import { z } from 'zod';
 
 type MonsterAction = z.infer<typeof actionSchema>;
@@ -158,20 +159,35 @@ function getTargetAC(target: MonsterActionTarget): number {
 }
 
 /**
+ * Type guard to check if a string is a valid ability
+ */
+function isValidAbility(ability: string): ability is Ability {
+  return ABILITIES.includes(ability as Ability);
+}
+
+/**
  * Get target's saving throw bonus for a specific ability
  */
 function getTargetSaveBonus(target: MonsterActionTarget, ability: string): number {
   try {
     const abilityMod = Math.floor(((getTargetAbilityScore(target, ability) || 10) - 10) / 2);
-    
+
     // Check for saving throw proficiency
     let saveBonus = abilityMod;
-    
+
+    if (!isValidAbility(ability)) {
+      console.warn(`[MonsterAction] Invalid ability: ${ability}`);
+      return saveBonus;
+    }
+
     if (target.documentType === 'character') {
       const characterData = target.pluginData as DndCharacterData;
-      const savingThrows = characterData.attributes?.savingThrows || {};
-      if (savingThrows[ability]) {
-        saveBonus = savingThrows[ability];
+      // For characters, saving throw bonus is stored in the ability objects
+      if (characterData.abilities?.[ability]) {
+        const abilityData = characterData.abilities[ability];
+        if (abilityData.saveProficient) {
+          saveBonus = abilityData.saveBonus || abilityMod;
+        }
       }
     } else if (target.documentType === 'actor') {
       const actorData = target.pluginData as DndCreatureData;
@@ -179,7 +195,7 @@ function getTargetSaveBonus(target: MonsterActionTarget, ability: string): numbe
         saveBonus = actorData.savingThrows[ability];
       }
     }
-    
+
     return saveBonus;
   } catch (error) {
     console.error(`[MonsterAction] Error getting save bonus for ${target.document.name}:`, error);
@@ -230,7 +246,7 @@ function resolveTargets(targetTokenIds: string[], gameState: ServerGameStateWith
             tokenId,
             document,
             documentType,
-            pluginData: document.pluginData
+            pluginData: document.pluginData as DndCharacterData | DndCreatureData
           });
         } else {
           console.warn(`[MonsterAction] Could not resolve document for token ${tokenId}`);
@@ -527,8 +543,12 @@ async function executeSavingThrowWorkflow(
   request: GameActionRequest
 ): Promise<void> {
   console.log(`[MonsterAction] Executing saving throw workflow for ${action.name}`);
-  
+
   const savingThrow = action.savingThrow;
+  if (!savingThrow) {
+    console.error(`[MonsterAction] Cannot execute saving throw workflow: no saving throw defined for ${action.name}`);
+    return;
+  }
   
   for (const target of targets) {
     // Request saving throw
@@ -628,7 +648,7 @@ async function executeAutomaticEffectWorkflow(
   }
   
   await context.sendChatMessage(
-    `${creature.name} activates ${action.name}`,
+    `${creature.name} activates ${action.name || 'Unknown Action'}`,
     {}
   );
 }
@@ -644,6 +664,11 @@ async function rollAndApplyDamage(
   request: GameActionRequest,
   halfDamage: boolean = false
 ): Promise<void> {
+  if (!action.damage) {
+    console.warn(`[MonsterAction] No damage defined for action ${action.name || 'Unknown'}`);
+    return;
+  }
+
   const damageData = parseDamageString(action.damage);
   if (!damageData) {
     console.warn(`[MonsterAction] Could not parse damage string: ${action.damage}`);

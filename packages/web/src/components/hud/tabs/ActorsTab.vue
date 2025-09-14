@@ -1,5 +1,8 @@
 <template>
-  <div class="actors-tab">
+  <div
+    class="actors-tab"
+    :class="{ 'mobile-context': hudNavigationContext.isMobile }"
+  >
     <div class="actors-header">
       <h4>Actors</h4>
       <div class="actors-controls">
@@ -48,9 +51,9 @@
           `actor-${actor.pluginDocumentType}`,
           { 'is-dragging': isDragging && draggedActor?.id === actor.id }
         ]"
-        draggable="true"
-        @click="selectActor(actor)"
-        @dblclick="openCharacterSheet(actor)"
+        :draggable="!hudNavigationContext.isMobile"
+        @click="handleActorClick(actor)"
+        @dblclick="handleActorDoubleClick(actor)"
         @dragstart="handleDragStart($event, actor)"
         @dragend="handleDragEnd"
       >
@@ -119,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
@@ -127,12 +130,23 @@ import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
-import type { IActor, StateOperation, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, StateOperation, RemoveDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const documentSheetStore = useDocumentSheetStore();
 const documentsClient = new DocumentsClient();
 const router = useRouter();
+
+// Navigation context - provided by parent HUD container
+const hudNavigationContext = inject<{
+  openSheet: (document: BaseDocument) => void;
+  isMobile: boolean;
+  isDesktop: boolean;
+}>('hudNavigationContext', {
+  openSheet: (document) => documentSheetStore.openDocumentSheet(document),
+  isMobile: false,
+  isDesktop: true
+});
 const searchQuery = ref('');
 const activeFilter = ref('all');
 
@@ -179,7 +193,7 @@ onMounted(async () => {
   // No need to manually load actors - they come from game state
 });
 
-// Implement real functionality  
+// Implement real functionality
 async function selectActor(actor: IActor): Promise<void> {
   try {
     // Actors don't have a "current" concept in the new system
@@ -187,6 +201,29 @@ async function selectActor(actor: IActor): Promise<void> {
     console.log('Selected actor:', actor.name);
   } catch (error) {
     console.error('Failed to select actor:', error);
+  }
+}
+
+// Context-aware click handlers
+function handleActorClick(actor: IActor): void {
+  if (hudNavigationContext.isMobile) {
+    // Mobile: Single click opens sheet
+    openCharacterSheet(actor);
+  } else {
+    // Desktop: Single click selects actor
+    selectActor(actor);
+  }
+}
+
+function handleActorDoubleClick(actor: IActor): void {
+  if (hudNavigationContext.isDesktop) {
+    // Desktop: Double click opens sheet
+    openCharacterSheet(actor);
+  }
+  // Mobile: Double click is handled by single click, so we prevent default
+  if (hudNavigationContext.isMobile) {
+    // Prevent double click behavior on mobile
+    return;
   }
 }
 
@@ -345,7 +382,7 @@ async function editActor(actor: IActor): Promise<void> {
 
 // Character sheet functions
 function openCharacterSheet(actor: IActor): void {
-  documentSheetStore.openDocumentSheet(actor);
+  hudNavigationContext.openSheet(actor);
 }
 
 // ============================================================================
@@ -684,5 +721,22 @@ function handleDragEnd(): void {
 
 .actors-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
+}
+
+/* Mobile-specific styles */
+.actors-tab.mobile-context .actor-actions {
+  display: none !important;
+}
+
+.actors-tab.mobile-context .actor-card {
+  cursor: pointer !important;
+  min-height: 64px !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+}
+
+.actors-tab.mobile-context .actor-card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
 }
 </style>

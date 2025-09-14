@@ -234,7 +234,7 @@ export interface RegionObject extends EditorObject {
   affectedTypes: ('player' | 'npc' | 'monster' | 'object' | 'all')[];
   teleportDestination?: Point;
   teleportMapId?: string;
-  effectData?: Record<string, any>;
+  effectData?: Record<string, unknown>;
   visible: boolean;
   color: string;
   opacity: number;

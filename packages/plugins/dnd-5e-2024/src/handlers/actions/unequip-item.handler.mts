@@ -104,13 +104,8 @@ const executeUnequipItem: ActionExecutionHandler = async (
 
   // Get character from draft (validation ensures it exists)
   const character = draft.documents[params.characterId] as DndCharacterDocument;
-  
-  // Initialize equipment object if it doesn't exist (shouldn't happen due to validation)
-  if (!character.pluginData) {
-    // Character pluginData is missing - this shouldn't normally happen for valid characters
-    console.warn('Character pluginData missing, initializing basic structure');
-    character.pluginData = { equipment: {} } as { equipment: Record<string, unknown> };
-  }
+
+  // Initialize equipment object if it doesn't exist
   if (!character.pluginData.equipment) {
     character.pluginData.equipment = {};
   }

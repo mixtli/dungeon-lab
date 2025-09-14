@@ -4,17 +4,16 @@ import { useRouter, useRoute } from 'vue-router';
 // import { useAuthStore } from '../../stores/auth.store.mts';
 import { useGameSessionStore } from '../../stores/game-session.store.mts';
 import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mts';
-import { useMobileActorsState } from '../../composables/useMobileActorsState.mts';
-import { 
-  ChatBubbleLeftRightIcon, 
-  ShieldCheckIcon, 
-  UserIcon, 
-  Cog6ToothIcon 
+import {
+  ChatBubbleLeftRightIcon,
+  ShieldCheckIcon,
+  Squares2X2Icon,
+  Cog6ToothIcon
 } from '@heroicons/vue/24/outline';
 import {
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
   ShieldCheckIcon as ShieldCheckIconSolid,
-  UserIcon as UserIconSolid,
+  Squares2X2Icon as Squares2X2IconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid
 } from '@heroicons/vue/24/solid';
 
@@ -48,7 +47,6 @@ const route = useRoute();
 // const authStore = useAuthStore();
 const gameSessionStore = useGameSessionStore();
 const { isPhone } = useDeviceAdaptation();
-const { navigateToActorsTab } = useMobileActorsState();
 
 // Navigation tabs configuration
 const tabs = computed(() => [
@@ -102,20 +100,19 @@ const tabs = computed(() => [
     }
   },
   {
-    id: 'actors',
-    label: isPhone.value ? 'Actors' : 'Character',
-    icon: UserIcon,
-    iconSolid: UserIconSolid,
+    id: 'hud',
+    label: 'HUD',
+    icon: Squares2X2Icon,
+    iconSolid: Squares2X2IconSolid,
     isActive: computed(() => {
       if (props.containerMode) {
-        return props.activeTab === 'actors';
+        return props.activeTab === 'hud';
       }
-      
+
       if (isPhone.value) {
-        // Mobile: active for mobile actors routes
-        return route.name === 'mobile-actors' ||
-               route.name === 'mobile-actor-sheet' ||
-               route.path.includes('/mobile-actors');
+        // Mobile: active for mobile HUD routes
+        return route.name === 'mobile-hud' ||
+               route.path.includes('/mobile-hud');
       } else {
         // Desktop: keep original character behavior
         return route.name === 'character-sheet' ||
@@ -126,18 +123,18 @@ const tabs = computed(() => [
     }),
     navigate: () => {
       if (props.containerMode) {
-        emit('tab-change', 'actors');
+        emit('tab-change', 'hud');
       } else if (isPhone.value) {
-        // Mobile: use state persistence to navigate to last opened actor or list
-        navigateToActorsTab();
+        // Mobile: navigate to HUD view
+        router.push({ name: 'mobile-hud' });
       } else {
         // Desktop: keep original character behavior
         const currentCharacter = gameSessionStore.currentCharacter;
-        
+
         if (currentCharacter) {
-          router.push({ 
-            name: 'character-sheet', 
-            params: { id: currentCharacter.id } 
+          router.push({
+            name: 'character-sheet',
+            params: { id: currentCharacter.id }
           });
         } else {
           router.push({ name: 'character-list' });

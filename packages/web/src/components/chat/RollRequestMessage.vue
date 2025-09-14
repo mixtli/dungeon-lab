@@ -57,6 +57,11 @@ import { pluginRegistry } from '../../services/plugin-registry.mts';
 import { rollService } from '../../services/roll.service.mjs';
 import type { ChatMessage } from '../../stores/chat.store.mjs';
 import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
+
+// Type for plugin roll acceptance event data
+interface PluginRollAcceptedData {
+  rollData: RollServerResult;
+}
 import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 
 interface Props {
@@ -142,7 +147,7 @@ const buttonText = computed(() => {
 });
 
 // Plugin component event handlers
-async function handlePluginRollAccepted(rollData: any): Promise<void> {
+async function handlePluginRollAccepted(rollData: PluginRollAcceptedData): Promise<void> {
   console.log('[RollRequestMessage] Plugin roll accepted:', rollData);
   
   processing.value = true;

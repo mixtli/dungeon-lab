@@ -1,5 +1,8 @@
 <template>
-  <div class="characters-tab">
+  <div
+    class="characters-tab"
+    :class="{ 'mobile-context': hudNavigationContext.isMobile }"
+  >
     <div class="characters-header">
       <h4>Characters</h4>
       <div class="characters-controls">
@@ -48,9 +51,9 @@
           `character-${character.pluginDocumentType || 'pc'}`,
           { 'is-dragging': isDragging && draggedCharacter?.id === character.id }
         ]"
-        draggable="true"
-        @click="selectCharacter(character)"
-        @dblclick="openCharacterSheet(character)"
+        :draggable="!hudNavigationContext.isMobile"
+        @click="handleCharacterClick(character)"
+        @dblclick="handleCharacterDoubleClick(character)"
         @dragstart="handleDragStart($event, character)"
         @dragend="handleDragEnd"
       >
@@ -116,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
@@ -124,12 +127,23 @@ import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
 import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
-import type { ICharacter, StateOperation, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, StateOperation, RemoveDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const documentSheetStore = useDocumentSheetStore();
 const documentsClient = new DocumentsClient();
 const router = useRouter();
+
+// Navigation context - provided by parent HUD container
+const hudNavigationContext = inject<{
+  openSheet: (document: BaseDocument) => void;
+  isMobile: boolean;
+  isDesktop: boolean;
+}>('hudNavigationContext', {
+  openSheet: (document) => documentSheetStore.openDocumentSheet(document),
+  isMobile: false,
+  isDesktop: true
+});
 const searchQuery = ref('');
 const activeFilter = ref('all');
 
@@ -183,7 +197,7 @@ onMounted(async () => {
   // No need to manually load characters - they come from game state
 });
 
-// Implement real functionality  
+// Implement real functionality
 async function selectCharacter(character: ICharacter): Promise<void> {
   try {
     // Set the selected character in the game state store
@@ -191,6 +205,29 @@ async function selectCharacter(character: ICharacter): Promise<void> {
     console.log('Selected character:', character.name);
   } catch (error) {
     console.error('Failed to select character:', error);
+  }
+}
+
+// Context-aware click handlers
+function handleCharacterClick(character: ICharacter): void {
+  if (hudNavigationContext.isMobile) {
+    // Mobile: Single click opens sheet
+    openCharacterSheet(character);
+  } else {
+    // Desktop: Single click selects character
+    selectCharacter(character);
+  }
+}
+
+function handleCharacterDoubleClick(character: ICharacter): void {
+  if (hudNavigationContext.isDesktop) {
+    // Desktop: Double click opens sheet
+    openCharacterSheet(character);
+  }
+  // Mobile: Double click is handled by single click, so we prevent default
+  if (hudNavigationContext.isMobile) {
+    // Prevent double click behavior on mobile
+    return;
   }
 }
 
@@ -340,7 +377,7 @@ async function editCharacter(character: ICharacter): Promise<void> {
 
 // Character sheet functions
 function openCharacterSheet(character: ICharacter): void {
-  documentSheetStore.openDocumentSheet(character);
+  hudNavigationContext.openSheet(character);
 }
 
 // Quick action functions
@@ -708,5 +745,39 @@ function handleDragEnd(): void {
 
 .characters-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
+}
+
+/* Mobile-specific styles - injected context aware */
+.characters-tab:has([data-mobile="true"]) .character-actions {
+  display: none !important;
+}
+
+.characters-tab:has([data-mobile="true"]) .character-card {
+  cursor: pointer !important;
+  min-height: 64px !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+}
+
+.characters-tab:has([data-mobile="true"]) .character-card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Alternative mobile styles using class-based approach */
+.characters-tab.mobile-context .character-actions {
+  display: none !important;
+}
+
+.characters-tab.mobile-context .character-card {
+  cursor: pointer !important;
+  min-height: 64px !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+}
+
+.characters-tab.mobile-context .character-card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
 }
 </style>
