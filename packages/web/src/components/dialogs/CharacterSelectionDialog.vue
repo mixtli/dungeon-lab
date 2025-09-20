@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from '@/stores/socket.store.mjs';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import type { ICharacter, IAsset } from '@dungeon-lab/shared/types/index.mjs';
 
-const documentsClient = new DocumentsClient();
+const documentsClient = new DocumentsSocketClient();
 const socketStore = useSocketStore();
 
 interface Props {
@@ -27,6 +27,10 @@ const characters = ref<ICharacter[]>([]);
 const selectedCharacterId = ref<string | null>(null);
 
 onMounted(async () => {
+  // Set up socket connection for documents client
+  if (socketStore.socket) {
+    documentsClient.setSocket(socketStore.socket);
+  }
   await loadCharacters();
 });
 

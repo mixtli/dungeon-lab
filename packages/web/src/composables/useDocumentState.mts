@@ -11,7 +11,8 @@
 import { ref, onMounted, type Ref } from 'vue';
 import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { CreateDocumentData } from '@dungeon-lab/shared/schemas/document.schema.mjs';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
+import { useSocketStore } from '../stores/socket.store.mjs';
 
 export interface DocumentStateOptions {
   /** Whether this is readonly mode */
@@ -70,14 +71,21 @@ export function useDocumentState(
   const isSaving = ref(false);
 
   // API client
-  const documentsClient = new DocumentsClient();
+  const documentsClient = new DocumentsSocketClient();
+  const socketStore = useSocketStore();
 
   // Initialize document from server
   const initializeDocument = async () => {
     try {
       isLoading.value = true;
+
+      // Set up socket connection for documents client
+      if (socketStore.socket) {
+        documentsClient.setSocket(socketStore.socket);
+      }
+
       console.log(`[useDocumentState] Fetching ${documentType} document:`, documentId);
-      
+
       const fetchedDocument = await documentsClient.getDocument(documentId) as BaseDocument;
       
       // Use JSON clone to avoid reactivity issues with complex objects

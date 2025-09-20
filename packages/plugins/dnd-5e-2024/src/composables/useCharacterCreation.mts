@@ -1,6 +1,7 @@
 import { reactive, computed, readonly } from 'vue';
-import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
 import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import type { ReferenceOrObjectId } from '@dungeon-lab/shared/types/reference.mjs';
 import type { EquipmentSelections } from '../utils/equipment-processor.mjs';
 import type {
@@ -45,7 +46,7 @@ const FORM_STEPS: FormStep[] = [
   { id: 'details', name: 'Details', component: 'CharacterDetailsStep' }
 ];
 
-export function useCharacterCreation() {
+export function useCharacterCreation(context: PluginContext) {
   // Initialize reactive state
   const state = reactive<CharacterCreationState>({
     currentStep: 0,
@@ -61,7 +62,6 @@ export function useCharacterCreation() {
 
   // Create client instances
   const compendiumClient = new CompendiumsClient();
-  const documentsClient = new DocumentsClient();
 
   // Computed properties
   const currentStepData = computed(() => FORM_STEPS[state.currentStep]);
@@ -227,7 +227,7 @@ export function useCharacterCreation() {
   // Document data fetching methods using documents collection
   const fetchClasses = async (): Promise<Array<{documentId: string, document: DndCharacterClassDocument}>> => {
     try {
-      const documents = await documentsClient.searchDocuments({
+      const documents = await context.searchDocuments({
         documentType: 'vtt-document',
         pluginDocumentType: 'character-class',
         pluginId: 'dnd-5e-2024'
@@ -245,7 +245,7 @@ export function useCharacterCreation() {
 
   const fetchSpecies = async (): Promise<Array<{documentId: string, document: DndSpeciesDocument}>> => {
     try {
-      const documents = await documentsClient.searchDocuments({
+      const documents = await context.searchDocuments({
         documentType: 'vtt-document',
         pluginDocumentType: 'species',
         pluginId: 'dnd-5e-2024'
@@ -263,7 +263,7 @@ export function useCharacterCreation() {
 
   const fetchBackgrounds = async (): Promise<Array<{documentId: string, document: DndBackgroundDocument}>> => {
     try {
-      const documents = await documentsClient.searchDocuments({
+      const documents = await context.searchDocuments({
         documentType: 'vtt-document',
         pluginDocumentType: 'background',
         pluginId: 'dnd-5e-2024'
@@ -281,7 +281,7 @@ export function useCharacterCreation() {
 
   const fetchLanguages = async (): Promise<Array<{documentId: string, document: DndLanguageDocument}>> => {
     try {
-      const documents = await documentsClient.searchDocuments({
+      const documents = await context.searchDocuments({
         documentType: 'vtt-document',
         pluginDocumentType: 'language',
         pluginId: 'dnd-5e-2024'
@@ -363,7 +363,7 @@ export function useCharacterCreation() {
     if (typeof reference === 'string') {
       // This is already a resolved ObjectId - assume it's a document ID
       try {
-        const document = await documentsClient.getDocument(reference);
+        const document = await context.getDocument(reference);
         return document?.name || fallback;
       } catch (error) {
         console.warn(`Failed to resolve document reference ${reference}:`, error);
@@ -404,7 +404,7 @@ export function useCharacterCreation() {
 
     try {
       // Get class document to check equipment choices
-      const classDocument = await documentsClient.getDocument(characterData.class.id);
+      const classDocument = await context.getDocument(characterData.class.id);
       const classData = classDocument as DndCharacterClassDocument;
       
       // Check if class equipment choice gives gold
@@ -482,7 +482,7 @@ export function useCharacterCreation() {
       for (const { entryId, quantity } of itemsToCreate) {
         try {
           // Get item document (entryId is actually a document ID)
-          const itemDocument = await documentsClient.getDocument(entryId);
+          const itemDocument = await context.getDocument(entryId);
           
           if (!itemDocument) {
             console.warn(`Could not find item document: ${entryId}`);
@@ -583,8 +583,8 @@ export function useCharacterCreation() {
 
       // Fetch class and background documents for equipment processing
       const [classDocument, backgroundDocument] = await Promise.all([
-        documentsClient.getDocument(characterData.class.id),
-        documentsClient.getDocument(characterData.origin.background.id)
+        context.getDocument(characterData.class.id),
+        context.getDocument(characterData.origin.background.id)
       ]);
 
       const itemsData = await prepareEquipmentItemsData(
@@ -609,8 +609,8 @@ export function useCharacterCreation() {
   const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo, startingGold: number = 0) => {
     // Fetch documents for class, species, and background
     const [classDocument, backgroundDocument] = await Promise.all([
-      documentsClient.getDocument(creatorData.class.id),
-      documentsClient.getDocument(creatorData.origin.background.id)
+      context.getDocument(creatorData.class.id),
+      context.getDocument(creatorData.origin.background.id)
     ]);
     
     const classData = classDocument as DndCharacterClassDocument;

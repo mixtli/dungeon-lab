@@ -140,14 +140,17 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 import type { AddDocumentParameters, RemoveDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
 
-const documentsClient = new DocumentsClient();
+import { useSocketStore } from '../../../stores/socket.store.mjs';
+
+const documentsClient = new DocumentsSocketClient();
+const socketStore = useSocketStore();
 const documentSheetStore = useDocumentSheetStore();
 
 // State
@@ -212,6 +215,10 @@ watch([searchQuery, activeDocumentType], () => {
 
 // Component lifecycle
 onMounted(async () => {
+  // Set up socket connection for documents client
+  if (socketStore.socket) {
+    documentsClient.setSocket(socketStore.socket);
+  }
   await loadDocuments();
 });
 

@@ -125,14 +125,14 @@ import { useSocketStore } from '../../../stores/socket.store.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getAssetUrl } from '../../../utils/asset-utils.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
 import type { IItem, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const socketStore = useSocketStore();
 const documentSheetStore = useDocumentSheetStore();
-const documentsClient = new DocumentsClient();
+const documentsClient = new DocumentsSocketClient();
 const searchQuery = ref('');
 const activeFilter = ref('all');
 const itemImageUrls = ref<Record<string, string>>({});
@@ -189,6 +189,10 @@ const filteredItems = computed(() => {
 // Load items when component mounts
 onMounted(async () => {
   try {
+    // Set up socket connection for documents client
+    if (socketStore.socket) {
+      documentsClient.setSocket(socketStore.socket);
+    }
     // Items are automatically loaded when game session is joined
     // Preload image URLs for items with images
     await loadItemImageUrls();

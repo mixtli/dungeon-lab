@@ -4,7 +4,7 @@ import type { IGameSession, IActor, JsonPatchOperation } from '@dungeon-lab/shar
 import { useAuthStore } from './auth.store.mts';
 import { useSocketStore } from './socket.store.mjs';
 import { useGameStateStore } from './game-state.store.mjs';
-import { CampaignsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { CampaignsClient, DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
 import { gmActionHandlerService } from '../services/gm-action-handler.service.mjs';
 import type { z } from 'zod';
 import {
@@ -21,7 +21,7 @@ export const useGameSessionStore = defineStore(
     const socketStore = useSocketStore();
     // const _chatStore = useChatStore();
     const campaignClient = new CampaignsClient();
-    const documentsClient = new DocumentsClient();
+    const documentsClient = new DocumentsSocketClient();
 
     // State
     const currentSession = ref<IGameSession | null>(null);
@@ -192,6 +192,9 @@ export const useGameSessionStore = defineStore(
 
     function registerSessionListeners(sessionId: string) {
       if (!socketStore.socket) return;
+
+      // Set up socket connection for documents client
+      documentsClient.setSocket(socketStore.socket);
 
       // Remove any existing listeners to prevent duplicates
       socketStore.socket.off('gameSession:joined');

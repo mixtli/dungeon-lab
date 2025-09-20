@@ -125,13 +125,15 @@ import { useGameStateStore } from '../../../stores/game-state.store.mjs';
 import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
 import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
 import { playerActionService } from '../../../services/player-action.service.mjs';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
+import { useSocketStore } from '../../../stores/socket.store.mjs';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
 import type { ICharacter, StateOperation, RemoveDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
 const gameStateStore = useGameStateStore();
 const documentSheetStore = useDocumentSheetStore();
-const documentsClient = new DocumentsClient();
+const documentsClient = new DocumentsSocketClient();
+const socketStore = useSocketStore();
 const router = useRouter();
 
 // Navigation context - provided by parent HUD container
@@ -194,6 +196,10 @@ function getCharacterImageUrl(character: ICharacter): string | null {
 
 // Characters are automatically loaded when game session is joined
 onMounted(async () => {
+  // Set up socket connection for documents client
+  if (socketStore.socket) {
+    documentsClient.setSocket(socketStore.socket);
+  }
   // No need to manually load characters - they come from game state
 });
 

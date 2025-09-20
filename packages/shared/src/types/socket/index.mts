@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import * as socketTypes from '../../schemas/socket/index.mjs';
 import * as encounterSocketSchemas from '../../schemas/socket/encounters.mjs';
+import * as documentSocketSchemas from '../../schemas/socket/documents.mjs';
 
 // Export basic socket types
 export type MessageParticipant = z.infer<typeof socketTypes.messageParticipantSchema>;
@@ -45,5 +46,18 @@ export type EncounterError = z.infer<typeof encounterSocketSchemas.encounterErro
 export type EncounterCallback = z.infer<typeof encounterSocketSchemas.encounterCallbackSchema>;
 export type EncounterStartCallback = z.infer<typeof encounterSocketSchemas.encounterStartCallbackSchema>;
 export type EncounterStopCallback = z.infer<typeof encounterSocketSchemas.encounterStopCallbackSchema>;
+
+// Export document socket types
+export type DocumentGetRequest = z.infer<typeof documentSocketSchemas.documentGetRequestSchema>;
+export type DocumentSearchRequest = z.infer<typeof documentSocketSchemas.documentSearchRequestSchema>;
+export type DocumentCreateRequest = z.infer<typeof documentSocketSchemas.documentCreateRequestSchema>;
+export type DocumentUpdateRequest = z.infer<typeof documentSocketSchemas.documentUpdateRequestSchema>;
+export type DocumentDeleteRequest = z.infer<typeof documentSocketSchemas.documentDeleteRequestSchema>;
+export type DocumentGetResponse = z.infer<typeof documentSocketSchemas.documentGetResponseSchema>;
+export type DocumentSearchResponse = z.infer<typeof documentSocketSchemas.documentSearchResponseSchema>;
+export type DocumentCreateResponse = z.infer<typeof documentSocketSchemas.documentCreateResponseSchema>;
+export type DocumentUpdateResponse = z.infer<typeof documentSocketSchemas.documentUpdateResponseSchema>;
+export type DocumentDeleteResponse = z.infer<typeof documentSocketSchemas.documentDeleteResponseSchema>;
+export type DocumentChangedNotification = z.infer<typeof documentSocketSchemas.documentChangedNotificationSchema>;
 
 

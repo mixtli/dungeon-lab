@@ -2,8 +2,7 @@ import type { BaseDocument, DocumentTypeMap, DocumentType } from '@dungeon-lab/s
 import {
   BaseAPIResponse,
   CreateDocumentRequest,
-  PatchDocumentRequest,
-  PutDocumentRequest,
+  UpdateDocumentRequest,
   SearchDocumentsQuery
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { ApiClient } from './api.client.mjs';
@@ -127,14 +126,14 @@ export class DocumentsClient extends ApiClient {
   }
 
   /**
-   * Update document (partial update with PATCH)
+   * Update document (handles both partial and full updates)
    * @param documentId - The ID of the document to update
-   * @param data - The partial document data to update
+   * @param data - The document data to update (partial or complete)
    * @returns The updated document or undefined
    */
-  async patchDocument(
+  async updateDocument(
     documentId: string,
-    data: PatchDocumentRequest
+    data: UpdateDocumentRequest
   ): Promise<BaseDocument | undefined> {
     const response = await this.api.patch<BaseAPIResponse<BaseDocument>>(
       `/api/documents/${documentId}`,
@@ -142,26 +141,6 @@ export class DocumentsClient extends ApiClient {
     );
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to update document');
-    }
-    return response.data.data;
-  }
-
-  /**
-   * Replace document (full update with PUT)
-   * @param documentId - The ID of the document to replace
-   * @param data - The complete document data
-   * @returns The updated document or undefined
-   */
-  async putDocument(
-    documentId: string,
-    data: PutDocumentRequest
-  ): Promise<BaseDocument | undefined> {
-    const response = await this.api.put<BaseAPIResponse<BaseDocument>>(
-      `/api/documents/${documentId}`,
-      data
-    );
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to replace document');
     }
     return response.data.data;
   }

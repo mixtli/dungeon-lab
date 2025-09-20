@@ -45,6 +45,16 @@ export type PatchDocumentRequest = z.infer<typeof patchDocumentRequestSchema>;
 export const patchDocumentResponseSchema = putDocumentResponseSchema;
 export type PatchDocumentResponse = z.infer<typeof patchDocumentResponseSchema>;
 
+// Types for unified update (combines PUT and PATCH functionality)
+export const updateDocumentRequestSchema = updateDocumentSchema;
+export type UpdateDocumentRequest = z.infer<typeof updateDocumentRequestSchema>;
+
+export const updateDocumentResponseSchema = baseAPIResponseSchema.extend({
+  data: baseDocumentSchema.optional()
+});
+
+export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponseSchema>;
+
 // Types for DELETE /documents/:id (Delete document)
 export const deleteDocumentResponseSchema = z.object({
   success: z.boolean().default(true),

@@ -17,8 +17,7 @@ import type { RollTypeHandler } from '@dungeon-lab/shared-ui/types/plugin.mjs';
 import type { BaseDocument, ICompendiumEntry, ActionRequestResult, GameActionType } from '@dungeon-lab/shared/types/index.mjs';
 import type { Roll, RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { ReactivePluginStore } from '../plugin-store.mjs';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient, DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
 import { createPluginGameStateService } from '../plugin-game-state.service.mjs';
 import { useGameStateStore } from '../../stores/game-state.store.mjs';
 import { useGameSessionStore } from '../../stores/game-session.store.mjs';
@@ -48,7 +47,7 @@ export class PluginContextImpl implements PluginContext {
   public readonly store: PluginStore;
   public readonly gameState?: GameStateContext;
   private compendiumsClient: CompendiumsClient;
-  private documentsClient: DocumentsClient;
+  private documentsClient: DocumentsSocketClient;
   private _playerActionService?: PlayerActionService;
   private tokenActions: Map<string, TokenContextAction> = new Map();
   
@@ -58,7 +57,10 @@ export class PluginContextImpl implements PluginContext {
     
     // Initialize API clients for read-only operations
     this.compendiumsClient = new CompendiumsClient();
-    this.documentsClient = new DocumentsClient();
+    this.documentsClient = new DocumentsSocketClient();
+
+    // Set up socket connection for documents client
+    this.updateSocketConnection();
     
     // PlayerActionService will be lazy-initialized when needed
     // to avoid Pinia store issues during plugin loading
@@ -80,6 +82,23 @@ export class PluginContextImpl implements PluginContext {
   }
   
   /**
+   * Update socket connection for documents client
+   */
+  private updateSocketConnection(): void {
+    try {
+      const socketStore = useSocketStore();
+      if (socketStore.socket && socketStore.connected) {
+        this.documentsClient.setSocket(socketStore.socket);
+        console.log(`[PluginContext] Socket connection set for plugin '${this.pluginId}'`);
+      } else {
+        console.log(`[PluginContext] Socket not available for plugin '${this.pluginId}'`);
+      }
+    } catch (error) {
+      console.warn(`[PluginContext] Failed to set socket connection for plugin '${this.pluginId}':`, error);
+    }
+  }
+
+  /**
    * Lazy getter for PlayerActionService to avoid Pinia issues during initialization
    */
   private get playerActionService(): PlayerActionService {
@@ -94,6 +113,9 @@ export class PluginContextImpl implements PluginContext {
    */
   async getDocument(id: string): Promise<BaseDocument> {
     try {
+      // Ensure socket connection is available
+      this.updateSocketConnection();
+
       const document = await this.documentsClient.getDocument(id);
       if (!document) {
         throw new Error(`Document ${id} not found`);
@@ -114,6 +136,9 @@ export class PluginContextImpl implements PluginContext {
    */
   async searchDocuments(query: DocumentSearchQuery): Promise<BaseDocument[]> {
     try {
+      // Ensure socket connection is available
+      this.updateSocketConnection();
+
       return await this.documentsClient.searchDocuments(query);
     } catch (error) {
       console.error('[PluginContext] Failed to search documents:', error);

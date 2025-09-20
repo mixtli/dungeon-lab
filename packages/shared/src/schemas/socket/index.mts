@@ -108,6 +108,26 @@ import {
 } from './game-actions.mjs';
 
 import {
+  documentGetArgsSchema,
+  documentSearchArgsSchema,
+  documentCreateArgsSchema,
+  documentUpdateArgsSchema,
+  documentDeleteArgsSchema,
+  documentChangedArgsSchema,
+  documentGetRequestSchema,
+  documentSearchRequestSchema,
+  documentCreateRequestSchema,
+  documentUpdateRequestSchema,
+  documentDeleteRequestSchema,
+  documentGetResponseSchema,
+  documentSearchResponseSchema,
+  documentCreateResponseSchema,
+  documentUpdateResponseSchema,
+  documentDeleteResponseSchema,
+  documentChangedNotificationSchema
+} from './documents.mjs';
+
+import {
   baseSocketCallbackSchema,
   socketCallbackWithDataSchema,
   socketCallbackWithFieldsSchema
@@ -191,7 +211,28 @@ export {
   gameStateCheckStatusArgsSchema,
   gameStateSyncCallbackSchema,
   gameStateSyncArgsSchema,
-  
+
+  // Document schemas
+  documentGetArgsSchema,
+  documentSearchArgsSchema,
+  documentCreateArgsSchema,
+  documentUpdateArgsSchema,
+  documentDeleteArgsSchema,
+  documentChangedArgsSchema,
+
+  // Document request/response schemas (for types)
+  documentGetRequestSchema,
+  documentSearchRequestSchema,
+  documentCreateRequestSchema,
+  documentUpdateRequestSchema,
+  documentDeleteRequestSchema,
+  documentGetResponseSchema,
+  documentSearchResponseSchema,
+  documentCreateResponseSchema,
+  documentUpdateResponseSchema,
+  documentDeleteResponseSchema,
+  documentChangedNotificationSchema,
+
   // Base callback schemas
   baseSocketCallbackSchema,
   socketCallbackWithDataSchema,
@@ -242,7 +283,9 @@ export const serverToClientEvents = z.object({
   'gameAction:forward': z.function().args(...gameActionGmRequestArgsSchema.items).returns(z.void()),
   // Action approval notifications to players
   'gameAction:approved': z.function().args(...gameActionApprovedArgsSchema.items).returns(z.void()),
-  'gameAction:denied': z.function().args(...gameActionDeniedArgsSchema.items).returns(z.void())
+  'gameAction:denied': z.function().args(...gameActionDeniedArgsSchema.items).returns(z.void()),
+  // Document change notifications
+  'document:changed': z.function().args(...documentChangedArgsSchema.items).returns(z.void())
 });
 
 export const clientToServerEvents = z.object({
@@ -270,5 +313,11 @@ export const clientToServerEvents = z.object({
   'gameAction:response': z.function().args(...gameActionResponseArgsSchema.items).returns(z.void()),
   // GM approval/denial of action requests
   'gameAction:approve': z.function().args(...gameActionApprovalArgsSchema.items).returns(z.void()),
-  'gameAction:deny': z.function().args(...gameActionDenialArgsSchema.items).returns(z.void())
+  'gameAction:deny': z.function().args(...gameActionDenialArgsSchema.items).returns(z.void()),
+  // Document operations
+  'document:get': z.function().args(...documentGetArgsSchema.items).returns(z.void()),
+  'document:search': z.function().args(...documentSearchArgsSchema.items).returns(z.void()),
+  'document:create': z.function().args(...documentCreateArgsSchema.items).returns(z.void()),
+  'document:update': z.function().args(...documentUpdateArgsSchema.items).returns(z.void()),
+  'document:delete': z.function().args(...documentDeleteArgsSchema.items).returns(z.void())
 });
