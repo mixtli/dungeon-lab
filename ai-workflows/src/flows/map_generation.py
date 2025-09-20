@@ -111,6 +111,8 @@ def generate_map_flow(description: str, parameters: Dict[str, Any]) -> Dict[str,
         Dictionary containing the generated map data
     """
 
+    description = "Generate a top down map for a table top roll playing game.  The map should not include a grid. " + description
+
     logger = get_run_logger()
     logger.info("Starting map generation flow")
 

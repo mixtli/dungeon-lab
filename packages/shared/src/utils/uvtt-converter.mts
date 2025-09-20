@@ -349,8 +349,8 @@ function convertUVTTEnvironmentToEnvironment(environment: UVTTEnvironment): Envi
 export function convertUVTTToMapData(uvttData: UVTTData): InternalMapData {
   // Extract grid size from UVTT resolution
   const gridSize = uvttData.resolution?.pixels_per_grid || 100; // Default fallback
-  const width = uvttData.resolution?.map_size?.x || 50; // Default fallback
-  const height = uvttData.resolution?.map_size?.y || 50; // Default fallback
+  const width = Math.round(uvttData.resolution?.map_size?.x || 50); // Round to integer for schema compliance
+  const height = Math.round(uvttData.resolution?.map_size?.y || 50); // Round to integer for schema compliance
   
   // Convert all elements from grid coordinates to world coordinates
   const walls = uvttData.line_of_sight ? convertLineOfSightToWalls(uvttData.line_of_sight, gridSize) : [];
@@ -387,7 +387,7 @@ export function convertUVTTToMapData(uvttData: UVTTData): InternalMapData {
       worldUnitsPerGridCell: gridSize,
       offset: { x: 0, y: 0 },
       dimensions: { width, height },
-      imageDimensions: { width: width * gridSize, height: height * gridSize },
+      imageDimensions: { width: Math.round(width * gridSize), height: Math.round(height * gridSize) },
       display: {
         visible: true,
         color: '#000000',

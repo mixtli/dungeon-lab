@@ -116,7 +116,7 @@
 
             <!-- Door layer -->
             <v-layer ref="doorLayer">
-                <template v-for="door in doors" :key="door.id">
+                <template v-for="door in visibleDoors" :key="door.id">
                     <v-group v-bind="getDoorGroupConfig(door)">
                         
                         <!-- Door line segment (draggable for whole door movement) -->
@@ -336,6 +336,10 @@ const visibleObjects = computed(() => {
 
 const visibleLights = computed(() =>
     props.lights.filter(light => light.visible !== false)
+);
+
+const visibleDoors = computed(() =>
+    props.doors.filter(door => door.visible !== false)
 );
 
 // Stage configuration

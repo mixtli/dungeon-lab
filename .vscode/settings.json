@@ -58,5 +58,11 @@
     "css.customData": [
         ".vscode/tailwind.json"
     ],
-    "typescript.tsserver.useSyntaxServer": "never"
+    "typescript.tsserver.useSyntaxServer": "never",
+    "cursorpyright.analysis.extraPaths": [
+        "ai-workflows/src"
+    ],
+    "cursorpyright.analysis.include": [
+        "ai-workflows/src"
+    ]
 }
