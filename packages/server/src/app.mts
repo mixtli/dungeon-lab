@@ -20,7 +20,6 @@ import { documentRoutes } from './features/documents/index.mjs';
 import assetRoutes from './features/assets/index.mjs';
 import { chatbotRoutes } from './features/chatbots/index.mjs';
 import { compendiumRoutes } from './features/compendiums/index.mjs';
-import { oapi } from './oapi.mjs';
 import userRoutes from './features/users/routes/user.routes.mjs';
 import { errorHandler } from './middleware/error.middleware.mjs';
 import { ZodError } from 'zod';
@@ -156,8 +155,6 @@ export async function createApp(): Promise<express.Application> {
   // Session configuration
   app.use(sessionMiddleware);
 
-  // Mount OpenAPI as middleware
-  app.use(oapi);
 
   // Initialize passport
   app.use(passport.initialize());
@@ -195,8 +192,6 @@ export async function createApp(): Promise<express.Application> {
   // Global error handler - must be last
   app.use(errorHandler);
 
-  // Mount Swagger UI correctly
-  app.use('/swaggerui', oapi.swaggerui());
 
   return app;
 }

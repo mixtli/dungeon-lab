@@ -27,8 +27,8 @@ export const documentCreateRequestSchema = z.object({
   documentType: z.enum(['item', 'character', 'actor', 'vtt-document']),
   pluginId: z.string().min(1),
   pluginDocumentType: z.string().min(1),
-  pluginData: z.record(z.unknown()).default({}),
-  userData: z.record(z.unknown()).default({})
+  pluginData: z.record(z.unknown()).optional(),
+  userData: z.record(z.unknown()).optional()
 });
 
 export const documentUpdateRequestSchema = z.object({

@@ -6,7 +6,15 @@ import type { FilterQuery } from 'mongoose';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
-  DocumentChangedNotification
+  DocumentChangedNotification,
+  DocumentSearchRequest,
+  DocumentCreateRequest,
+  DocumentUpdateRequest,
+  DocumentDeleteRequest,
+  DocumentSearchResponse,
+  DocumentCreateResponse,
+  DocumentUpdateResponse,
+  DocumentDeleteResponse
 } from '@dungeon-lab/shared/types/socket/index.mjs';
 import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
 
@@ -51,7 +59,7 @@ function documentSocketHandler(socket: Socket<ClientToServerEvents, ServerToClie
   /**
    * Get a document by ID
    */
-  socket.on('document:get', async (request: any, callback: any) => {
+  socket.on('document:get', async (request, callback) => {
     try {
       logger.debug(`Document get request from ${userId}`, request);
 
@@ -87,7 +95,7 @@ function documentSocketHandler(socket: Socket<ClientToServerEvents, ServerToClie
   /**
    * Search documents
    */
-  socket.on('document:search', async (request: any, callback: any) => {
+  socket.on('document:search', async (request: DocumentSearchRequest, callback: (response: DocumentSearchResponse) => void) => {
     try {
       logger.debug(`Document search request from ${userId}`, request);
 
@@ -132,7 +140,7 @@ function documentSocketHandler(socket: Socket<ClientToServerEvents, ServerToClie
   /**
    * Create a new document
    */
-  socket.on('document:create', async (request: any, callback: any) => {
+  socket.on('document:create', async (request: DocumentCreateRequest, callback: (response: DocumentCreateResponse) => void) => {
     try {
       logger.debug(`Document create request from ${userId}`, request);
 
@@ -161,8 +169,8 @@ function documentSocketHandler(socket: Socket<ClientToServerEvents, ServerToClie
         documentType: request.documentType,
         pluginId: request.pluginId,
         pluginDocumentType: request.pluginDocumentType,
-        pluginData: request.pluginData || {},
-        userData: request.userData || {},
+        pluginData: request.pluginData ?? {},
+        userData: request.userData ?? {},
         ownerId: userId, // Set current user as owner
         // Add required fields with defaults
         slug: generateSlug(request.name),
@@ -203,7 +211,7 @@ function documentSocketHandler(socket: Socket<ClientToServerEvents, ServerToClie
   /**
    * Update a document
    */
-  socket.on('document:update', async (request: any, callback: any) => {
+  socket.on('document:update', async (request: DocumentUpdateRequest, callback: (response: DocumentUpdateResponse) => void) => {
     try {
       logger.debug(`Document update request from ${userId}`, request);
 
@@ -258,7 +266,7 @@ function documentSocketHandler(socket: Socket<ClientToServerEvents, ServerToClie
   /**
    * Delete a document
    */
-  socket.on('document:delete', async (request: any, callback: any) => {
+  socket.on('document:delete', async (request: DocumentDeleteRequest, callback: (response: DocumentDeleteResponse) => void) => {
     try {
       logger.debug(`Document delete request from ${userId}`, request);
 
