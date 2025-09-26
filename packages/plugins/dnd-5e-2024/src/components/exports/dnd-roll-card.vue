@@ -25,7 +25,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
 import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
 

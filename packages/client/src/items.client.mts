@@ -9,6 +9,7 @@ import { ApiClient } from './api.client.mjs';
 
 /**
  * Client for interacting with the items API
+ * @deprecated Use DocumentsClient instead for all document operations
  */
 export class ItemsClient extends ApiClient {
   /**

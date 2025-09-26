@@ -46,7 +46,7 @@ const FORM_STEPS: FormStep[] = [
   { id: 'details', name: 'Details', component: 'CharacterDetailsStep' }
 ];
 
-export function useCharacterCreation(context: PluginContext) {
+export function useCharacterCreation(context?: PluginContext) {
   // Initialize reactive state
   const state = reactive<CharacterCreationState>({
     currentStep: 0,
@@ -226,6 +226,9 @@ export function useCharacterCreation(context: PluginContext) {
 
   // Document data fetching methods using documents collection
   const fetchClasses = async (): Promise<Array<{documentId: string, document: DndCharacterClassDocument}>> => {
+    if (!context) {
+      throw new Error('Plugin context is required for fetchClasses');
+    }
     try {
       const documents = await context.searchDocuments({
         documentType: 'vtt-document',
@@ -244,6 +247,9 @@ export function useCharacterCreation(context: PluginContext) {
   };
 
   const fetchSpecies = async (): Promise<Array<{documentId: string, document: DndSpeciesDocument}>> => {
+    if (!context) {
+      throw new Error('Plugin context is required for fetchSpecies');
+    }
     try {
       const documents = await context.searchDocuments({
         documentType: 'vtt-document',
@@ -262,6 +268,9 @@ export function useCharacterCreation(context: PluginContext) {
   };
 
   const fetchBackgrounds = async (): Promise<Array<{documentId: string, document: DndBackgroundDocument}>> => {
+    if (!context) {
+      throw new Error('Plugin context is required for fetchBackgrounds');
+    }
     try {
       const documents = await context.searchDocuments({
         documentType: 'vtt-document',
@@ -280,6 +289,9 @@ export function useCharacterCreation(context: PluginContext) {
   };
 
   const fetchLanguages = async (): Promise<Array<{documentId: string, document: DndLanguageDocument}>> => {
+    if (!context) {
+      throw new Error('Plugin context is required for fetchLanguages');
+    }
     try {
       const documents = await context.searchDocuments({
         documentType: 'vtt-document',
@@ -359,6 +371,9 @@ export function useCharacterCreation(context: PluginContext) {
 
   // Reference resolution utilities for character creation - uses documents for items
   const resolveReference = async (reference: ReferenceOrObjectId, fallback = 'Unknown'): Promise<string> => {
+    if (!context) {
+      return fallback;
+    }
     // For character creation, assume ObjectIds are document IDs (not compendium entry IDs)
     if (typeof reference === 'string') {
       // This is already a resolved ObjectId - assume it's a document ID
@@ -400,6 +415,9 @@ export function useCharacterCreation(context: PluginContext) {
 
   // Calculate starting gold from equipment choices
   const calculateStartingGold = async (characterData: CharacterCreationFormData): Promise<number> => {
+    if (!context) {
+      return 0;
+    }
     let totalGold = 0;
 
     try {
@@ -436,8 +454,11 @@ export function useCharacterCreation(context: PluginContext) {
     classDocument: DndCharacterClassDocument,
     backgroundDocument: DndBackgroundDocument
   ): Promise<Array<DndItemDocument>> => {
+    if (!context) {
+      return [];
+    }
     const itemsToCreate: { entryId: string; quantity: number }[] = [];
-    
+
     try {
       // Collect items from class equipment choice
       const classData = classDocument.pluginData;
@@ -547,6 +568,9 @@ export function useCharacterCreation(context: PluginContext) {
   };
 
   const prepareCharacterCreationData = async (basicInfo: BasicCharacterInfo): Promise<{ characterData: unknown; itemsData: Array<DndItemDocument> }> => {
+    if (!context) {
+      throw new Error('Plugin context is required for prepareCharacterCreationData');
+    }
     const characterData = getCharacterData();
     if (!characterData) {
       throw new Error('Character data is not complete or valid');
@@ -607,6 +631,9 @@ export function useCharacterCreation(context: PluginContext) {
   
   // Internal transformation function to convert creator data to D&D schema
   const transformCharacterCreatorData = async (creatorData: CharacterCreationFormData, basicInfo: BasicCharacterInfo, startingGold: number = 0) => {
+    if (!context) {
+      throw new Error('Plugin context is required for transformCharacterCreatorData');
+    }
     // Fetch documents for class, species, and background
     const [classDocument, backgroundDocument] = await Promise.all([
       context.getDocument(creatorData.class.id),

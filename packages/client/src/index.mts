@@ -1,7 +1,10 @@
 // Export client classes
+/** @deprecated Use DocumentsClient instead */
 export { ActorsClient } from './actors.client.mjs';
+/** @deprecated Use DocumentsClient for documents, CampaignsClient for campaign operations */
 export { CharactersClient } from './characters.client.mjs';
 export { PluginsClient } from './plugins.client.mjs';
+/** @deprecated Use DocumentsClient instead */
 export { ItemsClient } from './items.client.mjs';
 export { AssetsClient } from './assets.client.mjs';
 export { CampaignsClient } from './campaigns.client.mjs';

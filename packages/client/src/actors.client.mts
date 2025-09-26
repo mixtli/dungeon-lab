@@ -10,6 +10,7 @@ import { ApiClient } from './api.client.mjs';
 
 /**
  * Client for interacting with the actors API
+ * @deprecated Use DocumentsClient instead for all document operations
  */
 export class ActorsClient extends ApiClient {
   /**

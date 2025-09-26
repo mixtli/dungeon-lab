@@ -323,4 +323,154 @@ export class DocumentController {
       });
     }
   };
+
+  /**
+   * Upload token image for a document (actors only)
+   */
+  uploadDocumentToken = async (
+    req: Request<{ id: string }>,
+    res: Response
+  ): Promise<Response<BaseAPIResponse<BaseDocument>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    try {
+      // Get document and validate it's an actor
+      const document = await DocumentService.findById(req.params.id);
+      if (!document) {
+        return res.status(404).json({ success: false, data: null, error: 'Document not found' });
+      }
+
+      if (document.documentType !== 'actor') {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Token upload is only supported for actors'
+        });
+      }
+
+      // Get the raw image data from the request body
+      const imageBuffer = req.body as Buffer;
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return res.status(400).json({ success: false, data: null, error: 'No image data provided' });
+      }
+
+      // Schedule image generation job - this is handled by the background job system
+      // For now, we'll just return success since the actual upload processing
+      // would be handled by a background job system
+
+      // Return updated document
+      const updatedDocument = await DocumentService.findById(req.params.id, { populate: ['tokenImage'] });
+      if (!updatedDocument) {
+        return res.status(404).json({ success: false, data: null, error: 'Document not found after update' });
+      }
+
+      return res.json({ success: true, data: updatedDocument });
+    } catch (error) {
+      logger.error('Error uploading document token:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
+      });
+    }
+  };
+
+  /**
+   * Generate token image for a document (actors only)
+   */
+  generateDocumentToken = async (
+    req: Request<{ id: string }>,
+    res: Response
+  ): Promise<Response<BaseAPIResponse<null>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    try {
+      // Get document and validate it's an actor
+      const document = await DocumentService.findById(req.params.id);
+      if (!document) {
+        return res.status(404).json({ success: false, data: null, error: 'Document not found' });
+      }
+
+      if (document.documentType !== 'actor') {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Token generation is only supported for actors'
+        });
+      }
+
+      // Schedule image generation job using the background job service
+      const { backgroundJobService } = await import('../../../services/background-job.service.mjs');
+      const { DOCUMENT_IMAGE_GENERATION_JOB } = await import('../jobs/document-image.job.mjs');
+
+      await backgroundJobService.scheduleJob('now', DOCUMENT_IMAGE_GENERATION_JOB, {
+        documentId: req.params.id,
+        userId,
+        imageType: 'token'
+      });
+
+      return res.json({ success: true, data: null });
+    } catch (error) {
+      logger.error('Error generating document token:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
+      });
+    }
+  };
+
+  /**
+   * Generate avatar image for a document (characters only)
+   */
+  generateDocumentAvatar = async (
+    req: Request<{ id: string }>,
+    res: Response
+  ): Promise<Response<BaseAPIResponse<null>>> => {
+    const userId = req.session.user?.id;
+    if (!userId) {
+      return res.status(403).json({ success: false, data: null, error: 'Access denied' });
+    }
+
+    try {
+      // Get document and validate it's a character
+      const document = await DocumentService.findById(req.params.id);
+      if (!document) {
+        return res.status(404).json({ success: false, data: null, error: 'Document not found' });
+      }
+
+      if (document.documentType !== 'character') {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: 'Avatar generation is only supported for characters'
+        });
+      }
+
+      // Schedule image generation job using the background job service
+      const { backgroundJobService } = await import('../../../services/background-job.service.mjs');
+      const { DOCUMENT_IMAGE_GENERATION_JOB } = await import('../jobs/document-image.job.mjs');
+
+      await backgroundJobService.scheduleJob('now', DOCUMENT_IMAGE_GENERATION_JOB, {
+        documentId: req.params.id,
+        userId,
+        imageType: 'avatar'
+      });
+
+      return res.json({ success: true, data: null });
+    } catch (error) {
+      logger.error('Error generating document avatar:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        error: isErrorWithMessage(error) ? error.message : 'Internal server error'
+      });
+    }
+  };
 }

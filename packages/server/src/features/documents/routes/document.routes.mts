@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import express from 'express';
 import { DocumentController } from '../controllers/document.controller.mjs';
 import { DocumentReferenceResolutionController } from '../controllers/document-reference-resolution.controller.mjs';
 import { authenticate } from '../../../middleware/auth.middleware.mjs';
@@ -32,6 +33,18 @@ router.patch('/:id', documentController.patchDocument);
 // Put a document
 router.put('/:id', documentController.putDocument);
 
+// Token and avatar management routes
+router.put(
+  '/:id/token',
+  express.raw({
+    type: ['image/jpeg', 'image/png', 'image/webp'],
+    limit: '10mb'
+  }),
+  documentController.uploadDocumentToken
+);
+
+router.post('/:id/generate-token', documentController.generateDocumentToken);
+router.post('/:id/generate-avatar', documentController.generateDocumentAvatar);
 
 // Resolve document references
 router.post('/resolve-references', documentReferenceResolutionController.resolveDocumentReferences);

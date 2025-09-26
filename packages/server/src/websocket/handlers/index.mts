@@ -6,6 +6,7 @@ import './game-state-handler.mjs';
 import './game-action-handler.mjs';
 import './roll-handler.mjs';
 import '../../features/maps/event-handlers/map-generator-handler.mjs';
+import '../../features/documents/socket-handlers/document-socket.handler.mjs';
 
 // Export empty object to satisfy ESM requirements
 export {};

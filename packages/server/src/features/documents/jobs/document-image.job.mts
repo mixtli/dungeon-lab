@@ -18,7 +18,7 @@ interface DocumentImageJobData {
 }
 
 /**
- * Update document with generated image asset ID by delegating to appropriate service
+ * Update document with generated image asset ID using DocumentService
  */
 async function updateDocumentImage(
   document: BaseDocument,
@@ -26,35 +26,43 @@ async function updateDocumentImage(
   assetId: string,
   userId: string
 ): Promise<void> {
+  let updateData: Record<string, unknown>;
+
   switch (document.documentType) {
     case 'actor': {
       if (imageType !== 'token') {
         throw new Error(`Actors only support token images, not ${imageType}`);
       }
-      // Import ActorService dynamically to avoid circular dependencies
-      const { ActorService } = await import('../../actors/services/actor.service.mjs');
-      const actorService = new ActorService();
-      await actorService.updateDocumentImage(document.id, imageType, assetId, userId);
+      updateData = {
+        tokenImageId: assetId,
+        updatedBy: userId
+      };
       break;
     }
     case 'character': {
-      if (imageType !== 'avatar' && imageType !== 'token') {
+      if (imageType === 'avatar') {
+        updateData = {
+          avatarImageId: assetId,
+          updatedBy: userId
+        };
+      } else if (imageType === 'token') {
+        updateData = {
+          tokenImageId: assetId,
+          updatedBy: userId
+        };
+      } else {
         throw new Error(`Unsupported image type for characters: ${imageType}`);
       }
-      // Import CharacterService dynamically to avoid circular dependencies
-      const { CharacterService } = await import('../../characters/services/character.service.mjs');
-      const characterService = new CharacterService();
-      await characterService.updateDocumentImage(document.id, imageType, assetId, userId);
       break;
     }
     case 'item': {
       if (imageType !== 'image') {
         throw new Error(`Unsupported image type for items: ${imageType}. Only 'image' is supported.`);
       }
-      // Import ItemService dynamically to avoid circular dependencies
-      const { ItemService } = await import('../../items/services/item.service.mjs');
-      const itemService = new ItemService();
-      await itemService.updateDocumentImage(document.id, imageType, assetId, userId);
+      updateData = {
+        imageId: assetId,
+        updatedBy: userId
+      };
       break;
     }
     case 'vtt-document':
@@ -65,6 +73,9 @@ async function updateDocumentImage(
       throw new Error(`Unsupported document type for image generation: ${(exhaustiveCheck as BaseDocument).documentType}`);
     }
   }
+
+  // Update the document using DocumentService
+  await DocumentService.updateById(document.id, updateData);
 }
 
 /**

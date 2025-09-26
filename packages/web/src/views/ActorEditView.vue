@@ -3,10 +3,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import { ActorsClient } from '@dungeon-lab/client/index.mjs';
-import { type IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { type IAsset, type IActor } from '@dungeon-lab/shared/types/index.mjs';
 
-const actorClient = new ActorsClient();
+const documentsClient = new DocumentsClient();
 
 interface UploadedImage {
   url: string;
@@ -39,7 +39,7 @@ onMounted(async () => {
     }
 
     // Fetch actor data
-    const actor = await actorClient.getActor(actorId);
+    const actor = await documentsClient.getDocument(actorId, 'actor') as IActor;
     if (!actor) {
       error.value = 'Actor not found';
       return;
@@ -78,7 +78,9 @@ async function generateNewTokenImage() {
   try {
     error.value = null;
     
-    const updatedActor = await actorClient.generateActorToken(actorId);
+    await documentsClient.generateDocumentToken(actorId);
+    // Refetch the actor to get the updated token
+    const updatedActor = await documentsClient.getDocument(actorId, 'actor') as IActor;
     if (updatedActor && updatedActor.tokenImageId) {
       basicInfo.value.tokenImage = {
         url: (updatedActor.tokenImageId as unknown as IAsset).url,
@@ -122,7 +124,7 @@ async function handleSubmit(event: Event) {
     };
 
     // Send the request
-    await actorClient.putActor(actorId, updateData);
+    await documentsClient.updateDocument(actorId, updateData);
 
     // Navigate back to the character sheet
     router.push({ name: 'character-sheet', params: { id: actorId } });

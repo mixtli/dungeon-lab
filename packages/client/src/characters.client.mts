@@ -27,6 +27,9 @@ export interface LeaveCampaignResponse {
   characterId: string;
 }
 
+/**
+ * @deprecated Use DocumentsClient for document operations. Campaign-specific operations may be moved to CampaignsClient.
+ */
 export class CharactersClient extends ApiClient {
   /**
    * Generate an AI image for a character

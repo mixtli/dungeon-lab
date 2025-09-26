@@ -198,4 +198,50 @@ export class DocumentsClient extends ApiClient {
     
     return response.data.data;
   }
+
+  /**
+   * Generate token image for an actor document
+   * @param documentId - The ID of the actor document
+   * @returns Promise that resolves when generation is scheduled
+   */
+  async generateDocumentToken(documentId: string): Promise<void> {
+    const response = await this.api.post<BaseAPIResponse<null>>(`/api/documents/${documentId}/generate-token`);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to generate token');
+    }
+  }
+
+  /**
+   * Generate avatar image for a character document
+   * @param documentId - The ID of the character document
+   * @returns Promise that resolves when generation is scheduled
+   */
+  async generateDocumentAvatar(documentId: string): Promise<void> {
+    const response = await this.api.post<BaseAPIResponse<null>>(`/api/documents/${documentId}/generate-avatar`);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to generate avatar');
+    }
+  }
+
+  /**
+   * Upload token image for an actor document
+   * @param documentId - The ID of the actor document
+   * @param imageBuffer - The image data as buffer
+   * @returns The updated document
+   */
+  async uploadDocumentToken(documentId: string, imageBuffer: ArrayBuffer): Promise<BaseDocument | undefined> {
+    const response = await this.api.put<BaseAPIResponse<BaseDocument>>(
+      `/api/documents/${documentId}/token`,
+      imageBuffer,
+      {
+        headers: {
+          'Content-Type': 'application/octet-stream'
+        }
+      }
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to upload token');
+    }
+    return response.data.data;
+  }
 }

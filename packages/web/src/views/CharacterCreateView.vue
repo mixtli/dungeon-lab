@@ -6,7 +6,7 @@ import { useSocketStore } from '../stores/socket.store.mjs';
 import { pluginRegistry } from '../services/plugin-registry.mts';
 import ImageUpload from '../components/common/ImageUpload.vue';
 import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
-import { DocumentsClient, AssetsClient, CharactersClient } from '@dungeon-lab/client/index.mjs';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
 import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
 import { characterCreateSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 
@@ -20,7 +20,6 @@ interface UploadedImage {
 
 const documentsClient = new DocumentsClient();
 const assetsClient = new AssetsClient();
-const charactersClient = new CharactersClient();
 const router = useRouter();
 const gameStateStore = useGameStateStore();
 const socketStore = useSocketStore();
@@ -234,12 +233,12 @@ async function handleCharacterReady(preparedData: any) {
       try {
         if (!basicInfo.value.avatarImage) {
           console.log('Scheduling avatar generation for character', response.id);
-          await charactersClient.generateAvatar(response.id);
+          await documentsClient.generateDocumentAvatar(response.id);
         }
-        
+
         if (!basicInfo.value.tokenImage) {
           console.log('Scheduling token generation for character', response.id);
-          await charactersClient.generateToken(response.id);
+          await documentsClient.generateDocumentToken(response.id);
         }
       } catch (imageError) {
         console.error('Failed to schedule image generation:', imageError);
@@ -478,6 +477,7 @@ async function handleSubmit() {
         <component
           v-else-if="pluginComponent"
           :is="pluginComponent"
+          :context="(plugin as any)?.getContext?.()"
           :basic-info="basicInfo"
           :readonly="isSubmitting"
           @character-ready="handleCharacterReady"

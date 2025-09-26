@@ -137,6 +137,7 @@
 import { computed, onMounted, onUnmounted } from 'vue';
 import { useCharacterCreation } from '../../composables/useCharacterCreation.mjs';
 import type { BasicCharacterInfo } from '../../types/character-creation.mjs';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
 import Icon from '../internal/common/Icon.vue'; // Assuming there's a common Icon component
 import ClassSelectionStep from '../internal/character-creator/steps/ClassSelectionStep.vue';
 import OriginSelectionStep from '../internal/character-creator/steps/OriginSelectionStep.vue';
@@ -145,6 +146,7 @@ import CharacterDetailsStep from '../internal/character-creator/steps/CharacterD
 
 // Props
 interface Props {
+  context?: PluginContext;
   basicInfo: BasicCharacterInfo;
   readonly?: boolean;
 }
@@ -179,7 +181,7 @@ const {
   validateCompleteForm,
   prepareCharacterCreationData,
   FORM_STEPS
-} = useCharacterCreation();
+} = useCharacterCreation(props.context);
 
 
 // Computed properties
