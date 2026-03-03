@@ -9,8 +9,7 @@ WORKDIR /app
 
 COPY . /app
 # Install dependencies
-#RUN npm ci
-RUN npm install --workspaces
+RUN npm ci
 RUN npm run build --workspace=@dungeon-lab/shared
 RUN npm run build --workspace=@dungeon-lab/client
 RUN npm run build --workspace=@dungeon-lab/server
