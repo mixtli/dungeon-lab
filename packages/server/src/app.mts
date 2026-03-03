@@ -4,6 +4,7 @@ import session from 'express-session';
 import passport from 'passport';
 import { Router } from 'express';
 import MongoStore from 'connect-mongo';
+import { config } from './config/index.mjs';
 import { logger } from './utils/logger.mjs';
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware.mjs';
 import { mapRoutes } from './features/maps/index.mjs';
@@ -88,7 +89,7 @@ export const sessionMiddleware = session({
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab',
+    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab?directConnection=true',
     ttl: 14 * 24 * 60 * 60 // 14 days
   }),
   cookie: {
@@ -135,11 +136,15 @@ export async function createApp(): Promise<express.Application> {
       origin: function(origin, callback) {
         // Allow requests with no origin (like curl, mobile apps, etc.)
         if (!origin) return callback(null, true);
-        // Allow localhost for browser testing on the same machine
+        // Allow the configured client URL
+        if (origin === config.clientUrl) return callback(null, true);
+        // Allow localhost variants for development
         if (origin === 'http://localhost:8080') return callback(null, true);
-        // Allow any 172.20.10.*:8080 (local network, iPhone, etc.)
-        if (/^http:\/\/172\.20\.10\.[0-9]+:8080$/.test(origin)) return callback(null, true);
-        if (/^http:\/\/10\.0\.0\.[0-9]+:8080$/.test(origin)) return callback(null, true);
+        if (origin === 'http://localhost') return callback(null, true);
+        if (origin === 'http://127.0.0.1') return callback(null, true);
+        // Allow local network for mobile testing
+        if (/^http:\/\/172\.20\.10\.\d+:8080$/.test(origin)) return callback(null, true);
+        if (/^http:\/\/10\.0\.0\.\d+:8080$/.test(origin)) return callback(null, true);
         // Otherwise, block
         return callback(new Error('Not allowed by CORS'), false);
       },

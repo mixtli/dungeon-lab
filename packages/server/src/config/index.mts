@@ -12,7 +12,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export const config = {
   port: process.env.PORT || 3000,
-  mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab',
+  mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/dungeon-lab?directConnection=true',
   environment: process.env.NODE_ENV || 'development',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:8080',
   google: {
