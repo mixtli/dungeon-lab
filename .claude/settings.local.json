@@ -126,7 +126,12 @@
       "mcp__fetch__fetch",
       "Bash(gh pr list)",
       "Bash(docker compose --env-file .env.production --profile all build server)",
-      "Bash(docker compose --env-file .env.production --profile all up server)"
+      "Bash(docker compose --env-file .env.production --profile all up server)",
+      "Bash(docker compose --env-file .env.production --profile all build prefect-worker)",
+      "Bash(SITE_ADDRESS=:80 CLIENT_URL=http://127.0.0.1 docker compose --env-file .env.production --profile all up prefect-server prefect-register prefect-worker)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(pip show prefect)",
+      "Bash(docker compose --env-file .env.production --profile all build prefect-worker prefect-register)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

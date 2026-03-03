@@ -38,6 +38,7 @@ services:
       - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-http://localhost/api/auth/google/callback}
       - GOOGLE_CLIENT_ID
       - GOOGLE_CLIENT_SECRET
+      - PREFECT_API_URL=http://prefect-server:4200/api
     depends_on:
       mongo:
         condition: service_healthy
@@ -95,6 +96,74 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Prefect workflow server
+  prefect-server:
+    image: prefecthq/prefect:3-python3.11
+    profiles: ["app", "all"]
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200"
+    volumes:
+      - prefect_data:/root/.prefect
+    environment:
+      - PREFECT_UI_API_URL=http://localhost:4200/api
+      - PREFECT_API_URL=http://0.0.0.0:4200/api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:4200/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # Prefect flow deployment registration (one-shot)
+  prefect-register:
+    profiles: ["app", "all"]
+    build:
+      context: .
+      dockerfile: ai-workflows/Dockerfile
+    command: python -m src.flows.register
+    depends_on:
+      prefect-server:
+        condition: service_healthy
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CALLBACK_BASE_URL=http://server:3000/api
+      - CALLBACK_AUTH_TOKEN=${CALLBACK_AUTH_TOKEN:-}
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=prefect
+    restart: "no"
+
+  # Prefect worker for executing flows
+  prefect-worker:
+    profiles: ["app", "all"]
+    build:
+      context: .
+      dockerfile: ai-workflows/Dockerfile
+    command: prefect worker start --pool process-pool
+    depends_on:
+      prefect-server:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - PYTHONPATH=/app
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CALLBACK_BASE_URL=http://server:3000/api
+      - CALLBACK_AUTH_TOKEN=${CALLBACK_AUTH_TOKEN:-}
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=prefect
+      - MINIO_PUBLIC_URL=http://minio:9000
+    restart: unless-stopped
+
   # Service to create the bucket and set policies
   createbuckets:
     image: minio/mc
@@ -116,4 +185,5 @@ volumes:
   mongo_data:
   minio_data:
   caddy_data:
-  caddy_config: 
+  caddy_config:
+  prefect_data:
