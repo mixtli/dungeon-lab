@@ -11,7 +11,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     environment:
-      - SITE_ADDRESS=${SITE_ADDRESS::80}
+      - SITE_ADDRESS=${SITE_ADDRESS:-:80}
     depends_on:
       - server
       - web
