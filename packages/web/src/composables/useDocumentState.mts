@@ -11,6 +11,7 @@
 import { ref, onMounted, type Ref } from 'vue';
 import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
 import type { CreateDocumentData } from '@dungeon-lab/shared/schemas/document.schema.mjs';
+import type { UpdateDocumentRequest } from '@dungeon-lab/shared/types/api/documents.mjs';
 import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
 import { useSocketStore } from '../stores/socket.store.mjs';
 
@@ -159,10 +160,10 @@ export function useDocumentState(
       const documentData = stripPopulatedFields(document.value);
       console.log(`[useDocumentState] Sending to server:`, documentData);
       
-      // Save document using putDocument (PUT) to replace entire document
-      const updatedDocument = await documentsClient.putDocument(
+      // Save document using updateDocument to replace entire document
+      const updatedDocument = await documentsClient.updateDocument(
         document.value.id,
-        documentData
+        documentData as UpdateDocumentRequest
       ) as BaseDocument;
       
       console.log(`[useDocumentState] Received from server:`, {
