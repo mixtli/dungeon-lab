@@ -129,6 +129,9 @@ import { workflowRoutes } from './features/workflows/index.mjs';
 export async function createApp(): Promise<express.Application> {
   const app = express();
 
+  // Trust reverse proxy (Caddy) so secure cookies work behind HTTPS termination
+  app.set('trust proxy', 1);
+
   // Basic middleware
   app.use(
     cors({
