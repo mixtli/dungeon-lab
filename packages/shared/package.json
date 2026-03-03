@@ -10,21 +10,9 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
-    "./types/*": {
-      "types": "./dist/types/*.d.mts",
-      "import": "./dist/types/*.mjs"
-    },
-    "./schemas/*": {
-      "types": "./dist/schemas/*.d.mts",
-      "import": "./dist/schemas/*.mjs"
-    },
-    "./base/*": {
-      "types": "./dist/base/*.d.mts",
-      "import": "./dist/base/*.mjs"
-    },
-    "./components/*": {
-      "types": "./dist/components/*.d.mts",
-      "import": "./dist/components/*.mjs"
+    "./*": {
+      "types": "./dist/*",
+      "import": "./dist/*"
     }
   },
   "files": [

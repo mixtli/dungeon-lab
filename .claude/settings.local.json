@@ -1,5 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "permissions": {
     "allow": [
       "WebFetch(domain:docs.anthropic.com)",
@@ -121,7 +124,9 @@
       "mcp__playwright__browser_file_upload",
       "Read(//Users/mixtli/.config/zsh/**)",
       "mcp__fetch__fetch",
-      "Bash(gh pr list)"
+      "Bash(gh pr list)",
+      "Bash(docker compose --env-file .env.production --profile all build server)",
+      "Bash(docker compose --env-file .env.production --profile all up server)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
