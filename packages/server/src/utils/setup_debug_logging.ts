@@ -2,6 +2,9 @@
 // Add this near the top of your src/index.mts file, before any logging happens
 import fs from 'fs';
 
+// Ensure logs directory exists
+fs.mkdirSync('logs', { recursive: true });
+
 // Create a write stream that overwrites the file on each app start
 const logFile = fs.createWriteStream('logs/server.log', { flags: 'w' });
 
