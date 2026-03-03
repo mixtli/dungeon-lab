@@ -118,7 +118,10 @@
       "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
       "Read(/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/**)",
       "Read(/tmp/**)",
-      "mcp__playwright__browser_file_upload"
+      "mcp__playwright__browser_file_upload",
+      "Read(//Users/mixtli/.config/zsh/**)",
+      "mcp__fetch__fetch",
+      "Bash(gh pr list)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
