@@ -1,0 +1,6 @@
+{$SITE_ADDRESS:localhost}
+
+reverse_proxy /api/* server:3000
+reverse_proxy /socket.io/* server:3000
+
+reverse_proxy web:8080
