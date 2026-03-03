@@ -1,8 +1,7 @@
 export function getApiBaseUrl(): string {
-  const { hostname } = window.location;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:3000';
-  }
-  // For LAN IPs like 172.20.10.*, 192.168.1.*, etc.
-  return `http://${hostname}:3000`;
+  // Use configured API URL if set, otherwise use current origin.
+  // In dev, the Vite dev server proxies /api and /socket.io to the Express backend,
+  // so the frontend doesn't need to know the Express port.
+  // In production, Caddy reverse proxies everything through port 80/443.
+  return import.meta.env.VITE_API_URL || window.location.origin;
 } 

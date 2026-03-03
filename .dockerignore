@@ -5,10 +5,22 @@ npm-debug.log
 yarn-error.log
 yarn-debug.log
 
+# Python / GM Assistant
+gm_assistant/.venv
+**/.venv
+*.sqlite3
+
+# Data directories
+mongo_data
+minio_data
+data
+
 # Build outputs
 **/dist
 **/build
 **/coverage
+**/.vite
+**/.turbo
 
 # Version control
 .git
