@@ -100,11 +100,26 @@ export {
 
 // Map schemas
 export {
-  coordinateSchema,
+  vec2Schema,
+  vec3Schema,
+  transformSchema,
+  materialDefSchema,
+  materialPresetSchema,
+  blockingModeSchema,
+  gridConfigSchema,
+  layerSchema,
+  terrainElementSchema,
+  wallElementSchema,
+  propElementSchema,
+  lightElementSchema,
+  portalElementSchema,
+  mapElementSchema,
+  environmentConfigSchema,
+  environmentPresetSchema,
+  dungeonMapDataSchema,
   mapSchema,
   mapSchemaWithVirtuals,
-  mapCreateSchema,
-  internalMapDataSchema
+  mapCreateSchema
 } from './map.schema.mjs';
 
 // UVTT import/export schemas

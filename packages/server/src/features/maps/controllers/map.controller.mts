@@ -7,19 +7,12 @@ import {
   createMapRequestSchema,
   putMapRequestSchema,
   patchMapRequestSchema,
-  searchMapsQuerySchema,
-  CreateMapRequest
+  searchMapsQuerySchema
 } from '@dungeon-lab/shared/types/api/index.mjs';
 import { IMap } from '@dungeon-lab/shared/types/index.mjs';
-import { UVTTData, uvttSchema } from '@dungeon-lab/shared/schemas/index.mjs';
 import { ZodError } from 'zod';
 import { isErrorWithMessage } from '../../../utils/error.mjs';
 import { createSearchParams } from '../../../utils/create.search.params.mjs';
-
-// Type guard to check if request includes UVTT data
-function isMapCreateRequestWithUVTT(data: CreateMapRequest): data is CreateMapRequest & { uvtt: UVTTData } {
-  return 'uvtt' in data && typeof data.uvtt === 'object' && data.uvtt !== null;
-}
 
 export class MapController {
   constructor(private mapService: MapService) {}
@@ -63,19 +56,9 @@ export class MapController {
 
   getMap = async (
     req: Request,
-    res: Response<BaseAPIResponse<IMap> | unknown>
-  ): Promise<Response<BaseAPIResponse<IMap> | unknown> | void> => {
+    res: Response<BaseAPIResponse<IMap>>
+  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
-      // Check if the client requests UVTT format
-      if (req.accepts('application/uvtt')) {
-        const uvttData = await this.mapService.exportMapAsUVTT(req.params.id);
-        // Set Content-Type to application/uvtt
-        res.setHeader('Content-Type', 'application/uvtt');
-        // Return raw UVTT data without wrapping in API response
-        return res.send(uvttData);
-      } 
-      
-      // Standard JSON response
       const map = await this.mapService.getMap(req.params.id);
       return res.json({
         success: true,
@@ -89,55 +72,11 @@ export class MapController {
           error: 'Map not found'
         });
       }
-      if (isErrorWithMessage(error) && error.message === 'Map does not have UVTT data') {
-        return res.status(404).json({
-          success: false,
-          data: null,
-          error: 'Map does not have UVTT data'
-        });
-      }
       logger.error('Error in getMap controller:', error);
       return res.status(500).json({
         success: false,
         data: null,
         error: 'Failed to get map'
-      });
-    }
-  };
-
-  /**
-   * Export a map as UVTT format
-   */
-  exportUVTT = async (
-    req: Request,
-    res: Response<BaseAPIResponse<UVTTData>>
-  ): Promise<Response<BaseAPIResponse<UVTTData>> | void> => {
-    try {
-      const uvttData = await this.mapService.exportMapAsUVTT(req.params.id);
-      return res.json({
-        success: true,
-        data: uvttData
-      });
-    } catch (error) {
-      if (isErrorWithMessage(error) && error.message === 'Map not found') {
-        return res.status(404).json({
-          success: false,
-          data: null,
-          error: 'Map not found'
-        });
-      }
-      if (isErrorWithMessage(error) && error.message.includes('internal map data')) {
-        return res.status(400).json({
-          success: false,
-          data: null,
-          error: 'Map cannot be converted to UVTT format - missing internal data'
-        });
-      }
-      logger.error('Error in exportUVTT controller:', error);
-      return res.status(500).json({
-        success: false,
-        data: null,
-        error: 'Failed to export map as UVTT'
       });
     }
   };
@@ -148,47 +87,18 @@ export class MapController {
     next: NextFunction
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
-      // Debug: Log raw request body to see if uvtt is present
-      logger.info('Raw request body keys:', Object.keys(req.body));
-      logger.info('Has uvtt in raw body:', 'uvtt' in req.body);
-      
-      // Validate request body
       const validatedData = createMapRequestSchema.parse(req.body);
-      
-      // Debug: Log validated data to see if uvtt survived validation
-      logger.info('Validated data keys:', Object.keys(validatedData));
-      logger.info('Has uvtt in validated data:', 'uvtt' in validatedData);
-
-      // Get the image file from req.assets
       const imageFile = req.assets?.image?.[0];
 
-      // Check if UVTT data is provided in the request body
-      if (isMapCreateRequestWithUVTT(validatedData)) {
-        // Handle UVTT import
-        const uvttData = validatedData.uvtt;
-        const options = {
-          name: validatedData.name,
-          description: validatedData.description || ''
-        };
-        
-        // Import using UVTT data
-        const map = await this.mapService.importUVTT(uvttData, req.session.user.id, options);
-        return res.status(201).json({
-          success: true,
-          data: map
-        });
-      } else {
-        // Standard map creation
-        const map = await this.mapService.createMap(validatedData, req.session.user.id, imageFile);
-        return res.status(201).json({
-          success: true,
-          data: map
-        });
-      }
+      const map = await this.mapService.createMap(validatedData, req.session.user.id, imageFile);
+      return res.status(201).json({
+        success: true,
+        data: map
+      });
     } catch (error) {
-      next(error)
-    };
-  }
+      next(error);
+    }
+  };
 
   /**
    * Replace a map completely (PUT)
@@ -198,13 +108,9 @@ export class MapController {
     res: Response<BaseAPIResponse<IMap>>
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
-      // Validate request body
       const validatedData = putMapRequestSchema.parse(req.body);
-
-      // Get image file from req.assets if present
       const imageFile = req.assets?.image?.[0];
 
-      // Update the map using the service
       const map = await this.mapService.putMap(
         req.params.id,
         validatedData,
@@ -255,13 +161,9 @@ export class MapController {
     res: Response<BaseAPIResponse<IMap>>
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
-      // Validate request body
       const validatedData = patchMapRequestSchema.parse(req.body);
-
-      // Get image file from req.assets if present
       const imageFile = req.assets?.image?.[0];
 
-      // Patch the map using the service
       const map = await this.mapService.patchMap(
         req.params.id,
         validatedData,
@@ -363,7 +265,6 @@ export class MapController {
     res: Response<BaseAPIResponse<IMap>>
   ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
     try {
-      // Get the raw image data from the request body
       const imageBuffer = req.body as Buffer;
       const contentType = req.headers['content-type'] || 'image/jpeg';
 
@@ -375,7 +276,6 @@ export class MapController {
         });
       }
 
-      // Validate content type
       const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validMimes.includes(contentType)) {
         return res.status(400).json({
@@ -385,12 +285,10 @@ export class MapController {
         });
       }
 
-      // Create a standard File object from the buffer
       const file = new File([imageBuffer], `map_${Date.now()}.${contentType.split('/')[1]}`, {
         type: contentType
       });
 
-      // Update the map with just the new image
       const map = await this.mapService.updateMapImage(req.params.id, file, req.session.user.id);
 
       return res.json({
@@ -423,18 +321,14 @@ export class MapController {
 
   /**
    * Search maps based on query parameters
-   * @route GET /api/maps/search
-   * @access Public
    */
   searchMaps = async (
     req: Request<object, object, object, SearchMapsQuery>,
     res: Response<BaseAPIResponse<IMap[]>>
   ): Promise<Response<BaseAPIResponse<IMap[]>> | void> => {
     try {
-      // Convert dot notation in query params to nested objects
       const query = createSearchParams(req.query as Record<string, QueryValue>);
 
-      // Validate query parameters
       try {
         searchMapsQuerySchema.parse(query);
       } catch (validationError) {
@@ -459,81 +353,6 @@ export class MapController {
         data: [],
         error: 'Failed to search maps'
       });
-    }
-  };
-
-  /**
-   * Import a map from a UVTT file
-   */
-  importUVTT = async (
-    req: Request,
-    res: Response<BaseAPIResponse<IMap>>,
-    next: NextFunction
-  ): Promise<Response<BaseAPIResponse<IMap>> | void> => {
-    try {
-      // Check if we have raw body data (application/uvtt) or JSON
-      let uvttData: Record<string, unknown>;
-      let name: string = '';
-      let description: string = '';
-      let campaignId: string | undefined;
-
-      if (req.is('application/uvtt')) {
-        // Handle raw UVTT file content
-        const buffer = req.body; // Express.raw middleware provides the body as a Buffer
-        
-        try {
-          // Parse the buffer as JSON
-          const uvttContent = buffer.toString('utf-8');
-          uvttData = JSON.parse(uvttContent);
-          
-          // Try to extract a name from the file if possible
-          name = 'Imported UVTT map';
-        } catch (error) {
-          logger.error('Error parsing UVTT file:', error);
-          return res.status(400).json({
-            success: false,
-            data: null,
-            error: 'Invalid UVTT file format'
-          });
-        }
-      } else if (req.is('application/json')) {
-        // Handle JSON submission with UVTT data
-        uvttData = req.body.uvttData;
-        name = req.body.name || 'Imported UVTT map';
-        description = req.body.description || '';
-        campaignId = req.body.campaignId;
-        
-        if (!uvttData) {
-          return res.status(400).json({
-            success: false,
-            data: null,
-            error: 'Missing UVTT data in request'
-          });
-        }
-      } else {
-        return res.status(415).json({
-          success: false,
-          data: null,
-          error: 'Unsupported media type. Expected application/uvtt or application/json'
-        });
-      }
-
-      // Validate the UVTT data before processing
-      const validatedUVTTData = uvttSchema.parse(uvttData);
-
-      // Process the UVTT map data
-      const map = await this.mapService.importUVTT(
-        validatedUVTTData,
-        req.session.user.id,
-        { name, description, campaignId }
-      );
-
-      return res.status(201).json({
-        success: true,
-        data: map
-      });
-    } catch (error) {
-      next(error)
     }
   };
 }

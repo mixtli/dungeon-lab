@@ -13,16 +13,29 @@ const formData = ref<IMapUpdateData>({
   name: '',
   description: '',
   mapData: {
-    coordinates: {
-      worldUnitsPerGridCell: 50,
-      offset: { x: 0, y: 0 },
-      dimensions: { width: 30, height: 30 },
-      imageDimensions: { width: 800, height: 600 }
+    grid: {
+      type: 'square' as const,
+      cellSize: 1,
+      visible: true,
+      color: '#444444',
+      opacity: 0.3
     },
     environment: {
-      ambientLight: { color: '#ffffff', intensity: 0.1 },
-      globalIllumination: false
-    }
+      ambientColor: '#ffffff',
+      ambientIntensity: 0.4,
+      directionalColor: '#ffffff',
+      directionalIntensity: 0.6,
+      fogEnabled: false,
+      fogColor: '#000000',
+      fogNear: 10,
+      fogFar: 50,
+      backgroundColor: '#1a1a2e',
+      globalIllumination: true
+    },
+    layers: [
+      { id: 'default', name: 'Default', visible: true, locked: false, order: 0 }
+    ],
+    elements: []
   }
 });
 
@@ -62,22 +75,29 @@ async function fetchMap() {
         name: map.value.name,
         description: map.value.description || '',
         mapData: {
-          coordinates: {
-            worldUnitsPerGridCell: map.value.mapData?.coordinates?.worldUnitsPerGridCell || 50,
-            offset: map.value.mapData?.coordinates?.offset || { x: 0, y: 0 },
-            dimensions: map.value.mapData?.coordinates?.dimensions || { width: 30, height: 30 },
-            imageDimensions: map.value.mapData?.coordinates?.imageDimensions || { width: 800, height: 600 }
+          grid: map.value.mapData?.grid || {
+            type: 'square' as const,
+            cellSize: 1,
+            visible: true,
+            color: '#444444',
+            opacity: 0.3
           },
           environment: map.value.mapData?.environment || {
-            ambientLight: { color: '#ffffff', intensity: 0.1 },
-            globalIllumination: false
+            ambientColor: '#ffffff',
+            ambientIntensity: 0.4,
+            directionalColor: '#ffffff',
+            directionalIntensity: 0.6,
+            fogEnabled: false,
+            fogColor: '#000000',
+            fogNear: 10,
+            fogFar: 50,
+            backgroundColor: '#1a1a2e',
+            globalIllumination: true
           },
-          walls: map.value.mapData?.walls || [],
-          terrain: map.value.mapData?.terrain || [],
-          objects: map.value.mapData?.objects || [],
-          regions: map.value.mapData?.regions || [],
-          doors: map.value.mapData?.doors || [],
-          lights: map.value.mapData?.lights || []
+          layers: map.value.mapData?.layers || [
+            { id: 'default', name: 'Default', visible: true, locked: false, order: 0 }
+          ],
+          elements: map.value.mapData?.elements || []
         }
       };
     }
@@ -153,32 +173,30 @@ onMounted(() => {
             <!-- Grid, Image, and Scale Information -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
-                <h3 class="text-sm uppercase text-gold font-bold mb-2">📐 Grid Size</h3>
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">📐 Grid Type</h3>
                 <p class="text-onyx dark:text-parchment font-medium">
-                  {{ map.mapData?.coordinates?.dimensions?.width || 0 }} x {{ map.mapData?.coordinates?.dimensions?.height || 0 }}
+                  {{ map.mapData?.grid?.type || 'square' }}
                 </p>
               </div>
 
               <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
-                <h3 class="text-sm uppercase text-gold font-bold mb-2">🖼️ Image Dimensions</h3>
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">📏 Cell Size</h3>
                 <p class="text-onyx dark:text-parchment font-medium">
-                  {{ map.mapData?.coordinates?.imageDimensions?.width || 0 }} x {{ map.mapData?.coordinates?.imageDimensions?.height || 0 }} px
+                  {{ map.mapData?.grid?.cellSize || 1 }} units
                 </p>
               </div>
 
               <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
-                <h3 class="text-sm uppercase text-gold font-bold mb-2">📏 Grid Scale</h3>
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">🧱 Elements</h3>
                 <p class="text-onyx dark:text-parchment font-medium">
-                  {{ map.mapData?.coordinates?.worldUnitsPerGridCell || 0 }} units/cell
+                  {{ map.mapData?.elements?.length || 0 }} elements
                 </p>
               </div>
 
               <div class="bg-parchment dark:bg-obsidian p-4 rounded-lg border border-stone-300 dark:border-stone-600">
-                <h3 class="text-sm uppercase text-gold font-bold mb-2">📏 Aspect Ratio</h3>
+                <h3 class="text-sm uppercase text-gold font-bold mb-2">📑 Layers</h3>
                 <p class="text-onyx dark:text-parchment font-medium">
-                  {{ map.mapData?.coordinates?.imageDimensions ? 
-                      (map.mapData.coordinates.imageDimensions.width / map.mapData.coordinates.imageDimensions.height).toFixed(2) : 
-                      'Unknown' }}
+                  {{ map.mapData?.layers?.length || 0 }} layers
                 </p>
               </div>
             </div>
@@ -226,35 +244,33 @@ onMounted(() => {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm uppercase text-gold font-bold mb-2">
-                    📐 Grid Width <span class="text-dragon">*</span>
+                    📐 Grid Type
                   </label>
-                  <input
-                    v-model="formData!.mapData!.coordinates!.dimensions!.width"
-                    type="number"
-                    required
-                    min="1"
-                    max="200"
+                  <select
+                    v-model="formData!.mapData!.grid!.type"
                     class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
-                  />
+                  >
+                    <option value="square">Square</option>
+                    <option value="hex">Hex</option>
+                  </select>
                   <div class="text-ash dark:text-stone-300 text-sm mt-1">
-                    Number of grid columns
+                    Grid cell shape
                   </div>
                 </div>
 
                 <div>
                   <label class="block text-sm uppercase text-gold font-bold mb-2">
-                    📐 Grid Height <span class="text-dragon">*</span>
+                    📏 Cell Size
                   </label>
                   <input
-                    v-model="formData!.mapData!.coordinates!.dimensions!.height"
+                    v-model="formData!.mapData!.grid!.cellSize"
                     type="number"
-                    required
-                    min="1"
-                    max="200"
+                    min="0.1"
+                    step="0.1"
                     class="w-full px-4 py-3 bg-parchment dark:bg-obsidian border border-stone-300 dark:border-stone-600 rounded-lg text-onyx dark:text-parchment focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold"
                   />
                   <div class="text-ash dark:text-stone-300 text-sm mt-1">
-                    Number of grid rows
+                    Size of each grid cell in world units
                   </div>
                 </div>
               </div>

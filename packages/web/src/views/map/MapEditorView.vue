@@ -37,15 +37,15 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MapEditorComponent from '@/components/MapEditor/MapEditorComponent.vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
-import { MapsClient } from '@/../../client/src/maps.client.mjs';
-import type { IInternalMapData } from '@/../../shared/src/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/maps.client.mjs';
+import type { IDungeonMapData } from '@dungeon-lab/shared/types/index.mjs';
 import { transformAssetUrl } from '@/utils/asset-utils.mjs';
 
 
 const route = useRoute();
 const router = useRouter();
 const mapId = ref<string>(route.params.id as string);
-const mapData = ref<IInternalMapData | null>(null);
+const mapData = ref<IDungeonMapData | null>(null);
 const imageUrl = ref<string | undefined>(undefined);
 const loading = ref(true);
 const saving = ref(false);
@@ -72,7 +72,7 @@ onMounted(async () => {
     const mapDetails = await mapsClient.getMap(mapId.value);
     
     // Use the InternalMapData directly from mapDetails
-    mapData.value = mapDetails.mapData as IInternalMapData;
+    mapData.value = mapDetails.mapData as IDungeonMapData;
     
     // Set the image URL separately
     if (mapDetails.image && mapDetails.image.url) {
@@ -84,7 +84,7 @@ onMounted(async () => {
     
     // Store the map name for future use
     const mapName = mapDetails.name || 'Untitled Map';
-    console.log(`Loaded map: ${mapName} with ${mapData.value.walls.length} walls`);
+    console.log(`Loaded map: ${mapName} with ${mapData.value.elements.length} elements`);
     
     loading.value = false;
   } catch (err) {
@@ -95,7 +95,7 @@ onMounted(async () => {
 });
 
 // Handle save events from the editor
-const handleSave = async (editorData: { mapData: IInternalMapData }) => {
+const handleSave = async (editorData: { mapData: IDungeonMapData }) => {
   try {
     if (!mapId.value) {
       throw new Error('No map ID available for saving');

@@ -8,33 +8,22 @@ export interface Point {
 /**
  * Check if a position is within the map boundaries
  * @param position Position to check (in world coordinates)
- * @param mapData Map data containing resolution information
+ * @param mapData Map data containing grid configuration
  * @returns true if position is valid (within bounds), false if outside bounds
+ *
+ * Note: The new 3D map schema does not have explicit grid dimensions.
+ * Bounds validation will be re-implemented when the 3D map system is complete.
+ * For now, we only validate non-negative positions.
  */
 export function isPositionWithinBounds(
   position: Point,
-  mapData: IMapResponse | null
+  _mapData: IMapResponse | null
 ): boolean {
-  if (!mapData?.mapData?.coordinates?.dimensions) {
-    console.log('[BoundsValidation] No map size data available, allowing movement');
-    return true; // No bounds data, allow movement
-  }
+  // Basic non-negative check
+  const isValid = position.x >= 0 && position.y >= 0;
 
-  const mapWidth = mapData.mapData.coordinates.dimensions.width;
-  const mapHeight = mapData.mapData.coordinates.dimensions.height;
-
-  // Convert world pixel coordinates to grid coordinates for bounds checking
-  const pixelsPerGrid = mapData.mapData.coordinates.worldUnitsPerGridCell || 50;
-  const gridX = position.x / pixelsPerGrid;
-  const gridY = position.y / pixelsPerGrid;
-
-  console.log(`[BoundsValidation] Checking position ${JSON.stringify(position)} (pixels) -> grid(${gridX.toFixed(2)}, ${gridY.toFixed(2)}) against map bounds ${mapWidth}x${mapHeight} cells`);
-
-  // Check if grid position is within map bounds (map bounds are in grid cells)
-  const isValid = gridX >= 0 && gridX <= mapWidth && gridY >= 0 && gridY <= mapHeight;
-  
   if (!isValid) {
-    console.log('[BoundsValidation] Position is outside map bounds');
+    console.log('[BoundsValidation] Position is negative, outside bounds');
   }
 
   return isValid;
@@ -43,31 +32,19 @@ export function isPositionWithinBounds(
 /**
  * Clamp a position to be within map boundaries
  * @param position Position to clamp
- * @param mapData Map data containing resolution information
+ * @param mapData Map data containing grid configuration
  * @returns Position clamped to map boundaries
+ *
+ * Note: The new 3D map schema does not have explicit grid dimensions.
+ * Bounds clamping will be re-implemented when the 3D map system is complete.
+ * For now, we only clamp to non-negative values.
  */
 export function clampPositionToBounds(
   position: Point,
-  mapData: IMapResponse | null
+  _mapData: IMapResponse | null
 ): Point {
-  if (!mapData?.mapData?.coordinates?.dimensions) {
-    return position; // No bounds data, return original position
-  }
-
-  const mapWidth = mapData.mapData.coordinates.dimensions.width;
-  const mapHeight = mapData.mapData.coordinates.dimensions.height;
-
-  // Convert world pixel coordinates to grid coordinates for clamping
-  const pixelsPerGrid = mapData.mapData.coordinates.worldUnitsPerGridCell || 50;
-  const gridX = position.x / pixelsPerGrid;
-  const gridY = position.y / pixelsPerGrid;
-
-  // Clamp to grid bounds and convert back to world coordinates
-  const clampedGridX = Math.max(0, Math.min(gridX, mapWidth));
-  const clampedGridY = Math.max(0, Math.min(gridY, mapHeight));
-
   return {
-    x: clampedGridX * pixelsPerGrid,
-    y: clampedGridY * pixelsPerGrid
+    x: Math.max(0, position.x),
+    y: Math.max(0, position.y)
   };
 } 

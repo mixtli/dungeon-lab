@@ -80,10 +80,10 @@ import { inviteSchema, inviteStatusSchema } from '../schemas/invite.schema.mjs';
 
 import { itemSchema, itemCreateSchema, itemSchemaWithVirtuals } from '../schemas/item.schema.mjs';
 
-import { 
-  mapSchema, 
-  mapCreateSchema, 
-  internalMapDataSchema
+import {
+  mapSchema,
+  mapCreateSchema,
+  dungeonMapDataSchema
 } from '../schemas/map.schema.mjs';
 
 import {
@@ -231,7 +231,7 @@ export const mapUpdateSchema = mapCreateSchema.deepPartial();
 export type IMap = z.infer<typeof mapSchema>;
 export type IMapCreateData = z.infer<typeof mapCreateSchema>;
 export type IMapUpdateData = z.infer<typeof mapUpdateSchema>;
-export type IInternalMapData = z.infer<typeof internalMapDataSchema>;
+export type IDungeonMapData = z.infer<typeof dungeonMapDataSchema>;
 export type IMapImportUVTTData = z.infer<typeof mapImportUVTTSchema>;
 export type IUVTT = z.infer<typeof uvttSchema>;
 

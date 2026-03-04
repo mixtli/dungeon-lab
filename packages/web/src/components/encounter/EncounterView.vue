@@ -40,10 +40,25 @@
           @dragenter.prevent="handleDragEnter" 
           @dragleave="handleDragLeave"
         >
-        <!-- Pixi Map Viewer -->
+        <!-- Three.js Map Viewer (3D) -->
+        <ThreeMapViewer
+          v-if="useThreeRenderer && gameStateStore.currentEncounter?.currentMap && !gameStateStore.loading"
+          ref="pixiMapViewer"
+          :map-data="gameStateStore.currentEncounter.currentMap"
+          :tokens="encounterTokens"
+          :selected-token-id="debugSelectedTokenId"
+          :target-token-ids="targetTokenIds"
+          :platform="deviceConfig.type"
+          @token-selected="handleTokenSelection"
+          @token-moved="handleTokenMoved"
+          @canvas-click="handleMapClick"
+          class="w-full h-full"
+        />
+
+        <!-- Pixi Map Viewer (2D fallback) -->
         <PixiMapViewer
           ref="pixiMapViewer"
-          v-if="gameStateStore.currentEncounter?.currentMap && !gameStateStore.loading"
+          v-if="!useThreeRenderer && gameStateStore.currentEncounter?.currentMap && !gameStateStore.loading"
           :map-data="gameStateStore.currentEncounter.currentMap"
           :tokens="encounterTokens"
           :selected-token-id="debugSelectedTokenId"
@@ -195,6 +210,7 @@ import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
 import { usePlayerActions } from '../../composables/usePlayerActions.mjs';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
+import ThreeMapViewer from './ThreeMapViewer.vue';
 import HUD from '../hud/HUD.vue';
 import DocumentTokenGenerator from './DocumentTokenGenerator.vue';
 import TokenContextMenu from './TokenContextMenu.vue';
@@ -482,6 +498,9 @@ const contextMenuPosition = ref({ x: 0, y: 0 });
 const isDragOver = ref(false);
 const dragEnterCount = ref(0);
 
+// Renderer toggle: 'pixi' or 'three'
+const useThreeRenderer = ref(false);
+
 // Wall highlighting state
 const showWalls = ref(false);
 const showObjects = ref(false);
@@ -616,6 +635,9 @@ const handleMapContextMenuAction = (action: string) => {
       break;
     case 'toggle-debug':
       showDebugInfo.value = !showDebugInfo.value;
+      break;
+    case 'toggle-3d':
+      useThreeRenderer.value = !useThreeRenderer.value;
       break;
   }
   

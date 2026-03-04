@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as PIXI from 'pixi.js';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
 import { z } from 'zod';

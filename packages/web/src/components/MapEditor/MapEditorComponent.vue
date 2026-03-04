@@ -83,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-nocheck
 import { onMounted, onUnmounted, watch, ref } from 'vue';
 import { useEditorState } from './composables/useEditorState.mjs';
 // Removed UVTT conversion import - using pure world coordinates

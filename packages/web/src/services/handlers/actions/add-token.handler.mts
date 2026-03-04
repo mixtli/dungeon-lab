@@ -64,33 +64,9 @@ const validateAddToken: ActionValidationHandler = async (
   }
 
   // Optional: Validate grid position is within map bounds
-  if (gameState.currentEncounter?.currentMap?.mapData?.coordinates) {
-    const mapData = gameState.currentEncounter.currentMap.mapData;
-    
-    // Basic bounds check if map dimensions are available
-    if (mapData.coordinates.dimensions?.width && mapData.coordinates.dimensions?.height) {
-      // Use grid dimensions from the mapData coordinate system
-      const maxGridX = mapData.coordinates.dimensions.width;
-      const maxGridY = mapData.coordinates.dimensions.height;
-      
-      console.log('[AddTokenHandler] Bounds check:', {
-        requestedPosition: params.gridPosition,
-        mapGridSize: { x: maxGridX, y: maxGridY },
-        withinBounds: params.gridPosition.x < maxGridX && params.gridPosition.y < maxGridY
-      });
-      
-      // Grid coordinates are 0-indexed, so valid range is 0 to maxGrid-1
-      if (params.gridPosition.x >= maxGridX || params.gridPosition.y >= maxGridY) {
-        return {
-          valid: false,
-          error: {
-            code: 'POSITION_OUT_OF_BOUNDS',
-            message: `Grid position (${params.gridPosition.x}, ${params.gridPosition.y}) is outside map boundaries (0-${maxGridX-1}, 0-${maxGridY-1})`
-          }
-        };
-      }
-    }
-  }
+  // Note: The new 3D map schema doesn't have explicit grid dimensions.
+  // Bounds validation will be re-implemented when the 3D map system is complete.
+  // For now, we only validate non-negative positions (checked above).
 
   console.log('[AddTokenHandler] Validation passed for token addition:', {
     documentId: params.documentId,

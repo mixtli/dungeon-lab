@@ -3,13 +3,13 @@
  * Used for unified collision detection and lighting systems
  */
 
-import { coordinateSchema } from '../schemas/map.schema.mjs';
-import { z } from 'zod';
-
 /**
- * Coordinate point type
+ * 2D coordinate point type
  */
-type Coordinate = z.infer<typeof coordinateSchema>;
+interface Coordinate {
+  x: number;
+  y: number;
+}
 
 /**
  * Configuration for shape-to-polygon conversion

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, defineEmits, defineExpose } from 'vue';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
 import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
 
 // Props and Emits
@@ -16,7 +15,6 @@ const isUploading = ref(false);
 const selectedFile = ref<File | null>(null);
 const errorMessage = ref<string | null>(null);
 const isDragOver = ref(false);
-const mapsClient = new MapsClient();
 
 // File input handling
 function onFileSelect(event: Event) {
@@ -99,13 +97,9 @@ async function importUVTT() {
   errorMessage.value = null;
   
   try {
-    const map = await mapsClient.importUVTT(selectedFile.value);
-    emit('success', map);
-    close();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to import UVTT file';
-    errorMessage.value = message;
-    emit('error', message);
+    // TODO: UVTT import will be re-implemented with the new 3D map schema
+    errorMessage.value = 'UVTT import is not yet available with the new map format';
+    emit('error', errorMessage.value);
   } finally {
     isUploading.value = false;
   }

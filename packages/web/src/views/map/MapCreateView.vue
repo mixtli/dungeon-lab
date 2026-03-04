@@ -65,78 +65,34 @@ async function handleSubmit(event: Event) {
     loading.value = true;
     error.value = null;
     
-    // Ensure we have actual image dimensions from the uploaded file
-    if (!originalImagePixelDimensions.value) {
-      throw new Error('Image dimensions not available. Please ensure an image is uploaded.');
-    }
-
-    // Calculate grid dimensions from image and pixels per grid
-    const gridWidth = Math.ceil(originalImagePixelDimensions.value.width / formData.value.pixelsPerGrid);
-    const gridHeight = Math.ceil(originalImagePixelDimensions.value.height / formData.value.pixelsPerGrid);
-    
-    // Prepare the create map request data with new coordinate system
+    // Prepare the create map request data
     const mapData = {
       name: formData.value.name,
       description: formData.value.description || '',
-      gridColumns: gridWidth, // Calculated from image dimensions
       mapData: {
-        version: "1.0",
-        coordinates: {
-          worldUnitsPerGridCell: formData.value.pixelsPerGrid,
-          offset: { x: 0, y: 0 },
-          dimensions: { 
-            width: gridWidth, 
-            height: gridHeight 
-          },
-          imageDimensions: { 
-            width: originalImagePixelDimensions.value.width, 
-            height: originalImagePixelDimensions.value.height 
-          },
-          display: {
-            visible: true,
-            color: "#000000",
-            opacity: 1.0,
-            lineWidth: 2
-          }
+        grid: {
+          type: 'square' as const,
+          cellSize: 1,
+          visible: true,
+          color: '#444444',
+          opacity: 0.3
         },
-        walls: [],
-        terrain: [],
-        objects: [],
-        regions: [],
-        doors: [],
-        lights: [],
         environment: {
-          audio: {
-            reverbLevel: 0.5,
-            soundOcclusion: true
-          },
-          weather: {
-            type: "none" as const,
-            intensity: 0,
-            windDirection: 0,
-            windSpeed: 0,
-            visibility: 1.0
-          },
-          ambientLight: {
-            color: '#ffffff',
-            intensity: 0.1
-          },
-          globalIllumination: false,
-          darkvisionRange: 60,
-          atmosphere: {
-            fogColor: "#808080",
-            fogDensity: 0
-          }
+          ambientColor: '#ffffff',
+          ambientIntensity: 0.4,
+          directionalColor: '#ffffff',
+          directionalIntensity: 0.6,
+          fogEnabled: false,
+          fogColor: '#000000',
+          fogNear: 10,
+          fogFar: 50,
+          backgroundColor: '#1a1a2e',
+          globalIllumination: true
         },
-        semanticData: {
-          mapType: "other" as const,
-          keywords: []
-        },
-        conversionSettings: {
-          defaultPolygonPrecision: 16,
-          useAdaptivePrecision: true,
-          targetSegmentLength: 10
-        }
+        layers: [
+          { id: 'default', name: 'Default', visible: true, locked: false, order: 0 }
+        ],
+        elements: []
       }
     };
 

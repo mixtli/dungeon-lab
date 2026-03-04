@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-nocheck
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';

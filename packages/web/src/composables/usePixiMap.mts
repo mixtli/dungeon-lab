@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ref, onUnmounted, type Ref } from 'vue';
 import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
 import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';

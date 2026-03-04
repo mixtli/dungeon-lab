@@ -484,63 +484,29 @@ const proceedToEdit = async () => {
       name: mapName.value,
       description: description.value || `AI Generated Map: ${parameters.style} style`,
       mapData: {
-        version: "1.0",
-        coordinates: {
-          worldUnitsPerGridCell: parameters.pixelsPerGrid,
-          offset: { x: 0, y: 0 },
-          dimensions: { 
-            width: parameters.width, 
-            height: parameters.height 
-          },
-          imageDimensions: { 
-            width: parameters.width, 
-            height: parameters.height 
-          },
-          display: {
-            visible: true,
-            color: "#000000",
-            opacity: 1.0,
-            lineWidth: 2
-          }
+        grid: {
+          type: 'square' as const,
+          cellSize: 1,
+          visible: true,
+          color: '#444444',
+          opacity: 0.3
         },
-        walls: [],
-        terrain: [],
-        objects: [],
-        regions: [],
-        doors: [],
-        lights: [],
         environment: {
-          audio: {
-            reverbLevel: 0.5,
-            soundOcclusion: true
-          },
-          weather: {
-            type: "none",
-            intensity: 0,
-            windDirection: 0,
-            windSpeed: 0,
-            visibility: 1.0
-          },
-          ambientLight: {
-            color: "#ffffff",
-            intensity: 1.0
-          },
-          globalIllumination: false,
-          darkvisionRange: 60,
-          atmosphere: {
-            fogColor: "#808080",
-            fogDensity: 0
-          }
+          ambientColor: '#ffffff',
+          ambientIntensity: 0.4,
+          directionalColor: '#ffffff',
+          directionalIntensity: 0.6,
+          fogEnabled: false,
+          fogColor: '#000000',
+          fogNear: 10,
+          fogFar: 50,
+          backgroundColor: '#1a1a2e',
+          globalIllumination: true
         },
-        semanticData: {
-          mapType: "other",
-          keywords: [`AI-generated`, parameters.style]
-        },
-        conversionSettings: {
-          defaultPolygonPrecision: 16,
-          useAdaptivePrecision: true,
-          targetSegmentLength: 10
-        }
+        layers: [
+          { id: 'default', name: 'Default', visible: true, locked: false, order: 0 }
+        ],
+        elements: []
       }
     }, imageFile);
 
