@@ -120,14 +120,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { useSocketStore } from '../../../stores/socket.store.mjs';
-import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
-import { getAssetUrl } from '../../../utils/asset-utils.mjs';
-import { playerActionService } from '../../../services/player-action.service.mjs';
-import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
+import { useGameStateStore } from '../../../stores/game-state.store.js';
+import { useSocketStore } from '../../../stores/socket.store.js';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.js';
+import { getAssetUrl } from '../../../utils/asset-utils.js';
+import { playerActionService } from '../../../services/player-action.service.js';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.js';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
-import type { IItem, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.mjs';
+import type { IItem, RemoveDocumentParameters } from '@dungeon-lab/shared/types/index.js';
 
 const gameStateStore = useGameStateStore();
 const socketStore = useSocketStore();

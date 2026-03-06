@@ -280,9 +280,9 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, type Ref } from 'vue';
-import type { IActor, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
-import type { DndCreatureData } from '../../types/dnd/creature.mjs';
-import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import type { IActor, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.js';
+import type { DndCreatureData } from '../../types/dnd/creature.js';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.js';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 
 // Utility function to generate unique roll IDs

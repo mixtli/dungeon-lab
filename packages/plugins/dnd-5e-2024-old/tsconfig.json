@@ -19,7 +19,7 @@
       "@dungeon-lab/client/*": ["../../client/src/*"]
     }
   },
-  "include": ["src/**/*.d.ts", "src/**/*.mts", "src/**/*.ts", "src/**/*.js", "src/**/*.mjs"],
+  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js"],
   "references": [{ "path": "../../shared" }, { "path": "../../client" }],
   "ts-node": {
     "esm": true

@@ -2,7 +2,7 @@
 import { RouterView } from 'vue-router';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import AppFooter from '@/components/layout/AppFooter.vue';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
 
 const { isMobile, isPhone } = useDeviceAdaptation();
 

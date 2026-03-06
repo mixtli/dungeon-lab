@@ -190,9 +190,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, provide } from 'vue';
-import { useGameStateStore } from '../../stores/game-state.store.mjs';
-import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mjs';
-import { usePlayerActions } from '../../composables/usePlayerActions.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.js';
+import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.js';
+import { usePlayerActions } from '../../composables/usePlayerActions.js';
 // Encounter socket functionality removed - using session-based architecture
 import PixiMapViewer from './PixiMapViewer.vue';
 import HUD from '../hud/HUD.vue';
@@ -200,13 +200,13 @@ import DocumentTokenGenerator from './DocumentTokenGenerator.vue';
 import TokenContextMenu from './TokenContextMenu.vue';
 import TokenStateManager from './TokenStateManager.vue';
 import EncounterDebugInfo from './EncounterDebugInfo.vue';
-import type { Token, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
-import { useAuthStore } from '../../stores/auth.store.mjs';
-import { useNotificationStore } from '../../stores/notification.store.mjs';
+import type { Token, StateOperation } from '@dungeon-lab/shared/types/index.js';
+import { useAuthStore } from '../../stores/auth.store.js';
+import { useNotificationStore } from '../../stores/notification.store.js';
 // Add import for MapContextMenu
 import MapContextMenu from './MapContextMenu.vue';
 import DiceOverlay from '../dice/DiceOverlay.vue';
-import { turnManagerService } from '../../services/turn-manager.service.mjs';
+import { turnManagerService } from '../../services/turn-manager.service.js';
 
 // No props needed - EncounterView always displays the current encounter from game state
 

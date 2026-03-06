@@ -55,16 +55,16 @@
 <script setup lang="ts">
 import { ref, watch, computed, shallowRef, reactive, toRaw } from 'vue';
 import type { Component } from 'vue';
-import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
-import { useDocumentState } from '../../composables/useDocumentState.mts';
-import { useGameDocumentState } from '../../composables/useGameDocumentState.mts';
-import { useNotificationStore } from '../../stores/notification.store.mjs';
-import { useGameStateStore } from '../../stores/game-state.store.mts';
-import { useGameSessionStore } from '../../stores/game-session.store.mts';
-import { PlayerActionService } from '../../services/player-action.service.mjs';
-import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
-import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.mjs';
+import type { BaseDocument, IItem } from '@dungeon-lab/shared/types/index.js';
+import { pluginRegistry } from '../../services/plugin-registry.ts';
+import { useDocumentState } from '../../composables/useDocumentState.ts';
+import { useGameDocumentState } from '../../composables/useGameDocumentState.ts';
+import { useNotificationStore } from '../../stores/notification.store.js';
+import { useGameStateStore } from '../../stores/game-state.store.ts';
+import { useGameSessionStore } from '../../stores/game-session.store.ts';
+import { PlayerActionService } from '../../services/player-action.service.js';
+import type { UpdateDocumentParameters } from '@dungeon-lab/shared/types/game-actions.js';
+import { generateDocumentPatch } from '@dungeon-lab/shared/utils/index.js';
 import PluginContainer from './PluginContainer.vue';
 
 const props = defineProps<{

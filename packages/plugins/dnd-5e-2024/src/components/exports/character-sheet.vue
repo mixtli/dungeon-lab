@@ -808,13 +808,13 @@
 
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted, watch, markRaw, type Ref } from 'vue';
-import type { ICharacter, IItem, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.mjs';
-import type { DndCharacterData } from '../../types/dnd/character.mjs';
-import type { DndCharacterClassDocument } from '../../types/dnd/character-class.mjs';
-import type { DndSpeciesDocument } from '../../types/dnd/species.mjs';
-import type { DndBackgroundDocument } from '../../types/dnd/background.mjs';
-import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.mjs';
-import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
+import type { ICharacter, IItem, BaseDocument, IToken } from '@dungeon-lab/shared/types/index.js';
+import type { DndCharacterData } from '../../types/dnd/character.js';
+import type { DndCharacterClassDocument } from '../../types/dnd/character-class.js';
+import type { DndSpeciesDocument } from '../../types/dnd/species.js';
+import type { DndBackgroundDocument } from '../../types/dnd/background.js';
+import type { AssignItemParameters } from '@dungeon-lab/shared/types/index.js';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.js';
 import AdvantageRollDialog, { type RollDialogData } from '../internal/common/AdvantageRollDialog.vue';
 // Weapon dialogs removed - now using unified action handlers
 

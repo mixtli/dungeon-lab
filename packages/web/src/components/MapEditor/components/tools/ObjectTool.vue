@@ -6,8 +6,8 @@
 
 <script setup lang="ts">
 import { ref, computed, defineExpose } from 'vue';
-import type { Point, ObjectEditorObject, GridConfig } from '../../../../../../shared/src/types/mapEditor.mjs';
-import { useGridSystem } from '../../composables/useGridSystem.mjs';
+import type { Point, ObjectEditorObject, GridConfig } from '../../../../../../shared/src/types/mapEditor.js';
+import { useGridSystem } from '../../composables/useGridSystem.js';
 import { v4 as uuidv4 } from 'uuid';
 
 // Props

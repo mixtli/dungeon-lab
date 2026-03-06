@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
 
 // Define the interface for uploaded assets
 interface UploadedImage {

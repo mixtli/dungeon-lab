@@ -417,7 +417,7 @@ import type {
   LightObject, 
   AnyEditorObject,
   ObjectEditorObject 
-} from '@dungeon-lab/shared/types/index.mjs';
+} from '@dungeon-lab/shared/types/index.js';
 
 interface Props {
   selectedObjects: AnyEditorObject[];

@@ -45,19 +45,19 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.mjs';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
-import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.mjs';
-import type { InternalMapData } from '@dungeon-lab/shared/types/maps.mjs';
-import { playerActionService } from '@/services/player-action.service.mjs';
-import type { MoveTokenParameters, IVTTDocument } from '@dungeon-lab/shared/types/index.mjs';
-import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
-import type { Platform } from '@/services/encounter/PixiMapRenderer.mjs';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
-import { useDocumentSheetStore } from '@/stores/document-sheet.store.mjs';
-import { useGameStateStore } from '@/stores/game-state.store.mjs';
-import { pluginRegistry } from '@/services/plugin-registry.mts';
+import { usePixiMap, type UsePixiMapOptions } from '@/composables/usePixiMap.js';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
+import type { IMapResponse } from '@dungeon-lab/shared/types/api/maps.js';
+import type { InternalMapData } from '@dungeon-lab/shared/types/maps.js';
+import { playerActionService } from '@/services/player-action.service.js';
+import type { MoveTokenParameters, IVTTDocument } from '@dungeon-lab/shared/types/index.js';
+import type { Token } from '@dungeon-lab/shared/types/tokens.js';
+import type { Platform } from '@/services/encounter/PixiMapRenderer.js';
+import { MapsClient } from '@dungeon-lab/client/index.js';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
+import { useDocumentSheetStore } from '@/stores/document-sheet.store.js';
+import { useGameStateStore } from '@/stores/game-state.store.js';
+import { pluginRegistry } from '@/services/plugin-registry.ts';
 
 // Token change operations for efficient updates
 interface TokenChangeOperation {

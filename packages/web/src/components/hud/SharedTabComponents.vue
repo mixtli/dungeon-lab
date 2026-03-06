@@ -57,8 +57,8 @@
 
 <script setup lang="ts">
 import { nextTick, ref, onMounted, watch } from 'vue';
-import { useHUDStore } from '../../stores/hudStore.mjs';
-import type { SidebarTabType } from '../../types/hud.mjs';
+import { useHUDStore } from '../../stores/hudStore.js';
+import type { SidebarTabType } from '../../types/hud.js';
 import ChatTab from './tabs/ChatTab.vue';
 import ActorsTab from './tabs/ActorsTab.vue';
 import CharactersTab from './tabs/CharactersTab.vue';

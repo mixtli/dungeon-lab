@@ -58,9 +58,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { useSocketStore } from '../../stores/socket.store.mjs';
-import { dice3DService } from '../../services/dice-3d.service.mjs';
-import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
+import { useSocketStore } from '../../stores/socket.store.js';
+import { dice3DService } from '../../services/dice-3d.service.js';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.js';
 
 // Props
 interface Props {

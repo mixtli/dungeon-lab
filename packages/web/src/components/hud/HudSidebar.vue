@@ -63,8 +63,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useHUD } from '../../composables/useHUD.mjs';
-import type { SidebarTabType } from '../../types/hud.mjs';
+import { useHUD } from '../../composables/useHUD.js';
+import type { SidebarTabType } from '../../types/hud.js';
 
 const hud = useHUD();
 

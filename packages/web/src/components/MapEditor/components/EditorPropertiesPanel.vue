@@ -177,7 +177,7 @@ import type {
     DoorObject,
     LightObject,
     AnyEditorObject
-} from '../../../../../shared/src/types/mapEditor.mjs';
+} from '../../../../../shared/src/types/mapEditor.js';
 
 // Props and emits
 const props = defineProps<{

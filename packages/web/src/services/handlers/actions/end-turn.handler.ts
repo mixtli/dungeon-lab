@@ -1,0 +1,148 @@
+/**
+ * End Turn Action Handler - New Multi-Handler Architecture
+ * 
+ * Validates and executes turn ending using Immer for direct state mutations.
+ */
+
+import type { GameActionRequest } from '@dungeon-lab/shared/types/index.js';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.js';
+import type { ActionHandler, ActionValidationResult, ActionValidationHandler, ActionExecutionHandler } from '@dungeon-lab/shared-ui/types/plugin-context.js';
+import type { AsyncActionContext } from '@dungeon-lab/shared-ui/types/action-context.js';
+import { turnManagerService } from '../../turn-manager.service.js';
+
+/**
+ * Validate end turn request
+ */
+const validateEndTurn: ActionValidationHandler = async (
+  request: GameActionRequest, 
+  gameState: ServerGameStateWithVirtuals
+): Promise<ActionValidationResult> => {
+
+  console.log('[EndTurnHandler] Validating end turn request from:', request.playerId);
+
+  // Check if we have active turn order
+  if (!gameState.turnManager?.isActive) {
+    return {
+      valid: false,
+      error: {
+        code: 'NO_ACTIVE_TURN_ORDER',
+        message: 'No active turn order'
+      }
+    };
+  }
+
+  const turnManager = gameState.turnManager;
+  if (!turnManager.participants || turnManager.participants.length === 0) {
+    return {
+      valid: false,
+      error: {
+        code: 'NO_PARTICIPANTS',
+        message: 'No participants in turn order'
+      }
+    };
+  }
+
+  const currentParticipant = turnManager.participants[turnManager.currentTurn];
+  if (!currentParticipant) {
+    return {
+      valid: false,
+      error: {
+        code: 'INVALID_CURRENT_TURN',
+        message: 'Current turn index is invalid'
+      }
+    };
+  }
+
+  console.log('[EndTurnHandler] Current turn state:', {
+    currentParticipant: {
+      tokenId: currentParticipant.tokenId,
+      actorId: currentParticipant.actorId,
+      hasActed: currentParticipant.hasActed
+    },
+    currentTurn: turnManager.currentTurn,
+    round: turnManager.round
+  });
+
+  // Permission check: GM can always end turns, players can only end turns for characters they own
+  const isGM = request.playerId === gameState.campaign?.gameMasterId;
+  
+  if (!isGM) {
+    // For non-GM players, verify they own the character whose turn it is
+    if (!currentParticipant.actorId) {
+      return {
+        valid: false,
+        error: {
+          code: 'NO_ACTOR_ID',
+          message: 'Current participant has no associated actor'
+        }
+      };
+    }
+    
+    const character = gameState.documents[currentParticipant.actorId];
+    if (!character) {
+      return {
+        valid: false,
+        error: {
+          code: 'CHARACTER_NOT_FOUND',
+          message: 'Character document not found for current turn'
+        }
+      };
+    }
+    
+    const isOwner = character.ownerId === request.playerId;
+    if (!isOwner) {
+      return {
+        valid: false,
+        error: {
+          code: 'NOT_OWNER',
+          message: `You don't own ${character.name}`
+        }
+      };
+    }
+    
+    console.log('[EndTurnHandler] Player ownership validation passed:', {
+      playerId: request.playerId,
+      characterName: character.name,
+      characterId: character.id
+    });
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Execute turn ending by delegating to turn manager service
+ */
+const executeEndTurn: ActionExecutionHandler = async (
+  request: GameActionRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _draft: ServerGameStateWithVirtuals,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: AsyncActionContext
+): Promise<void> => {
+  console.log('[EndTurnHandler] Executing turn end:', {
+    requestId: request.id,
+    playerId: request.playerId
+  });
+
+  // Delegate to the turn manager service which handles all turn advancement logic
+  // and lifecycle resets. Note: draft parameter is not used here as the turn manager
+  // service handles its own state updates through the game state store.
+  const success = await turnManagerService.nextTurn();
+  
+  if (!success) {
+    throw new Error('Failed to advance turn');
+  }
+
+  console.log('[EndTurnHandler] Turn ended successfully via turn manager service');
+}
+
+/**
+ * Core end-turn action handler
+ */
+export const endTurnActionHandler: Omit<ActionHandler, 'pluginId'> = {
+  priority: 0, // Core handler runs first
+  validate: validateEndTurn,
+  execute: executeEndTurn,
+  approvalMessage: async () => "wants to end their turn"
+};

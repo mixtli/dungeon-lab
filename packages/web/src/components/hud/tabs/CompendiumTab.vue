@@ -135,13 +135,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import { playerActionService } from '../../../services/player-action.service.mjs';
-import { transformAssetUrl } from '../../../utils/asset-utils.mjs';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { pluginRegistry } from '../../../services/plugin-registry.mjs';
-import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.mjs';
-import type { AddDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
+import { CompendiumsClient } from '@dungeon-lab/client/index.js';
+import { playerActionService } from '../../../services/player-action.service.js';
+import { transformAssetUrl } from '../../../utils/asset-utils.js';
+import { useGameStateStore } from '../../../stores/game-state.store.js';
+import { pluginRegistry } from '../../../services/plugin-registry.js';
+import type { ICompendiumEntry } from '@dungeon-lab/shared/types/index.js';
+import type { AddDocumentParameters } from '@dungeon-lab/shared/types/game-actions.js';
 
 const compendiumsClient = new CompendiumsClient();
 const gameStateStore = useGameStateStore();

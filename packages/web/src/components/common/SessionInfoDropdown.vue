@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { useGameStateStore } from '../../stores/game-state.store.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
+import { useGameStateStore } from '../../stores/game-state.store.js';
 
 const gameSessionStore = useGameSessionStore();
 const gameStateStore = useGameStateStore();

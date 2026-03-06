@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.js';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.js';
 import { ArrowLeftIcon, TrashIcon, CalendarIcon, TagIcon } from '@heroicons/vue/24/outline';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
 
 const route = useRoute();
 const router = useRouter();

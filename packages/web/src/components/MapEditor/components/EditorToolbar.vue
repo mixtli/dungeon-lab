@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { EditorToolType } from '../../../../../shared/src/types/mapEditor.mjs';
+import type { EditorToolType } from '../../../../../shared/src/types/mapEditor.js';
 
 // Props and emits
 const props = defineProps<{

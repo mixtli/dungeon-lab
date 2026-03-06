@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { useTheme } from '../../composables/useTheme.mjs';
-import { useAuthStore } from '../../stores/auth.store.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { useGameStateStore } from '../../stores/game-state.store.mjs';
+import { useTheme } from '../../composables/useTheme.js';
+import { useAuthStore } from '../../stores/auth.store.js';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
+import { useGameStateStore } from '../../stores/game-state.store.js';
 import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 import SessionInfoDropdown from '../common/SessionInfoDropdown.vue';
 

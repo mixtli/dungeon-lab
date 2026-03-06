@@ -5,15 +5,15 @@ This document defines the coding standards, conventions, and patterns used in th
 ## TypeScript Standards
 
 ### File Extensions and Imports
-- **TypeScript Files**: Use `.mts` extension for all TypeScript files
-- **Import Statements**: Reference `.mjs` files in imports (NOT `.mts`)
+- **TypeScript Files**: Use `.ts` extension for all TypeScript files
+- **Import Statements**: Reference `.js` files in imports (NOT `.ts`)
 - **Example**:
   ```typescript
   // ✅ Correct
-  import { UserService } from './user.service.mjs'
-  
+  import { UserService } from './user.service.js'
+
   // ❌ Incorrect
-  import { UserService } from './user.service.mts'
+  import { UserService } from './user.service.ts'
   ```
 
 ### Module System
@@ -103,12 +103,12 @@ This document defines the coding standards, conventions, and patterns used in th
 - **NEVER MODIFY AUTH CODE**: Authentication code is off-limits without explicit permission
 - **Session-Based Only**: Always use session-based authentication
 - **Check Pattern**: Always check `req.session.user` for authentication
-- **Middleware**: Use existing auth middleware from `auth.middleware.mts`
+- **Middleware**: Use existing auth middleware from `auth.middleware.ts`
 
 ### Authentication Example
 ```typescript
 // ✅ Correct - Use existing middleware
-import { requireAuth } from '../middleware/auth.middleware.mjs'
+import { requireAuth } from '../middleware/auth.middleware.js'
 
 router.get('/protected', requireAuth, (req, res) => {
   const user = req.session.user // User guaranteed to exist
@@ -123,7 +123,7 @@ router.get('/protected', requireAuth, (req, res) => {
 ### Route Organization
 - **API Prefix**: All API routes start with `/api`
 - **Feature-Based**: Organize routes in `src/features/` by domain
-- **OpenAPI**: Document all routes using OpenAPI methods from `oapi.mts`
+- **OpenAPI**: Document all routes using OpenAPI methods from `oapi.ts`
 
 ### Example Route Structure
 ```typescript

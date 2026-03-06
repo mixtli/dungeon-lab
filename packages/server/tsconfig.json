@@ -15,6 +15,6 @@
     }
   },
   "references": [{ "path": "../shared" }],
-  "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

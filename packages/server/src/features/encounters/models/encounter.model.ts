@@ -1,0 +1,79 @@
+import mongoose, { ObjectId } from 'mongoose';
+import { IEncounter } from '@dungeon-lab/shared/types/index.js';
+import { encounterSchema } from '@dungeon-lab/shared/schemas/encounters.schema.js';
+import { baseMongooseZodSchema } from '../../../models/base.model.schema.js';
+import { createMongoSchema } from '../../../models/zod-to-mongo.js';
+import { zId } from '@zodyac/zod-mongoose';
+
+/**
+ * Create Mongoose schema with base configuration
+ */
+const encounterSchemaMongoose = encounterSchema.merge(baseMongooseZodSchema).extend({
+  campaignId: zId('Campaign'),
+  mapId: zId('Map'),
+  ownerId: zId('User').optional() // Reference to encounter owner
+});
+
+const mongooseSchema = createMongoSchema<IEncounter>(encounterSchemaMongoose);
+mongooseSchema.set('minimize', false);
+
+// Set Mixed type for the encounter data field
+mongooseSchema.path('data', mongoose.Schema.Types.Mixed);
+
+// Set Mixed type for the entire tokens array to handle complex plugin-specific data
+// This prevents "Cast to embedded failed" errors during encounter sync operations
+mongooseSchema.path('tokens', mongoose.Schema.Types.Mixed);
+
+// Set Mixed type for currentMap to handle complex nested map data and prevent validation issues
+mongooseSchema.path('currentMap', mongoose.Schema.Types.Mixed);
+
+// Add getters and setters for campaignId to handle ObjectId conversion
+mongooseSchema.path('campaignId').set(function (value: string) {
+  return new mongoose.Types.ObjectId(value);
+});
+mongooseSchema.path('campaignId').get(function (value: ObjectId) {
+  return value.toString();
+});
+mongooseSchema.path('mapId').set(function (value: string) {
+  return new mongoose.Types.ObjectId(value);
+});
+mongooseSchema.path('mapId').get(function (value: ObjectId) {
+  return value.toString();
+});
+
+mongooseSchema.path('ownerId').set(function (value: string | undefined) {
+  return value ? new mongoose.Types.ObjectId(value) : undefined;
+});
+mongooseSchema.path('ownerId').get(function (value: ObjectId | undefined) {
+  return value ? value.toString() : undefined;
+});
+
+// Add indexes for performance optimization
+mongooseSchema.index({ campaignId: 1 }); // Find encounters by campaign
+mongooseSchema.index({ updatedAt: -1 }); // Recently modified encounters for activity feeds
+mongooseSchema.index({ createdAt: -1 }); // Recent encounters for listing
+mongooseSchema.index({ 'participants': 1 }); // Find encounters where a specific user is participating
+mongooseSchema.index({ mapId: 1 }); // Find encounters using a specific map
+
+// Disable Mongoose versioning - encounters use GameState versioning for real-time operations
+mongooseSchema.set('versionKey', false);
+
+/**
+ * Encounter model
+ * 
+ * Encounters represent combat or interaction scenes within a campaign.
+ * They contain tokens (characters, NPCs, objects), track initiative order,
+ * manage temporary effects, and maintain turn-based state.
+ * 
+ * Key fields explained:
+ * - campaignId: Links to the parent campaign this encounter belongs to (stored as ObjectId)
+ * - mapId: References the map/scene where this encounter takes place
+ * - tokens: Array of all tokens (characters, NPCs, objects) in this encounter
+ * - settings: Configuration options like grid size, auto-roll initiative, turn timers
+ * - participants: Array of user IDs who can view/interact with this encounter
+ * 
+ * Note: Encounters no longer use versioning for optimistic locking. Real-time operations
+ * are handled through GameState versioning system which provides better conflict resolution
+ * for collaborative editing scenarios.
+ */
+export const EncounterModel = mongoose.model<IEncounter>('Encounter', mongooseSchema); 

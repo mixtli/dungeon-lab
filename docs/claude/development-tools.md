@@ -93,7 +93,7 @@ This document outlines the development tools, MCP servers, and integrations avai
 ## IDE Integration
 
 ### VS Code / Cursor Integration
-- **TypeScript**: Full support with `.mts` files
+- **TypeScript**: Full support with `.ts` files
 - **Vue**: Vue Language Features extension required
 - **Debugging**: Use browser dev tools for client, VS Code for server
 - **IntelliSense**: Configured for workspace structure

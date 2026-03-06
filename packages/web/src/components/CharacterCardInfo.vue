@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, type Component } from 'vue';
-import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter } from '@dungeon-lab/shared/types/index.js';
 
 interface Props {
   character: ICharacter;

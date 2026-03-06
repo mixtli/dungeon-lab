@@ -96,8 +96,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import { IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { AssetsClient } from '@dungeon-lab/client/index.mjs';
+import { IAsset } from '@dungeon-lab/shared/types/index.js';
+import { AssetsClient } from '@dungeon-lab/client/index.js';
 
 const assetsClient = new AssetsClient();
 

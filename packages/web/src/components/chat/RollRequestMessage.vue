@@ -51,18 +51,18 @@
 <script setup lang="ts">
 import { ref, computed, shallowRef, watchEffect, onMounted, onUnmounted } from 'vue';
 import type { Component } from 'vue';
-import { useSocketStore } from '../../stores/socket.store.mjs';
-import { useChatStore } from '../../stores/chat.store.mts';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
-import { rollService } from '../../services/roll.service.mjs';
-import type { ChatMessage } from '../../stores/chat.store.mjs';
-import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.mjs';
+import { useSocketStore } from '../../stores/socket.store.js';
+import { useChatStore } from '../../stores/chat.store.ts';
+import { pluginRegistry } from '../../services/plugin-registry.ts';
+import { rollService } from '../../services/roll.service.js';
+import type { ChatMessage } from '../../stores/chat.store.js';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.js';
 
 // Type for plugin roll acceptance event data
 interface PluginRollAcceptedData {
   rollData: RollServerResult;
 }
-import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
+import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.js';
 
 interface Props {
   message: ChatMessage;

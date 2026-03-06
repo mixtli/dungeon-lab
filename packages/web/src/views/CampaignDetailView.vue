@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { pluginRegistry } from '../services/plugin-registry.mts';
-import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import { pluginRegistry } from '../services/plugin-registry.ts';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.js';
 import CampaignCharacterList from '../components/campaign/CampaignCharacterList.vue';
 import CampaignEncounterList from '../components/campaign/CampaignEncounterList.vue';
 import CampaignInviteModal from '../components/campaign/CampaignInviteModal.vue';
 import GameSessionScheduleModal from '../components/campaign/GameSessionScheduleModal.vue';
 import CampaignSessionList from '../components/campaign/CampaignSessionList.vue';
-import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
+import { CampaignsClient } from '@dungeon-lab/client/index.js';
 
 const route = useRoute();
 const router = useRouter();

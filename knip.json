@@ -2,41 +2,41 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/**/*.{js,mjs,ts,mts}"],
-      "project": ["scripts/**/*.{js,mjs,ts,mts}"]
+      "entry": ["scripts/**/*.{js,ts}"],
+      "project": ["scripts/**/*.{js,ts}"]
     },
     "packages/client": {
-      "entry": ["src/index.mts"],
-      "project": ["src/**/*.{js,mjs,ts,mts}"]
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.{js,ts}"]
     },
     "packages/server": {
       "entry": [
-        "src/index.mts",
-        "src/app.mts",
-        "src/scripts/**/*.{js,mjs,ts,mts}"
+        "src/index.ts",
+        "src/app.ts",
+        "src/scripts/**/*.{js,ts}"
       ],
-      "project": ["src/**/*.{js,mjs,ts,mts}"]
+      "project": ["src/**/*.{js,ts}"]
     },
     "packages/web": {
       "entry": [
-        "src/main.mts",
-        "vite.config.mts",
+        "src/main.ts",
+        "vite.config.ts",
         "tailwind.config.js",
         "postcss.config.js"
       ],
-      "project": ["src/**/*.{js,mjs,ts,mts,vue}"]
+      "project": ["src/**/*.{js,ts,vue}"]
     },
     "packages/shared": {
-      "entry": ["src/index.mts", "src/index-server.mts"],
-      "project": ["src/**/*.{js,mjs,ts,mts}"]
+      "entry": ["src/index.ts", "src/index-server.ts"],
+      "project": ["src/**/*.{js,ts}"]
     },
     "packages/foundry-converter": {
-      "entry": ["src/index.mts", "src/cli.mts"],
-      "project": ["src/**/*.{js,mjs,ts,mts}"]
+      "entry": ["src/index.ts", "src/cli.ts"],
+      "project": ["src/**/*.{js,ts}"]
     },
     "packages/plugins/dnd-5e-2024": {
-      "entry": ["src/index.mts"],
-      "project": ["src/**/*.{js,mjs,ts,mts,vue}"]
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.{js,ts,vue}"]
     }
   },
   "ignore": [
@@ -45,11 +45,11 @@
     "**/coverage/**",
     "**/node_modules/**",
     "**/*.d.ts",
-    "**/test-utils.mts",
+    "**/test-utils.ts",
     "**/tests/**",
-    "**/*.test.{js,mjs,ts,mts}",
-    "**/*.spec.{js,mjs,ts,mts}",
-    "**/vitest.config.{js,mjs,ts,mts}",
+    "**/*.test.{js,ts}",
+    "**/*.spec.{js,ts}",
+    "**/vitest.config.{js,ts}",
     "**/eslint.config.{js,mjs}",
     "**/tsconfig*.json"
   ],

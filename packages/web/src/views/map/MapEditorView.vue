@@ -37,9 +37,9 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MapEditorComponent from '@/components/MapEditor/MapEditorComponent.vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
-import { MapsClient } from '@/../../client/src/maps.client.mjs';
-import type { IInternalMapData } from '@/../../shared/src/types/index.mjs';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { MapsClient } from '@/../../client/src/maps.client.js';
+import type { IInternalMapData } from '@/../../shared/src/types/index.js';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
 
 
 const route = useRoute();

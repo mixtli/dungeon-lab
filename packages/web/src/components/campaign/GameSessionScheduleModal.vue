@@ -1,9 +1,9 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { useAuthStore } from '../../stores/auth.store.mjs';
-import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
+import { useAuthStore } from '../../stores/auth.store.js';
+import { GameSessionsClient } from '@dungeon-lab/client/index.js';
 
 const gameSessionClient = new GameSessionsClient();
 const props = defineProps<{

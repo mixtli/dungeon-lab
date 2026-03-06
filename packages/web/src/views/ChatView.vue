@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
-import { useGameSessionStore } from '../stores/game-session.store.mjs';
+import { useGameSessionStore } from '../stores/game-session.store.js';
 import ChatComponent from '../components/chat/ChatComponent.vue';
 
 const gameSessionStore = useGameSessionStore();

@@ -9,8 +9,8 @@
     "displayName": "D&D 5e (2024)",
     "gameSystem": "dnd-5e-2024"
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "npm run clean && vue-tsc --project tsconfig.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
@@ -21,15 +21,15 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "generate:compendium": "tsx src/scripts/generate-compendium-pack.mts --output-dir ./packs/dnd-5e-2024",
-    "generate:compendium:srd": "tsx src/scripts/generate-compendium-pack.mts --srd-only --output-dir ./packs/dnd-5e-2024-srd",
-    "generate:compendium:all": "tsx src/scripts/generate-compendium-pack.mts --no-srd-only --output-dir ./packs/dnd-5e-2024-all",
-    "generate:backgrounds": "tsx generate-backgrounds.mts",
-    "create:minimal-pack": "tsx src/scripts/create-minimal-test-pack.mts",
-    "test:conversion": "tsx src/scripts/test-conversion.mts",
-    "transform:characters": "tsx src/scripts/transform-characters.mts",
-    "import:campaigns": "tsx src/scripts/import-campaigns.mts",
-    "import:campaigns:dry-run": "tsx src/scripts/import-campaigns.mts --dry-run"
+    "generate:compendium": "tsx src/scripts/generate-compendium-pack.ts --output-dir ./packs/dnd-5e-2024",
+    "generate:compendium:srd": "tsx src/scripts/generate-compendium-pack.ts --srd-only --output-dir ./packs/dnd-5e-2024-srd",
+    "generate:compendium:all": "tsx src/scripts/generate-compendium-pack.ts --no-srd-only --output-dir ./packs/dnd-5e-2024-all",
+    "generate:backgrounds": "tsx generate-backgrounds.ts",
+    "create:minimal-pack": "tsx src/scripts/create-minimal-test-pack.ts",
+    "test:conversion": "tsx src/scripts/test-conversion.ts",
+    "transform:characters": "tsx src/scripts/transform-characters.ts",
+    "import:campaigns": "tsx src/scripts/import-campaigns.ts",
+    "import:campaigns:dry-run": "tsx src/scripts/import-campaigns.ts --dry-run"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../../shared",

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline';
-import { type ICharacter, type IActor, type IAsset, type ICampaign } from '@dungeon-lab/shared/types/index.mjs';
-import { CampaignsClient, CharactersClient } from '@dungeon-lab/client/index.mjs';
+import { type ICharacter, type IActor, type IAsset, type ICampaign } from '@dungeon-lab/shared/types/index.js';
+import { CampaignsClient, CharactersClient } from '@dungeon-lab/client/index.js';
 import CharacterSelectionDialog from '@/components/dialogs/CharacterSelectionDialog.vue';
 
 const campaignsClient = new CampaignsClient();

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useAuthStore } from '@/stores/auth.store.mjs';
+import { useAuthStore } from '@/stores/auth.store.js';
 import { useRouter } from 'vue-router';
-import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { CompendiumsClient, DocumentsClient } from '@dungeon-lab/client/index.js';
 
 const authStore = useAuthStore();
 const router = useRouter();

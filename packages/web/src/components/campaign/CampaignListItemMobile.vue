@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { useSwipe } from '@vueuse/core';
 import { TrashIcon } from '@heroicons/vue/24/outline';
-import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.js';
 
 defineProps<{ 
   campaign: ICampaign;

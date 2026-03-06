@@ -135,7 +135,7 @@ packages/server/src/
 │   └── assets/
 ├── middleware/            # Express middleware
 ├── utils/                 # Utility functions
-└── app.mts               # Application entry point
+└── app.ts               # Application entry point
 ```
 
 ### Client-Side Architecture

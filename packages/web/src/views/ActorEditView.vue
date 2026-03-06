@@ -3,8 +3,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import { DocumentsClient } from '@dungeon-lab/client/index.mjs';
-import { type IAsset, type IActor } from '@dungeon-lab/shared/types/index.mjs';
+import { DocumentsClient } from '@dungeon-lab/client/index.js';
+import { type IAsset, type IActor } from '@dungeon-lab/shared/types/index.js';
 
 const documentsClient = new DocumentsClient();
 

@@ -2,11 +2,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
-import { EncountersClient } from '@dungeon-lab/client/index.mjs';
-import { useGameStateStore } from '../../stores/game-state.store.mjs';
-import { GameActionClientService } from '../../services/game-action-client.service.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/types/index.js';
+import { EncountersClient } from '@dungeon-lab/client/index.js';
+import { useGameStateStore } from '../../stores/game-state.store.js';
+import { GameActionClientService } from '../../services/game-action-client.service.js';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
 
 const props = defineProps<{
   campaignId: string;

@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.js';
 
 interface Props {
   rollRequest: RollRequest;

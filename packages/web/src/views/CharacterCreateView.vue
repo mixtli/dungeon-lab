@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, markRaw } from 'vue';
 import { useRouter } from 'vue-router';
-import { useGameStateStore } from '../stores/game-state.store.mjs';
-import { useSocketStore } from '../stores/socket.store.mjs';
-import { pluginRegistry } from '../services/plugin-registry.mts';
+import { useGameStateStore } from '../stores/game-state.store.js';
+import { useSocketStore } from '../stores/socket.store.js';
+import { pluginRegistry } from '../services/plugin-registry.ts';
 import ImageUpload from '../components/common/ImageUpload.vue';
-import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
-import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
-import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.mjs';
-import { characterCreateSchema } from '@dungeon-lab/shared/schemas/index.mjs';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.js';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.js';
+import { CreateDocumentRequest } from '@dungeon-lab/shared/types/api/index.js';
+import { characterCreateSchema } from '@dungeon-lab/shared/schemas/index.js';
 
 interface UploadedImage {
   url: string;

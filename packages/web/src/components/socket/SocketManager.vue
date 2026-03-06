@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { useSocketStore } from '../../stores/socket.store.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
+import { useSocketStore } from '../../stores/socket.store.js';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
 
 const socketStore = useSocketStore();
 const gameSessionStore = useGameSessionStore();

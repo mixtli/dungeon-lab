@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { type ICharacter, type IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
+import { type ICharacter, type IAsset } from '@dungeon-lab/shared/types/index.js';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.js';
 import { PlusIcon, EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
-import { pluginRegistry } from '@/services/plugin-registry.mts';
-import { STANDARD_COMPONENT_TYPES } from '@dungeon-lab/shared-ui/types/plugin.mjs';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
+import { pluginRegistry } from '@/services/plugin-registry.ts';
+import { STANDARD_COMPONENT_TYPES } from '@dungeon-lab/shared-ui/types/plugin.js';
 import CharacterCardInfo from '@/components/CharacterCardInfo.vue';
 
 const router = useRouter();

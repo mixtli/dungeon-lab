@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.store.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
-import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
-import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
-import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.mjs';
+import { useAuthStore } from '../../stores/auth.store.js';
+import { pluginRegistry } from '../../services/plugin-registry.ts';
+import { CampaignsClient } from '@dungeon-lab/client/index.js';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.js';
+import type { GameSystemPlugin } from '@dungeon-lab/shared-ui/types/plugin.js';
 
 const props = defineProps<{
   campaignId?: string;

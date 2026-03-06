@@ -77,10 +77,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue';
-import type { ApprovalData } from '../../stores/chat.store.mts';
-import { useNotificationStore } from '../../stores/notification.store.mjs';
-import { useChatStore } from '../../stores/chat.store.mts';
-import { gmActionHandlerService } from '../../services/gm-action-handler.service.mts';
+import type { ApprovalData } from '../../stores/chat.store.ts';
+import { useNotificationStore } from '../../stores/notification.store.js';
+import { useChatStore } from '../../stores/chat.store.ts';
+import { gmActionHandlerService } from '../../services/gm-action-handler.service.ts';
 
 interface Props {
   approvalData: ApprovalData;

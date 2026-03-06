@@ -1,7 +1,7 @@
 import { defineWorkspace } from 'vitest/config';
 
 export default defineWorkspace([
-  './vite.config.mts',
-  './packages/server/vitest.config.mts',
+  './vite.config.ts',
+  './packages/server/vitest.config.ts',
   './packages/web/vite.config.ts',
 ]);

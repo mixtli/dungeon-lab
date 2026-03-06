@@ -140,14 +140,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
-import { playerActionService } from '../../../services/player-action.service.mjs';
-import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.js';
+import { playerActionService } from '../../../services/player-action.service.js';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.js';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
-import type { AddDocumentParameters, RemoveDocumentParameters } from '@dungeon-lab/shared/types/game-actions.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.js';
+import type { AddDocumentParameters, RemoveDocumentParameters } from '@dungeon-lab/shared/types/game-actions.js';
 
-import { useSocketStore } from '../../../stores/socket.store.mjs';
+import { useSocketStore } from '../../../stores/socket.store.js';
 
 const documentsClient = new DocumentsSocketClient();
 const socketStore = useSocketStore();

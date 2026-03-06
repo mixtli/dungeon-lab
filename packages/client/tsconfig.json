@@ -21,13 +21,13 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "references": [
     { "path": "../shared" }
   ],
-  "include": ["src/**/*.mts", "src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

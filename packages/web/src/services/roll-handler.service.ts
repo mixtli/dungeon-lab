@@ -1,0 +1,264 @@
+import { Socket } from 'socket.io-client';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents
+} from '@dungeon-lab/shared/types/socket/index.js';
+import type { RollServerResult } from '@dungeon-lab/shared/types/socket/index.js';
+import type { RollRequest } from '@dungeon-lab/shared/schemas/roll.schema.js';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.js';
+import type { RollTypeHandler, RollHandlerContext } from '@dungeon-lab/shared-ui/types/plugin.js';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.js';
+import { useAuthStore } from '../stores/auth.store.js';
+import { useGameSessionStore } from '../stores/game-session.store.js';
+import { useGameStateStore } from '../stores/game-state.store.js';
+import { useChatStore } from '../stores/chat.store.js';
+import type { RollRequestService } from './roll-request.service.ts';
+// Using console.log for client-side logging
+
+/**
+ * Handler registration info
+ */
+interface HandlerRegistration {
+  handler: RollTypeHandler;
+  pluginContext: PluginContext;
+}
+
+/**
+ * Roll Handler Service
+ * Listens for roll:result events and dispatches to registered handlers
+ * Does not store roll history - just processes events
+ */
+export class RollHandlerService {
+  private handlers = new Map<string, HandlerRegistration>();
+  private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+  private rollRequestService: RollRequestService | null = null;
+
+  /**
+   * Register RollRequestService to receive roll result notifications
+   */
+  setRollRequestService(rollRequestService: RollRequestService): void {
+    this.rollRequestService = rollRequestService;
+    console.log('[RollHandlerService] RollRequestService registered for promise resolution');
+  }
+
+  /**
+   * Setup socket listener for roll:result events
+   */
+  setupListener(socket: Socket<ServerToClientEvents, ClientToServerEvents>): void {
+    // Clean up existing listeners
+    if (this.socket) {
+      this.socket.off('roll:result');
+    }
+
+    this.socket = socket;
+
+    // Listen for roll results from server
+    socket.on('roll:result', (serverResult: RollServerResult) => {
+      this.handleRollResult(serverResult);
+    });
+
+    console.log('[RollHandlerService] Roll result listener setup complete');
+  }
+
+  /**
+   * Register a handler for a specific roll type with its plugin context
+   */
+  registerHandler(rollType: string, handler: RollTypeHandler, pluginContext: PluginContext): void {
+    this.handlers.set(rollType, { handler, pluginContext });
+    console.log(`[RollHandlerService] Registered handler for roll type: ${rollType}`);
+  }
+
+  /**
+   * Unregister a handler for a roll type
+   */
+  unregisterHandler(rollType: string): void {
+    this.handlers.delete(rollType);
+    console.log(`[RollHandlerService] Unregistered handler for roll type: ${rollType}`);
+  }
+
+  /**
+   * Handle incoming roll result by dispatching to appropriate handler
+   */
+  private async handleRollResult(result: RollServerResult): Promise<void> {
+    try {
+      console.log('[RollHandlerService] Processing roll result:', {
+        title: result.metadata.title,
+        rollType: result.rollType,
+        pluginId: result.pluginId,
+        userId: result.userId
+      });
+
+      // Get handler registration for this roll type first
+      const handlerRegistration = this.handlers.get(result.rollType);
+      let processedResult = result;
+      
+      // Create handler context with GM detection
+      const authStore = useAuthStore();
+      const gameSessionStore = useGameSessionStore();
+      const gameStateStore = useGameStateStore();
+      const isGM = gameSessionStore.isGameMaster;
+      const context: RollHandlerContext = {
+        isGM,
+        userId: authStore.user?.id || '',
+        // Provide game state access for GM clients (cast to mutable type for weapon handlers)
+        gameState: isGM ? gameStateStore.gameState as ServerGameStateWithVirtuals : undefined,
+        // Include sendChatMessage function for GM clients
+        sendChatMessage: isGM && handlerRegistration ? 
+          (message: string, metadata?: { type?: 'text' | 'roll'; rollData?: unknown; recipient?: 'public' | 'gm' | 'private'; }) => {
+            handlerRegistration.pluginContext.sendChatMessage(message, metadata);
+          } : undefined,
+        // Include requestAction function when plugin context is available
+        requestAction: handlerRegistration ? 
+          (actionType: string, actorId: string | undefined, parameters: Record<string, unknown>, actorTokenId?: string, targetTokenIds?: string[], options?: { description?: string }) => {
+            return handlerRegistration.pluginContext.requestAction(actionType, actorId, parameters, actorTokenId, targetTokenIds, options);
+          } : undefined,
+        // Include requestRoll function for sending damage roll requests
+        requestRoll: handlerRegistration ? 
+          (playerId: string, rollRequest: RollRequest) => {
+            console.log('[RollHandlerService] Sending roll request:', { playerId, rollRequest });
+            handlerRegistration.pluginContext.sendRollRequest(playerId, rollRequest);
+          } : undefined
+      };
+
+      console.log('[RollHandlerService] Handler context:', {
+        isGM: context.isGM,
+        userId: context.userId,
+        rollFrom: result.userId
+      });
+      
+      if (handlerRegistration) {
+        // Check if handler supports the new processRoll method for calculation
+        if (handlerRegistration.handler.processRoll && typeof handlerRegistration.handler.processRoll === 'function') {
+          console.log('[RollHandlerService] Using processRoll for calculation');
+          
+          // Use processRoll to calculate enhanced results (advantage/disadvantage, etc.)
+          const processed = await handlerRegistration.handler.processRoll(result, context);
+          
+          // Update processedResult with enhanced data from plugin processing
+          processedResult = {
+            ...processed.rollResult, // Use the enhanced roll result from plugin processing
+            // Ensure we preserve the original rollId for promise correlation
+            rollId: result.rollId
+          };
+          
+          console.log('[RollHandlerService] Plugin processed roll result:', {
+            rollType: result.rollType,
+            hasCalculatedTotal: processed.rollResult.calculatedTotal !== undefined,
+            isCriticalHit: processed.rollResult.isCriticalHit,
+            processedData: processed.rollResult.processedData ? Object.keys(processed.rollResult.processedData) : []
+          });
+        } else {
+          console.log('[RollHandlerService] No processRoll method - using raw results');
+          processedResult = this.defaultHandler(result);
+        }
+        
+        // Always call handleRoll for side effects (chat messages, etc.)
+        if (handlerRegistration.handler.handleRoll && typeof handlerRegistration.handler.handleRoll === 'function') {
+          console.log('[RollHandlerService] Calling handleRoll for side effects');
+          await handlerRegistration.handler.handleRoll(processedResult, context);
+        }
+      } else {
+        // Use default handler - adds convenience total to results
+        processedResult = this.defaultHandler(result);
+      }
+      
+      // AFTER plugin processing, notify RollRequestService to resolve promises
+      // This ensures spell casting handlers receive processed results with hit/miss/damage info
+      if (this.rollRequestService) {
+        console.log('[RollHandlerService] About to resolve promises with processed result:', {
+          originalRollId: result.rollId,
+          processedRollId: processedResult.rollId,
+          rollType: processedResult.rollType,
+          hasProcessedMetadata: !!processedResult.metadata,
+          rollIdsMatch: result.rollId === processedResult.rollId
+        });
+        
+        if (result.rollId !== processedResult.rollId) {
+          console.error('[RollHandlerService] CRITICAL: Roll ID changed during processing!', {
+            original: result.rollId,
+            processed: processedResult.rollId
+          });
+        }
+        
+        this.rollRequestService.handleRollResult(processedResult);
+      } else {
+        console.log('[RollHandlerService] No RollRequestService registered');
+      }
+    } catch (error) {
+      console.error('[RollHandlerService] Error processing roll result:', error);
+    }
+  }
+
+  /**
+   * Default handler for roll types without specific handlers
+   * Adds convenience total calculation to roll results
+   */
+  private defaultHandler(result: RollServerResult): RollServerResult {
+    console.log('[RollHandlerService] Default handler - Roll received:', {
+      rollType: result.rollType,
+      title: result.metadata.title,
+      dice: result.results,
+      timestamp: result.timestamp
+    });
+
+    // Calculate total from all dice results for convenience
+    const total = result.results.reduce((sum, diceGroup) => 
+      sum + diceGroup.results.reduce((groupSum, roll) => groupSum + roll, 0), 0
+    );
+    
+    // Add total to result for action handler convenience
+    const enhancedResult = {
+      ...result,
+      calculatedTotal: total
+    } as RollServerResult & { calculatedTotal: number };
+    
+    console.log('[RollHandlerService] Added convenience total to roll result:', {
+      rollType: result.rollType,
+      originalRollId: result.rollId,
+      enhancedRollId: enhancedResult.rollId,
+      rollIdPreserved: result.rollId === enhancedResult.rollId,
+      total: total
+    });
+
+    // For raw-dice rolls (chat commands), create a simple chat message if GM
+    if (result.rollType === 'raw-dice') {
+      const gameSessionStore = useGameSessionStore();
+      const chatStore = useChatStore();
+      const isGM = gameSessionStore.isGameMaster;
+      
+      if (isGM) {
+        // Use the calculated total from above
+        const modifier = result.arguments.customModifier;
+        const finalTotal = total + modifier;
+        
+        // Create dice breakdown
+        const diceBreakdown = result.results.map(diceGroup => 
+          `${diceGroup.quantity}d${diceGroup.sides}: ${diceGroup.results.join(', ')}`
+        ).join(' + ');
+        
+        const modifierText = modifier !== 0 ? ` ${modifier >= 0 ? '+' : ''}${modifier}` : '';
+        const rollMessage = `**${result.metadata.title}**: ${diceBreakdown}${modifierText} = **${finalTotal}**`;
+        
+        console.log('[RollHandlerService] GM sending raw dice chat message:', rollMessage);
+        chatStore.sendMessage(rollMessage);
+      }
+    }
+    
+    return enhancedResult;
+  }
+
+  /**
+   * Cleanup when service is destroyed
+   */
+  destroy(): void {
+    if (this.socket) {
+      this.socket.off('roll:result');
+      this.socket = null;
+    }
+    this.handlers.clear();
+    console.log('[RollHandlerService] Service destroyed');
+  }
+}
+
+// Create singleton instance
+export const rollHandlerService = new RollHandlerService();

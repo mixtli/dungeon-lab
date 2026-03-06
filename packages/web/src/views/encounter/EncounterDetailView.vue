@@ -2,11 +2,11 @@
 // LEGACY FILE: This will be rewritten as part of the new Encounter Implementation
 import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useGameStateStore } from '../../stores/game-state.store.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mts';
-import { IGameSession, IMap, IAsset, IEncounter } from '@dungeon-lab/shared/types/index.mjs';
-import { GameSessionsClient, CampaignsClient, MapsClient, EncountersClient } from '@dungeon-lab/client/index.mjs';
-import { GameActionClientService } from '../../services/game-action-client.service.mjs';
+import { useGameStateStore } from '../../stores/game-state.store.js';
+import { useGameSessionStore } from '../../stores/game-session.store.ts';
+import { IGameSession, IMap, IAsset, IEncounter } from '@dungeon-lab/shared/types/index.js';
+import { GameSessionsClient, CampaignsClient, MapsClient, EncountersClient } from '@dungeon-lab/client/index.js';
+import { GameActionClientService } from '../../services/game-action-client.service.js';
 
 const gameSessionClient = new GameSessionsClient();
 const campaignsClient = new CampaignsClient();

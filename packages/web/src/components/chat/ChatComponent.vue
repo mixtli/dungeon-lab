@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { useSocketStore } from '../../stores/socket.store.mjs';
-import { useChatStore, type ChatMessage } from '../../stores/chat.store.mts';
-import { useGameStateStore } from '../../stores/game-state.store.mjs';
-import { ChatbotsClient } from '@dungeon-lab/client/index.mjs';
-import { useMentions } from '../../composables/useMentions.mjs';
-import { useNotifications } from '../../composables/useNotifications.mjs';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
+import { useSocketStore } from '../../stores/socket.store.js';
+import { useChatStore, type ChatMessage } from '../../stores/chat.store.ts';
+import { useGameStateStore } from '../../stores/game-state.store.js';
+import { ChatbotsClient } from '@dungeon-lab/client/index.js';
+import { useMentions } from '../../composables/useMentions.js';
+import { useNotifications } from '../../composables/useNotifications.js';
 import MentionInput from './MentionInput.vue';
 import SharedMessageContent from './SharedMessageContent.vue';
 

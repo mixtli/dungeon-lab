@@ -124,14 +124,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { useDocumentSheetStore } from '../../../stores/document-sheet.store.mjs';
-import { getDocumentImageUrl } from '../../../utils/document-image-utils.mjs';
-import { playerActionService } from '../../../services/player-action.service.mjs';
-import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
-import { useSocketStore } from '../../../stores/socket.store.mjs';
+import { useGameStateStore } from '../../../stores/game-state.store.js';
+import { useDocumentSheetStore } from '../../../stores/document-sheet.store.js';
+import { getDocumentImageUrl } from '../../../utils/document-image-utils.js';
+import { playerActionService } from '../../../services/player-action.service.js';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.js';
+import { useSocketStore } from '../../../stores/socket.store.js';
 import ConfirmationDialog from '../../common/ConfirmationDialog.vue';
-import type { IActor, StateOperation, RemoveDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { IActor, StateOperation, RemoveDocumentParameters, BaseDocument } from '@dungeon-lab/shared/types/index.js';
 
 const gameStateStore = useGameStateStore();
 const documentSheetStore = useDocumentSheetStore();

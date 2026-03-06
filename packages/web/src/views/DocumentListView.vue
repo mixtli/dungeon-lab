@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.mjs';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { DocumentsClient, AssetsClient } from '@dungeon-lab/client/index.js';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.js';
 import { EyeIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
-import { pluginRegistry } from '@/services/plugin-registry.mts';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
+import { pluginRegistry } from '@/services/plugin-registry.ts';
 
 const documentsClient = new DocumentsClient();
 const assetsClient = new AssetsClient();

@@ -121,11 +121,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { useAuthStore } from '../../../stores/auth.store.mjs';
-import { turnManagerService } from '../../../services/turn-manager.service.mjs';
-import { gameActionClientService } from '../../../services/game-action-client.service.mjs';
-import { useNotificationStore } from '../../../stores/notification.store.mjs';
+import { useGameStateStore } from '../../../stores/game-state.store.js';
+import { useAuthStore } from '../../../stores/auth.store.js';
+import { turnManagerService } from '../../../services/turn-manager.service.js';
+import { gameActionClientService } from '../../../services/game-action-client.service.js';
+import { useNotificationStore } from '../../../stores/notification.store.js';
 
 const gameStateStore = useGameStateStore();
 const authStore = useAuthStore();

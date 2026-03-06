@@ -121,7 +121,7 @@ The system uses a hybrid approach:
 
 ### Frontend (packages/web)
 - Vue 3 with Composition API (script setup style)
-- TypeScript with ESM modules (.mts files)
+- TypeScript with ESM modules (.ts files)
 - Tailwind CSS for styling
 - Pinia for state management
 - Vue Router for navigation
@@ -130,7 +130,7 @@ The system uses a hybrid approach:
 
 ### Backend (packages/server)
 - Node.js with Express
-- TypeScript with ESM modules (.mts files) 
+- TypeScript with ESM modules (.ts files)
 - MongoDB with Mongoose
 - Socket.io for WebSocket handling
 - Passport for authentication (session-based)
@@ -146,10 +146,10 @@ The system uses a hybrid approach:
 ## Development Guidelines
 
 ### File Naming & Imports
-- Use `.mts` extension for TypeScript files
-- Import statements should reference `.mjs` files (not `.mts`)
+- Use `.ts` extension for TypeScript files
+- Import statements should reference `.js` files (not `.ts`)
 - Use lowercase with dashes for directories (e.g., `auth-wizard`)
-- **IMPORTANT**: When importing from workspace packages, always use the full filename (e.g., `@dungeon-lab/client/index.mjs` instead of `@dungeon-lab/client`)
+- **IMPORTANT**: When importing from workspace packages, always use the full filename (e.g., `@dungeon-lab/client/index.js` instead of `@dungeon-lab/client`)
 - Don't use explicit any types.  Prefer a more specific type or unknown.
 
 ### Code Style
@@ -201,7 +201,7 @@ Strict dependency rules are enforced:
 
 ### Server Tests
 - Focus on integration tests with minimal mocking
-- Use helper methods from `auth-test-helpers.mts`
+- Use helper methods from `auth-test-helpers.ts`
 - Run from `packages/server` directory
 - Use `requestAs()` helper for authenticated requests
 
@@ -227,7 +227,7 @@ Strict dependency rules are enforced:
 - **Task Management**: Use TodoWrite for multi-step tasks, create implementation plans in `docs/` for large features
 - **Memory**: Store architectural insights in Memento MCP for persistence between sessions
 - **Authentication**: Session-based only, never modify auth code without permission
-- **File Extensions**: Use `.mts` for TypeScript files, import with `.mjs` extensions
+- **File Extensions**: Use `.ts` for TypeScript files, import with `.js` extensions
 - **Testing**: Vitest (not Jest), focus on integration tests, use auth helpers
 - **Server Management**: NEVER restart the dev server - it's persistent and auto-reloads code changes
 

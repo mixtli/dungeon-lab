@@ -66,11 +66,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
-import { useChatStore, type ChatMessage } from '../../../stores/chat.store.mts';
-import { useSocketStore } from '../../../stores/socket.store.mts';
-import { useGameStateStore } from '../../../stores/game-state.store.mjs';
-import { useGameSessionStore } from '../../../stores/game-session.store.mts';
-import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
+import { useChatStore, type ChatMessage } from '../../../stores/chat.store.ts';
+import { useSocketStore } from '../../../stores/socket.store.ts';
+import { useGameStateStore } from '../../../stores/game-state.store.js';
+import { useGameSessionStore } from '../../../stores/game-session.store.ts';
+import { parseDiceExpression } from '@dungeon-lab/shared/utils/dice-parser.js';
 import SharedMessageContent from '../../chat/SharedMessageContent.vue';
 const chatStore = useChatStore();
 const socketStore = useSocketStore();

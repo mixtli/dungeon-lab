@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.js';
 
 interface Props {
   rollData: RollServerResult;

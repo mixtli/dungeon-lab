@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.js';
 import ImageUpload from '../../components/common/ImageUpload.vue';
 
 interface UploadedImage {

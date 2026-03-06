@@ -4,20 +4,20 @@
   "description": "Standalone CLI tool for converting Foundry VTT packs to Dungeon Lab format",
   "type": "module",
   "bin": {
-    "foundry-converter": "./bin/foundry-converter.mjs"
+    "foundry-converter": "./bin/foundry-converter.js"
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "dev": "tsx src/cli.mts",
+    "dev": "tsx src/cli.ts",
     "check": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "test:single": "tsx src/cli.mts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs/actors24 --output ./test-output/actors24 --system dnd-5e-2024 --verbose --no-validate",
-    "test:all": "tsx src/cli.mts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs --output ./test-output --system dnd-5e-2024 --all --verbose --no-validate",
-    "test:dry": "tsx src/cli.mts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs/actors24 --output ./test-output/actors24 --system dnd-5e-2024 --verbose --dry-run --no-validate"
+    "test:single": "tsx src/cli.ts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs/actors24 --output ./test-output/actors24 --system dnd-5e-2024 --verbose --no-validate",
+    "test:all": "tsx src/cli.ts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs --output ./test-output --system dnd-5e-2024 --all --verbose --no-validate",
+    "test:dry": "tsx src/cli.ts --input ~/Library/Application\\ Support/FoundryVTT/Data/systems/dnd5e/packs/actors24 --output ./test-output/actors24 --system dnd-5e-2024 --verbose --dry-run --no-validate"
   },
   "dependencies": {
     "@dungeon-lab/shared": "file:../shared",

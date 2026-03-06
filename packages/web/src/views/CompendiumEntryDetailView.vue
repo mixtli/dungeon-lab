@@ -206,8 +206,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.mjs';
+import { CompendiumsClient } from '@dungeon-lab/client/index.js';
+import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.js';
 
 const route = useRoute();
 const router = useRouter();

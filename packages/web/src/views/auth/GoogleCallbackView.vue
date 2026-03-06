@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.store.mjs';
+import { useAuthStore } from '../../stores/auth.store.js';
 import { ArrowPathIcon } from '@heroicons/vue/24/outline';
 
 const isLoading = ref(true);

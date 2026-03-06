@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { WallObject, DoorObject, LightObject, ObjectEditorObject } from '../../../../../shared/src/types/mapEditor.mjs';
+import type { WallObject, DoorObject, LightObject, ObjectEditorObject } from '../../../../../shared/src/types/mapEditor.js';
 
 // Props and emits
 defineProps<{

@@ -151,16 +151,16 @@
 
 <script setup lang="ts">
 import { computed, toRaw } from 'vue';
-import { useGameSessionStore } from '@/stores/game-session.store.mjs';
-import { useGameStateStore } from '@/stores/game-state.store.mjs';
-import { tokenActionRegistry } from '@/services/token-action-registry.mjs';
-import { PlayerActionService } from '@/services/player-action.service.mjs';
-import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
-import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.mjs';
+import { useGameSessionStore } from '@/stores/game-session.store.js';
+import { useGameStateStore } from '@/stores/game-state.store.js';
+import { tokenActionRegistry } from '@/services/token-action-registry.js';
+import { PlayerActionService } from '@/services/player-action.service.js';
+import type { Token } from '@dungeon-lab/shared/types/tokens.js';
+import type { ServerGameStateWithVirtuals } from '@dungeon-lab/shared/types/index.js';
 import type { 
   TokenActionContext, // Execution context passed TO plugin handlers when action runs
   PluginContext
-} from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+} from '@dungeon-lab/shared-ui/types/plugin-context.js';
 
 interface Props {
   visible: boolean;

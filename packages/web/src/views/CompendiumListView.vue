@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import type { ICompendium } from '@dungeon-lab/shared/types/index.mjs';
+import { CompendiumsClient } from '@dungeon-lab/client/index.js';
+import type { ICompendium } from '@dungeon-lab/shared/types/index.js';
 
 const compendiumsClient = new CompendiumsClient();
 

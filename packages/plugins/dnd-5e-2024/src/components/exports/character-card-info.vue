@@ -21,9 +21,9 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
-import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
-import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.mjs';
-import type { DndCharacterData } from '../../types/dnd/character.mjs';
+import type { ICharacter } from '@dungeon-lab/shared/types/index.js';
+import { getPluginContext } from '@dungeon-lab/shared-ui/utils/plugin-context.js';
+import type { DndCharacterData } from '../../types/dnd/character.js';
 
 // Props
 interface Props {

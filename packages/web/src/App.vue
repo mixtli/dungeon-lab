@@ -3,11 +3,11 @@ import { RouterView } from 'vue-router';
 import NotificationToast from './components/common/NotificationToast.vue';
 import MobileApp from './components/layout/MobileApp.vue';
 
-import { useSocketStore } from './stores/socket.store.mts';
-import { useAuthStore } from './stores/auth.store.mts';
-import { rollHandlerService } from './services/roll-handler.service.mts';
-import { rollRequestService } from './services/roll-request.service.mts';
-import { useDeviceAdaptation } from './composables/useDeviceAdaptation.mts';
+import { useSocketStore } from './stores/socket.store.ts';
+import { useAuthStore } from './stores/auth.store.ts';
+import { rollHandlerService } from './services/roll-handler.service.ts';
+import { rollRequestService } from './services/roll-request.service.ts';
+import { useDeviceAdaptation } from './composables/useDeviceAdaptation.ts';
 import { watch } from 'vue';
 
 const store = useSocketStore();

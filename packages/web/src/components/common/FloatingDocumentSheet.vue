@@ -107,9 +107,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onUnmounted, onMounted, nextTick } from 'vue';
-import { useDocumentSheetStore } from '../../stores/document-sheet.store.mjs';
-import type { DocumentSheetStore } from '../../stores/document-sheet.store.mjs';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import { useDocumentSheetStore } from '../../stores/document-sheet.store.js';
+import type { DocumentSheetStore } from '../../stores/document-sheet.store.js';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.js';
 import DocumentSheetContainer from './DocumentSheetContainer.vue';
 
 const documentSheetStore = useDocumentSheetStore();

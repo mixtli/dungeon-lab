@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useGameSessionStore } from '@/stores/game-session.store.mjs';
-import { useSocketStore } from '@/stores/socket.store.mjs';
-import { useNotificationStore } from '@/stores/notification.store.mjs';
-import { useGameStateStore } from '@/stores/game-state.store.mjs';
+import { useGameSessionStore } from '@/stores/game-session.store.js';
+import { useSocketStore } from '@/stores/socket.store.js';
+import { useNotificationStore } from '@/stores/notification.store.js';
+import { useGameStateStore } from '@/stores/game-state.store.js';
 
 // Debug operations state
 const hashResetLoading = ref(false);

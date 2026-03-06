@@ -135,9 +135,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue';
-import { useCharacterCreation } from '../../composables/useCharacterCreation.mjs';
-import type { BasicCharacterInfo } from '../../types/character-creation.mjs';
-import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.mjs';
+import { useCharacterCreation } from '../../composables/useCharacterCreation.js';
+import type { BasicCharacterInfo } from '../../types/character-creation.js';
+import type { PluginContext } from '@dungeon-lab/shared-ui/types/plugin-context.js';
 import Icon from '../internal/common/Icon.vue'; // Assuming there's a common Icon component
 import ClassSelectionStep from '../internal/character-creator/steps/ClassSelectionStep.vue';
 import OriginSelectionStep from '../internal/character-creator/steps/OriginSelectionStep.vue';

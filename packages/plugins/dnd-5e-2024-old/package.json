@@ -5,20 +5,20 @@
   "author": "Mixtli Dorantes",
   "license": "MIT",
   "type": "module",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.mts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
     "./server": {
-      "import": "./dist/server/index.mjs",
-      "types": "./dist/server/index.d.mts"
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
     },
     "./web": {
-      "import": "./dist/web/index.mjs",
-      "types": "./dist/web/index.d.mts"
+      "import": "./dist/web/index.js",
+      "types": "./dist/web/index.d.ts"
     },
     "./package.json": "./package.json"
   },
@@ -28,16 +28,16 @@
     "lint": "eslint src",
     "clean": "rimraf dist",
     "test": "vitest run",
-    "import:classes": "tsx ./src/scripts/import-character-classes.mts",
-    "import:species": "tsx ./src/scripts/import-species.mts",
-    "import:backgrounds": "tsx ./src/scripts/import-backgrounds.mts",
-    "import:items": "tsx ./src/scripts/import-items.mts",
-    "import:monsters": "tsx ./src/scripts/import-monsters.mts",
-    "import:spells": "tsx ./src/scripts/import-spells.mts",
-    "import:feats": "tsx ./src/scripts/import-feats.mts",
-    "import:characters": "tsx --inspect=9222 ./src/scripts/import-characters.mts",
-    "import:maps": "tsx ./src/scripts/import-maps.mts",
-    "import:campaigns": "tsx ./src/scripts/import-campaigns.mts",
+    "import:classes": "tsx ./src/scripts/import-character-classes.ts",
+    "import:species": "tsx ./src/scripts/import-species.ts",
+    "import:backgrounds": "tsx ./src/scripts/import-backgrounds.ts",
+    "import:items": "tsx ./src/scripts/import-items.ts",
+    "import:monsters": "tsx ./src/scripts/import-monsters.ts",
+    "import:spells": "tsx ./src/scripts/import-spells.ts",
+    "import:feats": "tsx ./src/scripts/import-feats.ts",
+    "import:characters": "tsx --inspect=9222 ./src/scripts/import-characters.ts",
+    "import:maps": "tsx ./src/scripts/import-maps.ts",
+    "import:campaigns": "tsx ./src/scripts/import-campaigns.ts",
     "import:all": "npm run import:classes && npm run import:species && npm run import:backgrounds && npm run import:items && npm run import:monsters && npm run import:spells && npm run import:feats && npm run import:characters && npm run import:maps && npm run import:campaigns"
   },
   "dependencies": {

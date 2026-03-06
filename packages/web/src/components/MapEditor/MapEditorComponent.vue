@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, ref } from 'vue';
-import { useEditorState } from './composables/useEditorState.mjs';
+import { useEditorState } from './composables/useEditorState.js';
 // Removed UVTT conversion import - using pure world coordinates
 import type {
     WallObject,
@@ -93,12 +93,12 @@ import type {
     ObjectEditorObject,
     Point,
     AnyEditorObject
-} from '@dungeon-lab/shared/types/index.mjs';
-import type { internalMapDataSchema } from '@dungeon-lab/shared/schemas/map.schema.mjs';
+} from '@dungeon-lab/shared/types/index.js';
+import type { internalMapDataSchema } from '@dungeon-lab/shared/schemas/map.schema.js';
 import { z } from 'zod';
 
 type InternalMapData = z.infer<typeof internalMapDataSchema>;
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.js';
 
 // Update payload types (matches EditorCanvas.vue)
 interface ViewportUpdate {

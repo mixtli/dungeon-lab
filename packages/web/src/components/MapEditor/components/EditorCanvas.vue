@@ -198,8 +198,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import Konva from 'konva';
 // Import KonvaEventObject as a value, not as a type
 import { type KonvaEventObject } from 'konva/lib/Node.js';
-import { useGridSystem } from '../composables/useGridSystem.mjs';
-import { snapToWorldGrid, worldToGrid } from '../../../../../shared/src/utils/coordinate-conversion.mjs';
+import { useGridSystem } from '../composables/useGridSystem.js';
+import { snapToWorldGrid, worldToGrid } from '../../../../../shared/src/utils/coordinate-conversion.js';
 import WallTool from './tools/WallTool.vue';
 import ObjectTool from './tools/ObjectTool.vue';
 import SelectionTool from './tools/SelectionTool.vue';
@@ -212,7 +212,7 @@ import type {
     GridConfig,
     Point,
     MapMetadata
-} from '../../../../../shared/src/types/mapEditor.mjs';
+} from '../../../../../shared/src/types/mapEditor.js';
 
 // Specific update types for non-object updates
 interface ViewportUpdate {

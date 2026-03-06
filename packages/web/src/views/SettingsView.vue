@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { pluginRegistry } from '@/services/plugin-registry.mts';
-import { useAuthStore } from '@/stores/auth.store.mts';
-import type { DicePreferences } from '@dungeon-lab/shared/types/index.mjs';
+import { pluginRegistry } from '@/services/plugin-registry.ts';
+import { useAuthStore } from '@/stores/auth.store.ts';
+import type { DicePreferences } from '@dungeon-lab/shared/types/index.js';
 
 const selectedGameSystem = ref<string>(localStorage.getItem('activeGameSystem') || '');
 const previousGameSystem = ref<string>('');

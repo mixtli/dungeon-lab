@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useAuthStore } from '@/stores/auth.store.mts';
+import { useAuthStore } from '@/stores/auth.store.ts';
 
 const authStore = useAuthStore();
 const user = computed(() => authStore.user);

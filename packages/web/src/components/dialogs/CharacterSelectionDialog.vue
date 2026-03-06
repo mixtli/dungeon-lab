@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { DocumentsSocketClient } from '@dungeon-lab/client/index.mjs';
-import { useSocketStore } from '@/stores/socket.store.mjs';
+import { DocumentsSocketClient } from '@dungeon-lab/client/index.js';
+import { useSocketStore } from '@/stores/socket.store.js';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
-import type { ICharacter, IAsset } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICharacter, IAsset } from '@dungeon-lab/shared/types/index.js';
 
 const documentsClient = new DocumentsSocketClient();
 const socketStore = useSocketStore();

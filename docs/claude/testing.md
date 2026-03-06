@@ -24,11 +24,11 @@ This document outlines the testing approach, frameworks, and best practices for 
 - **API Testing**: Supertest for HTTP endpoint testing
 
 ### Authentication Testing
-- **Helper Methods**: Use functions from `auth-test-helpers.mts`
+- **Helper Methods**: Use functions from `auth-test-helpers.ts`
 - **Key Helper**: `requestAs(user)` for authenticated requests
 - **Example**:
   ```typescript
-  import { requestAs } from '../utils/auth-test-helpers.mjs'
+  import { requestAs } from '../utils/auth-test-helpers.js'
   
   test('should create campaign for authenticated user', async () => {
     const response = await requestAs(adminUser)
@@ -52,7 +52,7 @@ cd packages/server
 npm test
 
 # Run specific test file
-npm test user.test.mts
+npm test user.test.ts
 
 # Run with watch mode
 npm test -- --watch
@@ -61,10 +61,10 @@ npm test -- --watch
 ### Integration Test Patterns
 ```typescript
 import { describe, test, expect, beforeEach } from 'vitest'
-import { setupTestDatabase, cleanupTestDatabase } from './utils/db-helpers.mjs'
-import { createTestUser } from './utils/auth-test-helpers.mjs'
+import { setupTestDatabase, cleanupTestDatabase } from './utils/db-helpers.js'
+import { createTestUser } from './utils/auth-test-helpers.js'
 import { request } from 'supertest'
-import { app } from '../src/app.mjs'
+import { app } from '../src/app.js'
 
 describe('User API', () => {
   beforeEach(async () => {
@@ -165,7 +165,7 @@ packages/plugins/plugin-name/
 
 ### Example Database Testing
 ```typescript
-import { mongodb } from '../utils/mcp-helpers.mjs'
+import { mongodb } from '../utils/mcp-helpers.js'
 
 test('should create user with proper indexes', async () => {
   const user = await User.create({ name: 'Test', email: 'test@example.com' })
@@ -189,7 +189,7 @@ test('should create user with proper indexes', async () => {
 ### Example Socket Testing
 ```typescript
 import { io } from 'socket.io-client'
-import { createServer } from '../src/server.mjs'
+import { createServer } from '../src/server.js'
 
 test('should handle encounter join', async () => {
   const server = createServer()
@@ -232,7 +232,7 @@ export const testUsers = {
 
 ### Database Seeding
 ```typescript
-import { testUsers } from '../fixtures/users.mjs'
+import { testUsers } from '../fixtures/users.js'
 
 beforeEach(async () => {
   await User.create(testUsers.admin)

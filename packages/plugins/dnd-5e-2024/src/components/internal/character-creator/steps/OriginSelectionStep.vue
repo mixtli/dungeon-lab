@@ -282,11 +282,11 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import type { OriginSelection, LanguageSelection } from '../../../../types/character-creation.mjs';
-import type { DndSpeciesDocument } from '../../../../types/dnd/species.mjs';
-import type { DndBackgroundDocument } from '../../../../types/dnd/background.mjs';
-import type { DndLanguageDocument } from '../../../../types/dnd/language.mjs';
-import { useCharacterCreation } from '../../../../composables/useCharacterCreation.mjs';
+import type { OriginSelection, LanguageSelection } from '../../../../types/character-creation.js';
+import type { DndSpeciesDocument } from '../../../../types/dnd/species.js';
+import type { DndBackgroundDocument } from '../../../../types/dnd/background.js';
+import type { DndLanguageDocument } from '../../../../types/dnd/language.js';
+import { useCharacterCreation } from '../../../../composables/useCharacterCreation.js';
 import Icon from '../../common/Icon.vue';
 import MobileSelect from '../../common/MobileSelect.vue';
 

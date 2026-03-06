@@ -1,14 +1,14 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useAuthStore } from '../../stores/auth.store.mjs';
-import { useGameSessionStore } from '../../stores/game-session.store.mjs';
-import { formatDate } from '../../utils/date-utils.mjs';
+import { useAuthStore } from '../../stores/auth.store.js';
+import { useGameSessionStore } from '../../stores/game-session.store.js';
+import { formatDate } from '../../utils/date-utils.js';
 import { CalendarIcon, ClockIcon } from '@heroicons/vue/24/outline';
-import { GameSessionStatus } from '@dungeon-lab/shared/schemas/index.mjs';
+import { GameSessionStatus } from '@dungeon-lab/shared/schemas/index.js';
 import type { z } from 'zod';
-import type { IGameSession } from '@dungeon-lab/shared/types/index.mjs';
-import { GameSessionsClient } from '@dungeon-lab/client/index.mjs';
+import type { IGameSession } from '@dungeon-lab/shared/types/index.js';
+import { GameSessionsClient } from '@dungeon-lab/client/index.js';
 
 type SessionStatus = z.infer<typeof GameSessionStatus>;
 

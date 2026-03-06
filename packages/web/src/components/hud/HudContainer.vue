@@ -117,9 +117,9 @@
 <script setup lang="ts">
 import { provide } from 'vue';
 import type { Component } from 'vue';
-import { useHUDStore } from '../../stores/hudStore.mjs';
-import { useHudNavigation } from '../../composables/useHudNavigation.mjs';
-import { useHudLayout } from '../../composables/useHudLayout.mjs';
+import { useHUDStore } from '../../stores/hudStore.js';
+import { useHudNavigation } from '../../composables/useHudNavigation.js';
+import { useHudLayout } from '../../composables/useHudLayout.js';
 import SheetContainer from './SheetContainer.vue';
 
 // Import all tab components

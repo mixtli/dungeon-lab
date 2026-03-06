@@ -3,8 +3,8 @@
 ## Vitest Over Ad-Hoc Test Scripts
 
 ### ✅ **Use Vitest for all testing**
-- **Location**: `src/*/___tests___/*.test.mts` 
-- **Command**: `npm test` or `npm test -- --run specific-test.mts`
+- **Location**: `src/*/___tests___/*.test.ts` 
+- **Command**: `npm test` or `npm test -- --run specific-test.ts`
 - **Benefits**: 
   - Integrated with project setup
   - Proper assertions and test runners
@@ -14,7 +14,7 @@
   - Part of CI/CD pipeline
 
 ### ❌ **Avoid ad-hoc test scripts**
-- **Don't create**: `src/scripts/test-*.mts` files
+- **Don't create**: `src/scripts/test-*.ts` files
 - **Problems**:
   - Not part of standard test suite
   - Manual execution required
@@ -27,7 +27,7 @@
 
 ### Before: Ad-hoc Script ❌
 ```typescript
-// src/scripts/test-action-conversion.mts
+// src/scripts/test-action-conversion.ts
 async function testActions() {
   const result = await converter.convertActions();
   if (result.results.length > 0) {
@@ -40,7 +40,7 @@ async function testActions() {
 
 ### After: Proper Vitest ✅
 ```typescript
-// src/5etools-converter/pipeline/__tests__/typed-action-converter.test.mts
+// src/5etools-converter/pipeline/__tests__/typed-action-converter.test.ts
 describe('TypedActionConverter', () => {
   it('should convert actions successfully', async () => {
     const result = await converter.convertActions();
@@ -95,7 +95,7 @@ describe('Schema Validation', () => {
 npm test
 
 # Run specific test file
-npm test -- --run path/to/test.mts
+npm test -- --run path/to/test.ts
 
 # Run tests in watch mode during development
 npm run test:watch

@@ -26,8 +26,8 @@
 <script setup lang="ts">
 import { computed, shallowRef, watchEffect } from 'vue';
 import type { Component } from 'vue';
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.js';
+import { pluginRegistry } from '../../services/plugin-registry.ts';
 
 interface Props {
   message: string;

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useGameSessionStore } from '../stores/game-session.store.mjs';
-import { useSocketStore } from '../stores/socket.store.mjs';
-import { useAuthStore } from '../stores/auth.store.mjs';
+import { useGameSessionStore } from '../stores/game-session.store.js';
+import { useSocketStore } from '../stores/socket.store.js';
+import { useAuthStore } from '../stores/auth.store.js';
 
 const route = useRoute();
 const router = useRouter();

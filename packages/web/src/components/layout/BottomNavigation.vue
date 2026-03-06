@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-// import { useAuthStore } from '../../stores/auth.store.mts';
-import { useGameSessionStore } from '../../stores/game-session.store.mts';
-import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mts';
+// import { useAuthStore } from '../../stores/auth.store.ts';
+import { useGameSessionStore } from '../../stores/game-session.store.ts';
+import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.ts';
 import {
   ChatBubbleLeftRightIcon,
   ShieldCheckIcon,

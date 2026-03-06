@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { AssetsClient } from '@dungeon-lab/client/index.mjs';
-import { type IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import { AssetsClient } from '@dungeon-lab/client/index.js';
+import { type IAsset } from '@dungeon-lab/shared/types/index.js';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
 
 const router = useRouter();
 const route = useRoute();

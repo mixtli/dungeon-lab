@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import type { Point } from '../../../../../../shared/src/types/mapEditor.mts';
+import type { Point } from '../../../../../../shared/src/types/mapEditor.ts';
 
 // Props
 const props = defineProps<{

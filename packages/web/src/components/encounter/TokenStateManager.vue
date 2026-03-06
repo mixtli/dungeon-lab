@@ -192,7 +192,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { Token } from '@dungeon-lab/shared/types/tokens.mjs';
+import type { Token } from '@dungeon-lab/shared/types/tokens.js';
 
 interface Condition {
   id: string;

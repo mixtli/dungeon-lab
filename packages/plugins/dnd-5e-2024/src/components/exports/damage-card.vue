@@ -30,8 +30,8 @@
 </template>
 
 <script setup lang="ts">
-import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.mjs';
-import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.mjs';
+import type { RollServerResult } from '@dungeon-lab/shared/schemas/roll.schema.js';
+import { diceArrayToExpression } from '@dungeon-lab/shared/utils/dice-parser.js';
 
 interface Props {
   // For full roll data (preferred)

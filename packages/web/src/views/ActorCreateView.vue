@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { pluginRegistry } from '@/services/plugin-registry.mts';
+import { pluginRegistry } from '@/services/plugin-registry.ts';
 
 const router = useRouter();
 

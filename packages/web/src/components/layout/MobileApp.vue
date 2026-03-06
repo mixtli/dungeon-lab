@@ -4,11 +4,11 @@ import NotificationToast from '../common/NotificationToast.vue';
 import MobileHeader from './MobileHeader.vue';
 import BottomNavigation from './BottomNavigation.vue';
 
-import { useSocketStore } from '../../stores/socket.store.mts';
-import { useAuthStore } from '../../stores/auth.store.mts';
-import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.mts';
+import { useSocketStore } from '../../stores/socket.store.ts';
+import { useAuthStore } from '../../stores/auth.store.ts';
+import { useDeviceAdaptation } from '../../composables/useDeviceAdaptation.ts';
 import { watch } from 'vue';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
+import { pluginRegistry } from '../../services/plugin-registry.ts';
 
 const store = useSocketStore();
 const authStore = useAuthStore();

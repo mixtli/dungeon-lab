@@ -4,9 +4,9 @@
 
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { EncountersClient } from '@dungeon-lab/client/index.mjs';
+import type { IMap } from '@dungeon-lab/shared/types/index.js';
+import { MapsClient } from '@dungeon-lab/client/index.js';
+import { EncountersClient } from '@dungeon-lab/client/index.js';
 
 const router = useRouter();
 const mapClient = new MapsClient();

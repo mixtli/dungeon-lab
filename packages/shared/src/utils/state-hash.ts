@@ -1,0 +1,97 @@
+import CryptoJS from 'crypto-js';
+import stringify from 'json-stable-stringify';
+import type { ServerGameStateWithVirtuals, BaseDocument } from '../types/index.js';
+
+/**
+ * Generate a hash of the game state for integrity verification
+ * Uses json-stable-stringify for deterministic serialization across all environments
+ * Uses SHA-256 to create a consistent hash of the pure game state data
+ * Compatible with both Node.js and browser environments
+ * 
+ * @param gameState - The server game state with virtuals to hash (no id field in this type)
+ * @returns SHA-256 hash as hexadecimal string
+ */
+export function generateStateHash(gameState: ServerGameStateWithVirtuals): string {
+  try {
+    // Use json-stable-stringify for deterministic serialization
+    // This ensures the same logical state always produces the same JSON string
+    // regardless of property enumeration order or JavaScript environment
+    const stateJson = stringify(gameState);
+    
+    if (!stateJson) {
+      throw new Error('Failed to serialize game state to JSON');
+    }
+    
+    // Generate SHA-256 hash using crypto-js (works in both Node.js and browser)
+    const hash = CryptoJS.SHA256(stateJson);
+    
+    return hash.toString();
+  } catch (error) {
+    console.error('Error generating state hash:', error);
+    throw new Error('Failed to generate state hash');
+  }
+}
+
+/**
+ * Validate state integrity by comparing expected hash with actual hash
+ * 
+ * @param gameState - The server game state with virtuals to validate
+ * @param expectedHash - The expected hash value
+ * @returns true if state integrity is valid, false otherwise
+ */
+export function validateStateIntegrity(
+  gameState: ServerGameStateWithVirtuals, 
+  expectedHash: string
+): boolean {
+  try {
+    const actualHash = generateStateHash(gameState);
+    const isValid = actualHash === expectedHash;
+    
+    if (!isValid) {
+      // Count documents by type for debugging
+      const documentCounts = Object.values(gameState.documents || {}).reduce((counts: Record<string, number>, doc: BaseDocument) => {
+        const docType = doc.documentType;
+        counts[docType] = (counts[docType] || 0) + 1;
+        return counts;
+      }, {});
+
+      console.error('Hash validation failed:', {
+        expectedHash: expectedHash.substring(0, 16) + '...',
+        actualHash: actualHash.substring(0, 16) + '...',
+        gameStateKeys: Object.keys(gameState),
+        totalDocuments: Object.keys(gameState.documents || {}).length,
+        documentCounts
+      });
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('Error validating state integrity:', error);
+    return false;
+  }
+}
+
+/**
+ * Increment the state version number
+ * Simple incrementing integer stored as string
+ * 
+ * @param currentVersion - Current version string (e.g., "5")
+ * @returns Next version string (e.g., "6")
+ */
+export function incrementStateVersion(currentVersion: string | null): string {
+  const current = parseInt(currentVersion || '0') || 0;
+  return (current + 1).toString();
+}
+
+/**
+ * Check if an incoming version matches the current server version
+ * 
+ * @param currentVersion - Current version on server
+ * @param incomingVersion - Version from client request (should match current server version)
+ * @returns true if incoming version matches current server version
+ */
+export function isValidNextVersion(currentVersion: string | null, incomingVersion: string): boolean {
+  // Client should send their current version, which should match server's current version
+  const serverVersion = currentVersion || '0';
+  return serverVersion === incomingVersion;
+}

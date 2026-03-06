@@ -50,7 +50,7 @@ import HudContainer from '@/components/hud/HudContainer.vue';
 import ChatTab from '@/components/hud/tabs/ChatTab.vue';
 import SettingsView from '@/views/SettingsView.vue';
 import BottomNavigation from '@/components/layout/BottomNavigation.vue';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
 
 type MobileTabType = 'encounter' | 'hud' | 'chat' | 'settings';
 

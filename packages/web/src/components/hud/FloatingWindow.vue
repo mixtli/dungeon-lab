@@ -62,8 +62,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useFloatingWindow } from '../../composables/useHUD.mjs';
-import { useHUDStore } from '../../stores/hudStore.mjs';
+import { useFloatingWindow } from '../../composables/useHUD.js';
+import { useHUDStore } from '../../stores/hudStore.js';
 
 interface Props {
   windowId: string;

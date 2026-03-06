@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue';
-import { useMentions, type ChatContext } from '../../composables/useMentions.mjs';
-import type { MentionSuggestion } from '@dungeon-lab/shared/types/chat.mjs';
+import { useMentions, type ChatContext } from '../../composables/useMentions.js';
+import type { MentionSuggestion } from '@dungeon-lab/shared/types/chat.js';
 
 interface Props {
   modelValue: string;

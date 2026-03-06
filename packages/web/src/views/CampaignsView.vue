@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router';
 import { ref } from 'vue';
 import CampaignList from '../components/campaign/CampaignList.vue';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
 
 const router = useRouter();
 const hasCampaigns = ref(true); // Default to true to avoid showing "Create First Campaign" button before data loads

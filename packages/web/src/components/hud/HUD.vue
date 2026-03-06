@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
-import { useHUD } from '../../composables/useHUD.mjs';
+import { useHUD } from '../../composables/useHUD.js';
 import HudSidebar from './HudSidebar.vue';
 import HudToolbar from './HudToolbar.vue';
 import FloatingWindow from './FloatingWindow.vue';

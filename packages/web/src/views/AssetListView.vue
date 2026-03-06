@@ -2,10 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
-import { AssetsClient } from '@dungeon-lab/client/index.mjs';
+import { AssetsClient } from '@dungeon-lab/client/index.js';
 import AssetUpload from '../components/common/AssetUpload.vue';
-import type { IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import type { IAsset } from '@dungeon-lab/shared/types/index.js';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
 
 const assetsClient = new AssetsClient();
 

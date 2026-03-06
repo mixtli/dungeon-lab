@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import DocumentSheetContainer from '../common/DocumentSheetContainer.vue';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.js';
 
 // Props
 interface Props {

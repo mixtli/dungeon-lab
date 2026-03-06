@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import type { IEncounter } from '@dungeon-lab/shared/types/index.mjs';
-import { EncountersClient } from '@dungeon-lab/client/index.mjs';
+import type { IEncounter } from '@dungeon-lab/shared/types/index.js';
+import { EncountersClient } from '@dungeon-lab/client/index.js';
 
 interface IEncounterWithDates extends IEncounter {
   createdAt?: string;

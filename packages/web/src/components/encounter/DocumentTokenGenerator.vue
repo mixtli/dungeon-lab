@@ -134,11 +134,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useAuthStore } from '@/stores/auth.store.mjs';
-import { useGameStateStore } from '@/stores/game-state.store.mjs';
-import { useGameSessionStore } from '@/stores/game-session.store.mjs';
-import { pluginTokenService } from '@/services/plugin-token.service.mjs';
-import type { BaseDocument, StateOperation } from '@dungeon-lab/shared/types/index.mjs';
+import { useAuthStore } from '@/stores/auth.store.js';
+import { useGameStateStore } from '@/stores/game-state.store.js';
+import { useGameSessionStore } from '@/stores/game-session.store.js';
+import { pluginTokenService } from '@/services/plugin-token.service.js';
+import type { BaseDocument, StateOperation } from '@dungeon-lab/shared/types/index.js';
 
 interface TokenOptions {
   name: string;

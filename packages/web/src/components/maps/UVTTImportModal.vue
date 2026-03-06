@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, defineEmits, defineExpose } from 'vue';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import type { IMap } from '@dungeon-lab/shared/types/index.mjs';
+import { MapsClient } from '@dungeon-lab/client/index.js';
+import type { IMap } from '@dungeon-lab/shared/types/index.js';
 
 // Props and Emits
 const emit = defineEmits<{

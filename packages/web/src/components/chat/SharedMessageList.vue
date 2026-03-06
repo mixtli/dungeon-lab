@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { type ChatMessage } from '../../stores/chat.store.mts';
+import { type ChatMessage } from '../../stores/chat.store.ts';
 import ApprovalCard from './ApprovalCard.vue';
 import RollRequestMessage from './RollRequestMessage.vue';
 import RollResultMessage from './RollResultMessage.vue';

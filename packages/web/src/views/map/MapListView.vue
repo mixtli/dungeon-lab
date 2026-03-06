@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IMap, IAsset } from '@dungeon-lab/shared/types/index.mjs';
-import { MapsClient } from '@dungeon-lab/client/index.mjs';
-import { transformAssetUrl } from '@/utils/asset-utils.mjs';
+import type { IMap, IAsset } from '@dungeon-lab/shared/types/index.js';
+import { MapsClient } from '@dungeon-lab/client/index.js';
+import { transformAssetUrl } from '@/utils/asset-utils.js';
 import UVTTImportModal from '@/components/maps/UVTTImportModal.vue';
 
 const router = useRouter();

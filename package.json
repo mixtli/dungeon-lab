@@ -46,8 +46,8 @@
     "import:items": "npm run import:items --workspace=@dungeon-lab/plugin-dnd-5e-2024-old",
     "import:all": "npm run import:users && npm run import:characters && npm run import:maps && npm run import:campaigns && npm run import:classes && npm run import:species && npm run import:backgrounds && npm run import:feats && npm run import:monsters && npm run import:spells && npm run import:items",
     "test:compendium": "npm test --workspace=@dungeon-lab/server -- compendium",
-    "test:compendium:import": "npm test --workspace=@dungeon-lab/server -- compendium-import.test.mts",
-    "test:compendium:basic": "npm test --workspace=@dungeon-lab/server -- compendium-basic.test.mts",
+    "test:compendium:import": "npm test --workspace=@dungeon-lab/server -- compendium-import.test.ts",
+    "test:compendium:basic": "npm test --workspace=@dungeon-lab/server -- compendium-basic.test.ts",
     "convert:foundry": "npm run dev --workspace=@dungeon-lab/foundry-converter --",
     "convert:foundry:spells": "npm run dev --workspace=@dungeon-lab/foundry-converter -- --input \"~/Library/Application Support/FoundryVTT/Data/systems/dnd5e/packs/spells24\" --output \"./compendiums/dnd5e-spells24\" --system \"dnd-5e-2024\" --verbose"
   },

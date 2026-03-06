@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
-import { CampaignsClient } from '@dungeon-lab/client/index.mjs';
-import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.mts';
-import { useAuthStore } from '@/stores/auth.store.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.js';
+import { CampaignsClient } from '@dungeon-lab/client/index.js';
+import { useDeviceAdaptation } from '@/composables/useDeviceAdaptation.ts';
+import { useAuthStore } from '@/stores/auth.store.js';
 import CampaignListItemMobile from './CampaignListItemMobile.vue';
 import CampaignListItem from './CampaignListItem.vue';
 

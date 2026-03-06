@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ICampaign } from '@dungeon-lab/shared/types/index.mjs';
+import type { ICampaign } from '@dungeon-lab/shared/types/index.js';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/vue/24/outline';
 
 defineProps<{ 

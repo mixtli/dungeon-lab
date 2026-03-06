@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { CompendiumsClient } from '@dungeon-lab/client/index.mjs';
-import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.mjs';
-import { pluginRegistry } from '../../services/plugin-registry.mts';
+import { CompendiumsClient } from '@dungeon-lab/client/index.js';
+import type { ICompendiumEntry, ICompendium } from '@dungeon-lab/shared/types/index.js';
+import { pluginRegistry } from '../../services/plugin-registry.ts';
 
 // Props
 const props = defineProps<{

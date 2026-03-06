@@ -164,8 +164,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, type Ref } from 'vue';
-import type { BaseDocument } from '@dungeon-lab/shared/types/index.mjs';
-import type { DndItemDocument, DndWeaponData } from '../../types/dnd/item.mjs';
+import type { BaseDocument } from '@dungeon-lab/shared/types/index.js';
+import type { DndItemDocument, DndWeaponData } from '../../types/dnd/item.js';
 
 // Props - following the same pattern as spell sheet
 interface Props {

@@ -111,9 +111,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth.store.mjs';
-import type { ICharacter } from '@dungeon-lab/shared/types/index.mjs';
-import { InvitesClient, DocumentsClient } from '@dungeon-lab/client/index.mjs';
+import { useAuthStore } from '../stores/auth.store.js';
+import type { ICharacter } from '@dungeon-lab/shared/types/index.js';
+import { InvitesClient, DocumentsClient } from '@dungeon-lab/client/index.js';
 
 // Define interface for campaign invite structure
 interface Campaign {
